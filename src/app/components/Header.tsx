@@ -47,7 +47,7 @@ export const Header: React.FC<HeaderProps> = ({
     <div className="flex items-center justify-between h-16">
       <div className="flex-shrink-0">
         <h1 className="text-xl font-bold text-white">
-          <span className="text-red-500">Smart</span> EDMS 
+          <span className="text-red-500">EDMS</span> Media
         </h1>
       </div>
 

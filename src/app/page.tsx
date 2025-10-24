@@ -29,7 +29,8 @@ interface PersonOption {
   label: string;
 }
 
-const formatToApiDate = (date: Date | null): string => {
+// Function to format Date object to 'YYYY-MM-DD HH:MM:SS' string for API
+const formatToApiDateTime = (date: Date | null): string => {
   if (!date) return '';
   const pad = (num: number) => num.toString().padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
@@ -96,9 +97,9 @@ export default function HomePage() {
         if (selectedTags.length > 0) {
         params.append('tags', selectedTags.join(','));
         }
-        const formattedDateFrom = formatToApiDate(dateFrom);
+        const formattedDateFrom = formatToApiDateTime(dateFrom); // Use updated formatter
         if (formattedDateFrom) params.append('date_from', formattedDateFrom);
-        const formattedDateTo = formatToApiDate(dateTo);
+        const formattedDateTo = formatToApiDateTime(dateTo); // Use updated formatter
         if (formattedDateTo) params.append('date_to', formattedDateTo);
         if (selectedYears.length > 0) {
             params.append('years', selectedYears.join(','));
@@ -361,13 +362,21 @@ export default function HomePage() {
     };
 
 
-  const handleUpdateAbstractSuccess = () => {
+  // Updated handler to refresh data and close modal
+  const handleUpdateMetadataSuccess = () => {
+    // Refetch data for the current view
     fetchSectionData(isShowingFullMemories);
-    setSelectedDoc(null);
-     // If the updated doc was part of the memory stack, refetch stack too
-     if (memoryStackItems.some(item => item.doc_id === selectedDoc?.doc_id)) {
+
+    // If the updated doc was part of the memory stack, refetch stack too
+     const updatedDocId = selectedDoc?.doc_id || selectedVideo?.doc_id || selectedPdf?.doc_id;
+     if (updatedDocId && memoryStackItems.some(item => item.doc_id === updatedDocId)) {
           fetchMemoryStack();
      }
+
+     // Close all modals
+    setSelectedDoc(null);
+    setSelectedVideo(null);
+    setSelectedPdf(null);
   };
 
   const handleAnalyze = (uploadedFiles: UploadableFile[]) => {
@@ -585,7 +594,7 @@ export default function HomePage() {
           doc={selectedDoc}
           onClose={() => setSelectedDoc(null)}
           apiURL={API_PROXY_URL}
-          onUpdateAbstractSuccess={handleUpdateAbstractSuccess}
+          onUpdateAbstractSuccess={handleUpdateMetadataSuccess}
         />
       )}
        {selectedVideo && (
@@ -593,6 +602,7 @@ export default function HomePage() {
           doc={selectedVideo}
           onClose={() => setSelectedVideo(null)}
           apiURL={API_PROXY_URL}
+          onUpdateAbstractSuccess={handleUpdateMetadataSuccess}
         />
       )}
       {selectedPdf && (
@@ -600,15 +610,13 @@ export default function HomePage() {
           doc={selectedPdf}
           onClose={() => setSelectedPdf(null)}
           apiURL={API_PROXY_URL}
+          onUpdateAbstractSuccess={handleUpdateMetadataSuccess}
         />
       )}
       {isUploadModalOpen && (
         <UploadModal
             onClose={() => {
               setIsUploadModalOpen(false);
-               if (activeSection === 'recent' || isShowingFullMemories) {
-                    fetchSectionData(isShowingFullMemories);
-               }
             }}
             apiURL={API_PROXY_URL}
             onAnalyze={handleAnalyze}

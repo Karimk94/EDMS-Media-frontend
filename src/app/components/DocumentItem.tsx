@@ -96,6 +96,27 @@ export const DocumentItem: React.FC<DocumentItemProps> = ({ doc, onDocumentClick
     onTagSelect(tag);
   };
 
+  const formatDateOnly = (dateTimeString: string): string => {
+    if (!dateTimeString || dateTimeString === "N/A") {
+        return "N/A";
+    }
+    try {
+        // Split date and time, return only date part
+        const datePart = dateTimeString.split(' ')[0];
+        // Basic check if it looks like a date
+        if (datePart && datePart.includes('-')) {
+             // Further validation could be added here if needed
+             return datePart;
+        }
+        return dateTimeString; // Return original if format is unexpected
+    } catch (e) {
+        console.warn("Could not format date string:", dateTimeString, e);
+        return dateTimeString; // Return original on error
+    }
+};
+
+const displayDate = formatDateOnly(doc.date);
+
   // Construct the asset URL through the proxy
   const thumbnailUrl = `${apiURL}/${doc.thumbnail_url.startsWith('cache') ? '' : 'api/'}${doc.thumbnail_url}`;
 
@@ -130,7 +151,7 @@ export const DocumentItem: React.FC<DocumentItemProps> = ({ doc, onDocumentClick
 
       <div className="flex flex-col flex-grow">
         <h3 className="font-bold text-base text-black truncate group-hover:text-gray-400 transition">{doc.docname || "No title available."}</h3>
-        <p className="text-xs text-gray-400">{doc.date}</p>
+        <p className="text-xs text-gray-400">{displayDate}</p>
         
         <div className="relative mt-auto pt-1">
           {isLoadingTags ? (
