@@ -25,16 +25,22 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateFrom, setDateFrom
 
   const handleDateFromChange = (date: Date | null) => {
     if (date) {
-      date.setHours(0, 0, 0, 0);
+      const newDate = new Date(date);
+      newDate.setHours(0, 0, 0, 0);
+      setDateFrom(newDate);
+    } else {
+      setDateFrom(null);
     }
-    setDateFrom(date);
   };
 
   const handleDateToChange = (date: Date | null) => {
     if (date) {
-      date.setHours(23, 59, 59, 999);
+      const newDate = new Date(date);
+      newDate.setHours(23, 59, 59, 999);
+      setDateTo(newDate);
+    } else {
+      setDateTo(null);
     }
-    setDateTo(date);
   };
 
 
