@@ -31,20 +31,15 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, onAna
   const extractExifDate = async (file: File): Promise<Date | null> => {
     try {
       const tags = await ExifReader.load(file);
-      const dateTimeOriginal = tags['Creation Time']?.value ?? tags['CreateDate'].value;
+      const dateTimeOriginal = tags['Creation Time']?.value ?? tags['CreateDate']?.value;
 
       if (dateTimeOriginal) {
-        const datePart = dateTimeOriginal.split(' ')[0];
-        const parts = datePart.includes(':') ? datePart.split(':') : datePart.split('-');
-        const [yearStr, monthStr, dayStr] = parts;
-        const year = parseInt(yearStr, 10);
-        const month = parseInt(monthStr, 10) - 1;
-        const day = parseInt(dayStr, 10);
-        const parsedDate = new Date(year, month, day);
-        if (!isNaN(parsedDate.getTime())) {
-          return parsedDate;
-        }
+      const parsedDate = new Date(dateTimeOriginal);
+
+      if (!isNaN(parsedDate.getTime())) {
+        return parsedDate;
       }
+    }
     } catch (error) {
       console.warn("Could not read EXIF data client-side:", error);
     }
