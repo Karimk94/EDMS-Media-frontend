@@ -1,19 +1,20 @@
 import React from 'react';
 import { AsyncPaginate } from 'react-select-async-paginate';
+import Creatable from 'react-select/creatable';
 import { GroupBase, OptionsOrGroups } from 'react-select';
-import { Document } from './DocumentItem'; // Import Document type if needed for context
+
+const AnyAsyncPaginate: any = AsyncPaginate;
 
 interface EventOption {
-  value: number; // Event ID
-  label: string; // Event Name
+  value: number;
+  label: string;
 }
 
 interface EventEditorProps {
-  docId?: number; // Optional: For associating event with a specific doc in modals
+  docId?: number; 
   apiURL: string;
   selectedEvent: EventOption | null;
   setSelectedEvent: (event: EventOption | null) => void;
-  // Optional: For handling event changes specifically in modals
   onEventChange?: (docId: number, eventId: number | null) => Promise<boolean>;
 }
 
@@ -93,6 +94,16 @@ export const EventEditor: React.FC<EventEditorProps> = ({
     }
   };
 
+  const isValidNewOption = (inputValue: string, selectValue: any, selectOptions: any) => {
+    if (inputValue.trim().length < 3) {
+        return false;
+    }
+    const isOptionAlreadyPresent = selectOptions.some(
+        (option: EventOption) => option.label.toLowerCase() === inputValue.toLowerCase()
+    );
+    return !isOptionAlreadyPresent;
+  };
+
   // --- react-select styles ---
   const selectStyles = {
     control: (base: any) => ({ ...base, backgroundColor: '#121212', borderColor: '#4b5563', minHeight: '38px', height: '38px' }),
@@ -106,27 +117,58 @@ export const EventEditor: React.FC<EventEditorProps> = ({
     clearIndicator: (base: any) => ({...base, padding: '4px'}), // Adjust clear button padding
     placeholder: (base: any) => ({...base, color: '#9ca3af'}), // Style placeholder
   };
-
   return (
-    <div className="mb-4">
-      <label className="block text-sm font-medium text-gray-300 mb-1">Event</label>
-      <AsyncPaginate
-        isClearable
-        value={selectedEvent}
-        loadOptions={loadEventOptions}
-        onChange={handleChange}
-        {...({ onCreateOption: createEvent } as any)} // Cast to any because AsyncPaginate's typings don't include onCreateOption
-        getNewOptionData={(inputValue: any, optionLabel: any) => ({ value: -1, label: `Create "${optionLabel}"` })} // Customize create label
-        formatCreateLabel={(inputValue: any) => `Create new event: "${inputValue}"`}
-        placeholder="Select or create an event..."
-        debounceTimeout={300} // Add debounce for searching
-        additional={{
-          page: 1,
-        }}
-        styles={selectStyles} // Apply custom styles
-        // Ensure menuPortalTarget is set if used inside elements with overflow:hidden or specific z-index
-        // menuPortalTarget={document.body}
-      />
-    </div>
+  <div className="mb-4">
+    <label className="block text-sm font-medium text-gray-300 mb-1">Event</label>
+    <AnyAsyncPaginate
+      SelectComponent={Creatable}
+      isClearable
+      value={selectedEvent}
+      loadOptions={loadEventOptions}
+      onChange={handleChange}
+      onCreateOption={async (inputValue: string) => {
+        const newOption = await createEvent(inputValue);
+        if (newOption) {
+          handleChange(newOption);
+        }
+      }}
+      isValidNewOption={isValidNewOption}
+      // Allow creating while async options are loading
+      allowCreateWhileLoading={true}
+      createOptionPosition="first"
+      // Ensure the created item has the same shape as EventOption (temporary id -1 until backend returns real id)
+      getNewOptionData={(inputValue: string) => ({ value: -1, label: inputValue })}
+      formatCreateLabel={(inputValue: string) => `Create "${inputValue}"`}
+      noOptionsMessage={(obj: any) => {
+        const input = typeof obj === 'string' ? obj : obj?.inputValue ?? '';
+        const trimmed = input.trim();
+        // If user typed at least 3 chars, show a clickable "Create" option
+        if (trimmed.length >= 3) {
+          return (
+            <div
+              style={{ padding: '8px 12px', cursor: 'pointer', color: '#9ca3af' }}
+              onMouseDown={(e) => {
+                // use onMouseDown to avoid blurring the control before the click registers
+                e.preventDefault();
+                (async () => {
+                  const newOption = await createEvent(trimmed);
+                  if (newOption) handleChange(newOption);
+                })();
+              }}
+            >
+              Create "{trimmed}"
+            </div>
+          );
+        }
+        return input ? "No events found" : "Type to search events...";
+      }}
+      placeholder="Select or create an event..."
+      debounceTimeout={300}
+      additional={{
+        page: 1,
+      }}
+      styles={selectStyles}
+    />
+  </div>
   );
 };
