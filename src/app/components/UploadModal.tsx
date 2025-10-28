@@ -48,11 +48,11 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, onAna
       }
     }
     } catch (error) {
-      console.warn("Could not read EXIF data client-side:", error);
+      console.warn(`Could not read EXIF data for ${file.name}:`, error);
     }
-    console.warn("Client-side EXIF date extraction requires a library (e.g., 'exifreader'). Falling back to null.");
-    return null; // Default to null if no EXIF data or library not implemented
+    return null; // Default to null if no EXIF data or parsing fails
   };
+
 
   const handleFiles = async (selectedFiles: FileList | null) => {
     if (!selectedFiles) return;
@@ -78,7 +78,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, onAna
     event.stopPropagation();
     setIsDragOver(false);
     handleFiles(event.dataTransfer.files);
-  }, []);
+  }, []); // Added handleFiles to dependency array if it changes, though unlikely here
 
   const onDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -125,9 +125,12 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, onAna
         // Use editedFileName if available and not empty, otherwise original file name
         formData.append('docname', (editedFileName && editedFileName.trim()) ? editedFileName.trim() : file.name);
         formData.append('abstract', ``); // Keep abstract empty for now
+
+        // --- Append event_id if selected ---
         if (selectedEvent) {
           formData.append('event_id', String(selectedEvent.value));
         }
+        // --- End Append event_id ---
 
         // Add formatted date_taken if available
         const formattedDate = formatDateTimeForAPI(editedDateTaken);
@@ -202,7 +205,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, onAna
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row gap-4 md:gap-8 overflow-hidden">
-        {/* Left Side: Dropzone */}
+        {/* Left Side: Dropzone & Event Editor */}
         <div className="w-full md:w-1/3 flex flex-col">
             <div
                 onDrop={onDrop}
@@ -217,11 +220,13 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, onAna
                 </label>
                 <input id="file-upload" type="file" multiple className="hidden" onChange={e => handleFiles(e.target.files)} />
             </div>
+            {/* --- EventEditor for Upload --- */}
             <div className="mt-4">
               <EventEditor
                 apiURL={apiURL}
                 selectedEvent={selectedEvent}
                 setSelectedEvent={setSelectedEvent}
+                // No docId or onEventChange needed here
               />
             </div>
         </div>
