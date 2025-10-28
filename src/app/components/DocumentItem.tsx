@@ -10,17 +10,19 @@ export interface Document {
   thumbnail_url: string;
   media_type: 'image' | 'video' | 'pdf';
   tags?: string[];
+  is_favorite?: boolean;
 }
 
 interface DocumentItemProps {
     doc: Document;
     onDocumentClick: (doc: Document) => void;
-    apiURL: string;   // All URLs go through the proxy
+    apiURL: string;
     onTagSelect: (tag: string) => void;
     isProcessing: boolean;
+    onToggleFavorite: (docId: number, isFavorite: boolean) => void;
 }
 
-export const DocumentItem: React.FC<DocumentItemProps> = ({ doc, onDocumentClick, apiURL, onTagSelect, isProcessing }) => {
+export const DocumentItem: React.FC<DocumentItemProps> = ({ doc, onDocumentClick, apiURL, onTagSelect, isProcessing, onToggleFavorite }) => {
   const [isPopupVisible, setIsPopupVisible] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -28,6 +30,18 @@ export const DocumentItem: React.FC<DocumentItemProps> = ({ doc, onDocumentClick
   
   const [itemTags, setItemTags] = useState<string[]>([]);
   const [isLoadingTags, setIsLoadingTags] = useState(true);
+  const [isFavorite, setIsFavorite] = useState(doc.is_favorite);
+
+  useEffect(() => {
+    setIsFavorite(doc.is_favorite);
+  }, [doc.is_favorite]);
+
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newFavoriteStatus = !isFavorite;
+    setIsFavorite(newFavoriteStatus);
+    onToggleFavorite(doc.doc_id, newFavoriteStatus);
+  };
 
   useEffect(() => {
     const fetchTags = async () => {
@@ -101,23 +115,19 @@ export const DocumentItem: React.FC<DocumentItemProps> = ({ doc, onDocumentClick
         return "N/A";
     }
     try {
-        // Split date and time, return only date part
         const datePart = dateTimeString.split(' ')[0];
-        // Basic check if it looks like a date
         if (datePart && datePart.includes('-')) {
-             // Further validation could be added here if needed
              return datePart;
         }
-        return dateTimeString; // Return original if format is unexpected
+        return dateTimeString;
     } catch (e) {
         console.warn("Could not format date string:", dateTimeString, e);
-        return dateTimeString; // Return original on error
+        return dateTimeString;
     }
 };
 
 const displayDate = formatDateOnly(doc.date);
 
-  // Construct the asset URL through the proxy
   const thumbnailUrl = `${apiURL}/${doc.thumbnail_url.startsWith('cache') ? '' : 'api/'}${doc.thumbnail_url}`;
 
   return (
@@ -147,6 +157,11 @@ const displayDate = formatDateOnly(doc.date);
             <img src="/file.svg" alt="PDF Icon" className="w-4 h-4" />
           </div>
         )}
+        <button onClick={handleFavoriteClick} className="absolute top-2 left-2 text-white hover:text-yellow-400 z-20">
+          <svg className={`w-6 h-6 ${isFavorite ? 'text-yellow-400' : 'text-gray-300'}`} fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.539 1.118l-3.976-2.888a1 1 0 00-1.175 0l-3.976 2.888c-.784.57-1.838-.196-1.539-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+          </svg>
+        </button>
       </div>
 
       <div className="flex flex-col flex-grow">
