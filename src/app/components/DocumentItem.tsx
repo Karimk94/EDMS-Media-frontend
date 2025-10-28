@@ -66,7 +66,7 @@ export const DocumentItem: React.FC<DocumentItemProps> = ({ doc, onDocumentClick
     }
   }, [doc.doc_id, apiURL, isProcessing]);
   
-  const MAX_VISIBLE_TAGS = 3; // Reduced for better single-line fit
+  const MAX_VISIBLE_TAGS = 3;
   const hasOverflow = itemTags.length > MAX_VISIBLE_TAGS;
 
   const visibleTags = hasOverflow
@@ -157,7 +157,6 @@ const displayDate = formatDateOnly(doc.date);
             <img src="/file.svg" alt="PDF Icon" className="w-4 h-4" />
           </div>
         )}
-        {/* FIX: Constrained size of the favorite button */}
         <button 
           onClick={handleFavoriteClick} 
           className="absolute top-2 left-2 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black bg-opacity-30 text-white hover:text-yellow-400"
@@ -181,10 +180,14 @@ const displayDate = formatDateOnly(doc.date);
           ) : (
             itemTags.length > 0 && (
               <>
-                {/* FIX: Added `flex-nowrap` to prevent wrapping */}
-                <div className="flex flex-nowrap items-center">
+                <div className="flex flex-nowrap items-center gap-1">
                   {visibleTags.map((tag, index) => (
-                    <button key={index} onClick={(e) => handleTagClick(e, tag)} className="flex-shrink-0 bg-gray-200 text-black text-xs font-medium mr-1 px-2 py-0.5 rounded-md hover:bg-gray-300">
+                    <button 
+                      key={index} 
+                      onClick={(e) => handleTagClick(e, tag)} 
+                      className="truncate max-w-32 flex-shrink-0 bg-gray-200 text-black text-xs font-medium px-2 py-0.5 rounded-md hover:bg-gray-300"
+                      title={tag}
+                    >
                       {tag}
                     </button>
                   ))}
@@ -208,9 +211,9 @@ const displayDate = formatDateOnly(doc.date);
                     onMouseLeave={handleMouseLeave}
                     className="absolute bottom-full left-0 mb-2 w-auto min-w-[150px] max-w-xs bg-white rounded-md shadow-lg p-2 z-10"
                   >
-                    <div className="flex flex-wrap">
+                    <div className="flex flex-wrap gap-1">
                       {itemTags.map((tag, index) => (
-                        <button key={index} onClick={(e) => handleTagClick(e, tag)} className="bg-gray-200 text-black text-xs font-medium mr-1 mb-1 px-2 py-0.5 rounded-md hover:bg-gray-300">
+                        <button key={index} onClick={(e) => handleTagClick(e, tag)} className="bg-gray-200 text-black text-xs font-medium px-2 py-0.5 rounded-md hover:bg-gray-300">
                           {tag}
                         </button>
                       ))}

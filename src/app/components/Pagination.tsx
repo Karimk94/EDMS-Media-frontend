@@ -12,7 +12,9 @@ export const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages,
       onClick={() => onPageChange(page)}
       disabled={isDisabled}
       className={`px-4 py-2 border rounded-md text-sm font-medium transition ${
-        isDisabled ? 'bg-white hover:bg-gray-50 cursor-not-allowed' : 'bg-gray-100 text-gray-400'
+        isDisabled
+          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+          : 'bg-white hover:bg-gray-50'
       }`}
     >
       {children}
