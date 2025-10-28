@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { UploadFileItem, UploadableFile, UploadStatus } from './UploadFileItem';
 import ExifReader from 'exifreader'; // Example library for EXIF data
+import { EventEditor } from './EventEditor';
 
 const formatDateTimeForAPI = (date: Date | null): string | null => {
     if (!date) return null;
@@ -22,11 +23,17 @@ export interface UploadModalProps {
   onAnalyze: (uploadedFiles: UploadableFile[]) => void;
 }
 
+interface EventOption {
+  value: number;
+  label: string;
+}
+
 export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, onAnalyze }) => {
   const [files, setFiles] = useState<UploadableFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileIdCounter = useRef(0);
+  const [selectedEvent, setSelectedEvent] = useState<EventOption | null>(null);
 
   const extractExifDate = async (file: File): Promise<Date | null> => {
     try {
@@ -118,6 +125,9 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, onAna
         // Use editedFileName if available and not empty, otherwise original file name
         formData.append('docname', (editedFileName && editedFileName.trim()) ? editedFileName.trim() : file.name);
         formData.append('abstract', ``); // Keep abstract empty for now
+        if (selectedEvent) {
+          formData.append('event_id', String(selectedEvent.value));
+        }
 
         // Add formatted date_taken if available
         const formattedDate = formatDateTimeForAPI(editedDateTaken);
@@ -206,6 +216,13 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, onAna
                     Browse Files
                 </label>
                 <input id="file-upload" type="file" multiple className="hidden" onChange={e => handleFiles(e.target.files)} />
+            </div>
+            <div className="mt-4">
+              <EventEditor
+                apiURL={apiURL}
+                selectedEvent={selectedEvent}
+                setSelectedEvent={setSelectedEvent}
+              />
             </div>
         </div>
 
