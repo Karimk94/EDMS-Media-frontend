@@ -24,24 +24,23 @@ async function proxyHandler(req: NextRequest): Promise<NextResponse> {
 
   const targetUrl = `${targetApiBaseUrl}${finalPath}${req.nextUrl.search}`;
   
-  const headers = new Headers();
-  if (req.headers.get('Content-Type')) {
-    headers.set('Content-Type', req.headers.get('Content-Type')!);
-  }
+  // Forward all headers from the original request, including the cookie
+  const headers = new Headers(req.headers);
 
   try {
     const response = await fetch(targetUrl, {
       method: req.method,
-      headers: headers,
+      headers: headers, // Use the forwarded headers
       body: req.method !== 'GET' && req.method !== 'HEAD' ? req.body : undefined,
       // @ts-ignore
       duplex: 'half', 
     });
 
+    const newHeaders = new Headers(response.headers);
     return new NextResponse(response.body, {
       status: response.status,
       statusText: response.statusText,
-      headers: response.headers,
+      headers: newHeaders,
     });
   } catch (error) {
     console.error('API proxy error:', error);
