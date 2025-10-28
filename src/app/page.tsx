@@ -13,13 +13,12 @@ import { UploadModal } from './components/UploadModal';
 import { UploadableFile } from './components/UploadFileItem';
 import { DocumentItemSkeleton } from './components/DocumentItemSkeleton';
 import { MemoriesStack } from './components/MemoriesStack';
+import { EventStack, EventItem as EventStackItem } from './components/EventStack';
+// Import the new modal
+import { EventDocumentModal } from './components/EventDocumentModal';
+
 
 type ActiveSection = 'recent' | 'favorites' | 'events' | 'memories';
-
-interface EventItem {
-  id: number;
-  name: string;
-}
 
 interface PersonOption {
   value: number;
@@ -42,7 +41,7 @@ export default function HomePage() {
 
   const [activeSection, setActiveSection] = useState<ActiveSection>('recent');
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [events, setEvents] = useState<EventItem[]>([]);
+  const [events, setEvents] = useState<EventStackItem[]>([]); // Use EventStackItem type
   const [memoryStackItems, setMemoryStackItems] = useState<Document[]>([]);
   const [isShowingFullMemories, setIsShowingFullMemories] =
     useState<boolean>(false);
@@ -71,6 +70,12 @@ export default function HomePage() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [processingDocs, setProcessingDocs] = useState<number[]>([]);
 
+  // State for the Event Document Modal
+  const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [selectedEventIdForModal, setSelectedEventIdForModal] = useState<number | null>(null);
+  const [selectedEventNameForModal, setSelectedEventNameForModal] = useState<string>('');
+
+
   const API_PROXY_URL = '/api';
 
   useEffect(() => {
@@ -90,19 +95,27 @@ export default function HomePage() {
     checkUser();
   }, [router]);
 
+  // --- fetchSectionData remains the same as previous version ---
   const fetchSectionData = useCallback(
     async (isMemoryFetch = false) => {
-      if (!isLoadingMemoryStack || isMemoryFetch) {
-        setIsLoading(true);
+      // Manage loading state based on context
+      if (!isLoadingMemoryStack || isMemoryFetch || activeSection === 'events') {
+          setIsLoading(true);
       }
       setError(null);
-      setDocuments([]);
-      setEvents([]);
+      // Reset only the relevant state for the current section
+      if (activeSection === 'events') {
+          setEvents([]);
+      } else {
+          setDocuments([]);
+      }
 
       let url: URL;
       const params = new URLSearchParams();
       params.append('page', String(currentPage));
+      params.append('pageSize', '20'); // Add pageSize consistently
 
+      // Apply filters only if not fetching memories
       if (!isMemoryFetch) {
         if (searchTerm) params.append('search', searchTerm);
         if (selectedPerson && selectedPerson.length > 0) {
@@ -125,9 +138,10 @@ export default function HomePage() {
           params.append('years', selectedYears.join(','));
         }
       } else {
+        // Specific parameters for full memories view
         const now = new Date();
         params.append('memoryMonth', String(now.getMonth() + 1));
-        params.append('sort', 'rtadocdate_desc');
+        params.append('sort', 'rtadocdate_desc'); // Sort memories by date
       }
 
       try {
@@ -135,29 +149,29 @@ export default function HomePage() {
         let dataSetter: React.Dispatch<React.SetStateAction<any[]>> =
           setDocuments;
         let dataKey = 'documents';
-        let totalPagesKey = 'total_pages';
+        let totalPagesKey = 'total_pages'; // Key for total pages in the response
 
         if (isMemoryFetch) {
-          endpoint = '/documents';
-          dataSetter = setDocuments;
+          endpoint = '/documents'; // Memories use the documents endpoint with specific params
+          dataSetter = setDocuments as React.Dispatch<React.SetStateAction<Document[]>>; // Cast for memories
           dataKey = 'documents';
         } else {
           switch (activeSection) {
             case 'recent':
               endpoint = '/documents';
               params.append('sort', 'date_desc');
-              dataSetter = setDocuments;
+              dataSetter = setDocuments as React.Dispatch<React.SetStateAction<Document[]>>; // Cast for recent
               dataKey = 'documents';
               break;
             case 'favorites':
               endpoint = '/favorites';
-              dataSetter = setDocuments;
+              dataSetter = setDocuments as React.Dispatch<React.SetStateAction<Document[]>>; // Cast for favorites
               dataKey = 'documents';
               break;
             case 'events':
               endpoint = '/events';
-              dataSetter = setEvents;
-              dataKey = 'events';
+              dataSetter = setEvents as React.Dispatch<React.SetStateAction<EventStackItem[]>>; // Cast for events
+              dataKey = 'events'; // Expect 'events' key from the updated backend
               break;
             default:
               throw new Error(`Invalid section: ${activeSection}`);
@@ -167,6 +181,7 @@ export default function HomePage() {
         if (endpoint) {
           url = new URL(`${API_PROXY_URL}${endpoint}`, window.location.origin);
           url.search = params.toString();
+          console.log(`Fetching ${activeSection}: ${url.toString()}`); // Log the URL
 
           const response = await fetch(url);
           if (!response.ok)
@@ -176,9 +191,13 @@ export default function HomePage() {
               }. Status: ${response.status}`
             );
           const data = await response.json();
-          dataSetter(data[dataKey] || []);
-          setTotalPages(data[totalPagesKey] || 1);
-        } else if (!isMemoryFetch) {
+          // Debugging the received data structure for events
+          if (activeSection === 'events') {
+              console.log("Received data for events:", data);
+          }
+          dataSetter(data[dataKey] || []); // Set data using the correct setter
+          setTotalPages(data[totalPagesKey] || 1); // Set total pages from response
+        } else if (!isMemoryFetch) { // Handle case where endpoint might be empty (shouldn't happen with default)
           setDocuments([]);
           setEvents([]);
           setTotalPages(1);
@@ -193,13 +212,13 @@ export default function HomePage() {
             isMemoryFetch ? 'memories' : activeSection
           }. Is the API ready? ${err.message}`
         );
+        // Reset both potentially relevant states on error
         setDocuments([]);
         setEvents([]);
         setTotalPages(1);
       } finally {
-        if (!isLoadingMemoryStack || isMemoryFetch) {
-          setIsLoading(false);
-        }
+         // Always set loading to false after fetch attempt
+        setIsLoading(false);
       }
     },
     [
@@ -212,11 +231,12 @@ export default function HomePage() {
       personCondition,
       selectedTags,
       selectedYears,
-      isLoadingMemoryStack,
+      isLoadingMemoryStack, // Keep dependency
     ]
   );
 
-  const fetchMemoryStack = async () => {
+  // --- fetchMemoryStack remains the same ---
+   const fetchMemoryStack = async () => {
     setIsLoadingMemoryStack(true);
     try {
       const now = new Date();
@@ -238,14 +258,17 @@ export default function HomePage() {
     }
   };
 
-  useEffect(() => {
+
+  // --- useEffect hooks for fetching data remain the same ---
+   useEffect(() => {
     if (user) {
       if (isShowingFullMemories) {
-        fetchSectionData(true);
+        fetchSectionData(true); // Fetch full memories
       } else {
-        fetchSectionData(false);
+        fetchSectionData(false); // Fetch based on activeSection and filters
       }
     }
+    // Dependency array includes fetchSectionData and currentPage to refetch on page change
   }, [fetchSectionData, isShowingFullMemories, currentPage, user]);
 
   useEffect(() => {
@@ -254,7 +277,7 @@ export default function HomePage() {
     }
   }, [user]);
 
-  useEffect(() => {
+   useEffect(() => {
     if (user) {
       const storedProcessingDocs = localStorage.getItem('processingDocs');
       if (storedProcessingDocs) {
@@ -303,7 +326,8 @@ export default function HomePage() {
             setProcessingDocs(stillProcessing);
             if (stillProcessing.length === 0) {
               clearInterval(interval);
-              if (activeSection === 'recent' || isShowingFullMemories) {
+              // Refresh data if the currently viewed section might have changed
+              if (activeSection === 'recent' || activeSection === 'events' || isShowingFullMemories) {
                 fetchSectionData(isShowingFullMemories);
               }
             }
@@ -325,16 +349,15 @@ export default function HomePage() {
     user,
   ]);
 
-  const handleSearch = (newSearchTerm: string) => {
+  // --- Other handlers (handleSearch, handleClearFilters, etc.) remain the same ---
+   const handleSearch = (newSearchTerm: string) => {
     setIsShowingFullMemories(false);
-    setActiveSection('recent');
     setSearchTerm(newSearchTerm);
     setCurrentPage(1);
   };
 
   const handleClearFilters = () => {
     setIsShowingFullMemories(false);
-    setActiveSection('recent');
     setSearchTerm('');
     setDateFrom(null);
     setDateTo(null);
@@ -362,6 +385,7 @@ export default function HomePage() {
     }
   };
 
+
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
@@ -373,6 +397,8 @@ export default function HomePage() {
       setIsShowingFullMemories(false);
       setActiveSection(section);
       setCurrentPage(1);
+       // Clear filters when changing section? Optional.
+      // handleClearFilters();
     }
   };
 
@@ -382,13 +408,21 @@ export default function HomePage() {
     else setSelectedDoc(doc);
   };
 
-  const handleEventClick = (event: EventItem) => {
-    console.log('Event clicked:', event);
+  // --- UPDATED handleEventClick ---
+  const handleEventClick = (eventId: number) => {
+    const clickedEvent = events.find(e => e.id === eventId);
+    if (clickedEvent) {
+        setSelectedEventIdForModal(eventId);
+        setSelectedEventNameForModal(clickedEvent.name); // Store name
+        setIsEventModalOpen(true);
+        // Fetching is now handled inside the modal's useEffect
+    } else {
+        console.warn(`Could not find event details for ID: ${eventId}`);
+    }
   };
 
   const handleTagSelect = (tag: string) => {
     setIsShowingFullMemories(false);
-    setActiveSection('recent');
     if (!selectedTags.includes(tag)) {
       setSelectedTags([...selectedTags, tag]);
     }
@@ -397,23 +431,16 @@ export default function HomePage() {
 
   const handleYearSelect = (years: number[]) => {
     setIsShowingFullMemories(false);
-    setActiveSection('recent');
     setSelectedYears(years);
     setCurrentPage(1);
   };
 
   const handleUpdateMetadataSuccess = () => {
     fetchSectionData(isShowingFullMemories);
-
-    const updatedDocId =
-      selectedDoc?.doc_id || selectedVideo?.doc_id || selectedPdf?.doc_id;
-    if (
-      updatedDocId &&
-      memoryStackItems.some((item) => item.doc_id === updatedDocId)
-    ) {
+    const updatedDocId = selectedDoc?.doc_id || selectedVideo?.doc_id || selectedPdf?.doc_id;
+    if (updatedDocId && memoryStackItems.some((item) => item.doc_id === updatedDocId)) {
       fetchMemoryStack();
     }
-
     setSelectedDoc(null);
     setSelectedVideo(null);
     setSelectedPdf(null);
@@ -422,18 +449,12 @@ export default function HomePage() {
   const handleAnalyze = (uploadedFiles: UploadableFile[]) => {
     const docnumbers = uploadedFiles.map((f) => f.docnumber!).filter(Boolean);
     setIsUploadModalOpen(false);
-
-    const newProcessingDocs = Array.from(
-      new Set([...processingDocs, ...docnumbers])
-    );
+    const newProcessingDocs = Array.from(new Set([...processingDocs, ...docnumbers]));
     setProcessingDocs(newProcessingDocs);
-
     setIsShowingFullMemories(false);
     setActiveSection('recent');
     setCurrentPage(1);
-
-    fetchSectionData(false);
-
+    // Fetch is triggered by useEffect on section/page change
     fetch(`${API_PROXY_URL}/process_uploaded_documents`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -457,11 +478,19 @@ export default function HomePage() {
       if (!response.ok) {
         throw new Error('Failed to update favorite status');
       }
-      setDocuments(
-        documents.map((d) =>
-          d.doc_id === docId ? { ...d, is_favorite: isFavorite } : d
-        )
-      );
+      if (activeSection === 'favorites' || activeSection === 'recent') {
+          setDocuments(
+            documents.map((d) =>
+              d.doc_id === docId ? { ...d, is_favorite: isFavorite } : d
+            )
+          );
+      }
+      if (activeSection === 'favorites' && !isFavorite) {
+          fetchSectionData(false);
+      }
+       setMemoryStackItems(
+           memoryStackItems.map(m => m.doc_id === docId ? { ...m, is_favorite: isFavorite } : m)
+       );
     } catch (error) {
       console.error(error);
     }
@@ -471,8 +500,8 @@ export default function HomePage() {
     try {
       const response = await fetch('/api/auth/logout', { method: 'POST' });
       if (response.ok) {
-        setUser(null); // Clear local user state
-        router.push('/login'); // Redirect to login page
+        setUser(null);
+        router.push('/login');
       } else {
         console.error('Logout failed');
         alert('Logout failed. Please try again.');
@@ -484,15 +513,11 @@ export default function HomePage() {
   };
 
   const hasActiveFilters = Boolean(
-    searchTerm ||
-      dateFrom ||
-      dateTo ||
-      selectedPerson?.length ||
-      selectedTags.length ||
-      selectedYears.length
+    searchTerm || dateFrom || dateTo || selectedPerson?.length || selectedTags.length || selectedYears.length
   );
 
-  const renderContent = () => {
+  // --- renderContent remains the same as previous version ---
+    const renderContent = () => {
     if (isLoading) {
       return (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8">
@@ -511,6 +536,7 @@ export default function HomePage() {
       );
     }
 
+    // --- Full Memories View ---
     if (isShowingFullMemories) {
       if (documents.length === 0) {
         return (
@@ -531,7 +557,7 @@ export default function HomePage() {
             onDocumentClick={handleDocumentClick}
             apiURL={API_PROXY_URL}
             onTagSelect={handleTagSelect}
-            isLoading={false}
+            isLoading={false} // Already handled loading state above
             processingDocs={processingDocs}
             onToggleFavorite={handleToggleFavorite}
           />
@@ -539,26 +565,32 @@ export default function HomePage() {
       );
     }
 
+    // --- Events View (Using EventStack) ---
     if (activeSection === 'events') {
       if (events.length === 0) {
         return (
-          <p className="text-center text-gray-500 py-10">No events found.</p>
+          <p className="text-center text-gray-500 py-10">
+            No events with linked documents found matching your criteria.
+          </p>
         );
       }
+      // Render a grid of EventStack components
       return (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8">
           {events.map((event) => (
-            <div
+            <EventStack
               key={event.id}
-              className="bg-white p-4 rounded-lg cursor-pointer hover:bg-gray-100 shadow"
-              onClick={() => handleEventClick(event)}
-            >
-              <h3 className="font-semibold text-gray-800">{event.name}</h3>
-            </div>
+              event={event}
+              apiURL={API_PROXY_URL}
+              onClick={handleEventClick} // Use the new handler
+            />
           ))}
         </div>
       );
-    } else {
+    }
+
+    // --- Default: Recent or Favorites (Document List) ---
+    else {
       if (documents.length === 0) {
         return (
           <p className="text-center text-gray-500 py-10">
@@ -572,7 +604,7 @@ export default function HomePage() {
           onDocumentClick={handleDocumentClick}
           apiURL={API_PROXY_URL}
           onTagSelect={handleTagSelect}
-          isLoading={false}
+          isLoading={false} // Already handled loading state above
           processingDocs={processingDocs}
           onToggleFavorite={handleToggleFavorite}
         />
@@ -580,7 +612,8 @@ export default function HomePage() {
     }
   };
 
-  const getSectionButtonClass = (section: ActiveSection) => {
+  // --- getSectionButtonClass remains the same ---
+   const getSectionButtonClass = (section: ActiveSection) => {
     const base =
       'flex items-center px-4 py-2 text-sm font-medium rounded-md transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100';
     const active = 'bg-red-600 text-white';
@@ -594,27 +627,20 @@ export default function HomePage() {
     return `${base} ${isCurrentlyActive ? active : inactive}`;
   };
 
-  if (!user) {
-    return null; // Or a loading spinner
-  }
+  // --- Main return ---
+  if (!user) return null; // Or loading
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
       <Header
         onSearch={handleSearch}
         onClearCache={handleClearCache}
-        dateFrom={dateFrom}
-        setDateFrom={setDateFrom}
-        dateTo={dateTo}
-        setDateTo={setDateTo}
-        selectedPerson={selectedPerson}
-        setSelectedPerson={setSelectedPerson}
-        personCondition={personCondition}
-        setPersonCondition={setPersonCondition}
-        selectedTags={selectedTags}
-        setSelectedTags={setSelectedTags}
-        selectedYears={selectedYears}
-        setSelectedYears={handleYearSelect}
+        dateFrom={dateFrom} setDateFrom={setDateFrom}
+        dateTo={dateTo} setDateTo={setDateTo}
+        selectedPerson={selectedPerson} setSelectedPerson={setSelectedPerson}
+        personCondition={personCondition} setPersonCondition={setPersonCondition}
+        selectedTags={selectedTags} setSelectedTags={setSelectedTags}
+        selectedYears={selectedYears} setSelectedYears={handleYearSelect}
         apiURL={API_PROXY_URL}
         onOpenUploadModal={() => setIsUploadModalOpen(true)}
         isProcessing={processingDocs.length > 0}
@@ -625,46 +651,19 @@ export default function HomePage() {
 
       <nav className="bg-gray-100 px-4 sm:px-6 lg:px-8 py-3 border-b border-gray-200">
         <div className="flex space-x-4 items-center">
-          <button
-            onClick={() => handleSectionChange('recent')}
-            className={getSectionButtonClass('recent')}
-          >
-            <img
-              src="/clock.svg"
-              alt=""
-              className="w-4 h-4 mr-2 inline-block"
-            />
-            Recently Added
-          </button>
-          <button
-            onClick={() => handleSectionChange('favorites')}
-            className={getSectionButtonClass('favorites')}
-          >
-            <img src="/star.svg" alt="" className="w-4 h-4 mr-2 inline-block" />
-            Favorites
-          </button>
-          <button
-            onClick={() => handleSectionChange('events')}
-            className={getSectionButtonClass('events')}
-          >
-            <img
-              src="/history-calendar.svg"
-              alt=""
-              className="w-4 h-4 mr-2 inline-block"
-            />
-            Events
-          </button>
-          <button
-            onClick={handleMemoryStackClick}
-            className={getSectionButtonClass('memories')}
-          >
-            <img
-              src="/history.svg"
-              alt=""
-              className="w-4 h-4 mr-2 inline-block"
-            />
-            Memories
-          </button>
+            {/* Navigation buttons remain the same */}
+             <button onClick={() => handleSectionChange('recent')} className={getSectionButtonClass('recent')}>
+                <img src="/clock.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: activeSection === 'recent' && !isShowingFullMemories ? 'brightness(0) invert(1)' : 'none' }} /> Recently Added
+            </button>
+            <button onClick={() => handleSectionChange('favorites')} className={getSectionButtonClass('favorites')}>
+                <img src="/star.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: activeSection === 'favorites' && !isShowingFullMemories ? 'brightness(0) invert(1)' : 'none' }} /> Favorites
+            </button>
+            <button onClick={() => handleSectionChange('events')} className={getSectionButtonClass('events')}>
+                <img src="/history-calendar.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: activeSection === 'events' && !isShowingFullMemories ? 'brightness(0) invert(1)' : 'none' }} /> Events
+            </button>
+            <button onClick={handleMemoryStackClick} className={getSectionButtonClass('memories')}>
+                <img src="/history.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: isShowingFullMemories ? 'brightness(0) invert(1)' : 'none' }} /> Memories
+            </button>
         </div>
       </nav>
 
@@ -679,7 +678,8 @@ export default function HomePage() {
           />
         )}
 
-        {!isShowingFullMemories && (
+         {/* Memories Stack Section remains the same */}
+         {!isShowingFullMemories && (
           <section className="mt-16 pt-8 border-t border-gray-200">
             <h2 className="text-xl font-semibold text-gray-700 mb-4">
               On this month in the past...
@@ -703,42 +703,21 @@ export default function HomePage() {
         )}
       </main>
 
-      {selectedDoc && (
-        <ImageModal
-          doc={selectedDoc}
-          onClose={() => setSelectedDoc(null)}
-          apiURL={API_PROXY_URL}
-          onUpdateAbstractSuccess={handleUpdateMetadataSuccess}
-          onToggleFavorite={handleToggleFavorite}
-        />
-      )}
-      {selectedVideo && (
-        <VideoModal
-          doc={selectedVideo}
-          onClose={() => setSelectedVideo(null)}
-          apiURL={API_PROXY_URL}
-          onUpdateAbstractSuccess={handleUpdateMetadataSuccess}
-          onToggleFavorite={handleToggleFavorite}
-        />
-      )}
-      {selectedPdf && (
-        <PdfModal
-          doc={selectedPdf}
-          onClose={() => setSelectedPdf(null)}
-          apiURL={API_PROXY_URL}
-          onUpdateAbstractSuccess={handleUpdateMetadataSuccess}
-          onToggleFavorite={handleToggleFavorite}
-        />
-      )}
-      {isUploadModalOpen && (
-        <UploadModal
-          onClose={() => {
-            setIsUploadModalOpen(false);
-          }}
-          apiURL={API_PROXY_URL}
-          onAnalyze={handleAnalyze}
-        />
-      )}
+       {/* Existing Modals remain the same */}
+       {selectedDoc && <ImageModal doc={selectedDoc} onClose={() => setSelectedDoc(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} />}
+       {selectedVideo && <VideoModal doc={selectedVideo} onClose={() => setSelectedVideo(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} />}
+       {selectedPdf && <PdfModal doc={selectedPdf} onClose={() => setSelectedPdf(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} />}
+       {isUploadModalOpen && <UploadModal onClose={() => setIsUploadModalOpen(false)} apiURL={API_PROXY_URL} onAnalyze={handleAnalyze} />}
+
+       {/* --- NEW: Render EventDocumentModal --- */}
+       <EventDocumentModal
+         isOpen={isEventModalOpen}
+         onClose={() => setIsEventModalOpen(false)}
+         initialEventId={selectedEventIdForModal}
+         initialEventName={selectedEventNameForModal}
+         apiURL={API_PROXY_URL}
+       />
     </div>
   );
 }
+
