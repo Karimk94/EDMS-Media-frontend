@@ -1,21 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Document } from './DocumentItem';
 import { TagEditor } from './TagEditor';
-import { EventEditor } from './EventEditor'; // Import EventEditor
+import { EventEditor } from './EventEditor';
 import DatePicker from 'react-datepicker';
+import { ReadOnlyTagDisplay } from './ReadOnlyTagDisplay';
+import { ReadOnlyEventDisplay } from './ReadOnlyEventDisplay';
 
-// Define EventOption type locally if not imported
 interface EventOption {
-  value: number; // Event ID
-  label: string; // Event Name
+  value: number;
+  label: string;
 }
 
 interface PdfModalProps {
   doc: Document;
   onClose: () => void;
   apiURL: string;
-  onUpdateAbstractSuccess: () => void; // Added prop for consistency
-  onToggleFavorite: (docId: number, isFavorite: boolean) => void; // Add favorite handler prop
+  onUpdateAbstractSuccess: () => void;
+  onToggleFavorite: (docId: number, isFavorite: boolean) => void;
+  isEditor: boolean;
 }
 
 const safeParseDate = (dateString: string): Date | null => {
@@ -55,7 +57,7 @@ const formatToApiDate = (date: Date | null): string | null => {
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
 
-export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpdateAbstractSuccess, onToggleFavorite }) => {
+export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpdateAbstractSuccess, onToggleFavorite, isEditor }) => {
   const [isDetailsVisible, setIsDetailsVisible] = useState(true);
 
   const [isEditingDate, setIsEditingDate] = useState(false);
@@ -239,7 +241,7 @@ export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpda
                title={isFavorite ? "Remove from favorites" : "Add to favorites"}
              >
                <svg className={`w-6 h-6 ${isFavorite ? 'text-yellow-400' : 'text-gray-300'}`} fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isFavorite ? 1 : 2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.539 1.118l-3.976-2.888a1 1 0 00-1.175 0l-3.976 2.888c-.784.57-1.838-.196-1.539-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isFavorite ? 1 : 2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.539 1.118l-3.976-2.888a1 1 0 00-1.175 0l-3.976 2.888c-.784.57-1.838-.196-1.539-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588 1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                </svg>
              </button>
              <h2 className="text-xl font-bold text-white">{doc.docname}</h2>
@@ -276,67 +278,78 @@ export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpda
                {/* Abstract Section */}
                <div className="mb-4">
                   <h3 className="font-semibold text-gray-300 mb-1">Abstract</h3>
-                  {isEditingAbstract ? (
-                    <div className="flex flex-col gap-2">
-                      <textarea
-                        value={abstract}
-                        onChange={(e) => setAbstract(e.target.value)}
-                        className="w-full h-24 px-3 py-2 bg-[#121212] text-gray-200 border border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
-                      />
-                      <div className="flex justify-end gap-2">
-                        <button onClick={handleUpdateMetadata} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">Save</button>
-                        <button onClick={handleCancelEditAbstract} className="px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700">Cancel</button>
+                  {isEditor ? (
+                    isEditingAbstract ? (
+                      <div className="flex flex-col gap-2">
+                        <textarea
+                          value={abstract}
+                          onChange={(e) => setAbstract(e.target.value)}
+                          className="w-full h-24 px-3 py-2 bg-[#121212] text-gray-200 border border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <button onClick={handleUpdateMetadata} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">Save</button>
+                          <button onClick={handleCancelEditAbstract} className="px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700">Cancel</button>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="flex items-start justify-between">
+                        <p className="text-sm text-gray-400 mt-1 pr-4">{abstract || 'No abstract available.'}</p>
+                        <button onClick={handleEditAbstract} className="px-4 py-1 bg-gray-700 text-white text-xs rounded-md hover:bg-gray-600 flex-shrink-0">Edit</button>
+                      </div>
+                    )
                   ) : (
-                    <div className="flex items-start justify-between">
-                      <p className="text-sm text-gray-400 mt-1 pr-4">{abstract || 'No abstract available.'}</p>
-                      <button onClick={handleEditAbstract} className="px-4 py-1 bg-gray-700 text-white text-xs rounded-md hover:bg-gray-600 flex-shrink-0">Edit</button>
-                    </div>
+                     <p className="text-sm text-gray-400 mt-1 pr-4">{abstract || 'No abstract available.'}</p>
                   )}
                 </div>
-
-               {/* Date Taken Section */}
                <div className="mb-4">
                   <h3 className="font-semibold text-gray-300 mb-1">Date Taken</h3>
-                  {isEditingDate ? (
-                    <div className="flex items-center gap-2">
-                      <DatePicker
-                        selected={documentDate}
-                        onChange={handleDateChange}
-                        dateFormat="MMMM d, yyyy h:mm aa" // Adjusted format
-                        showTimeSelect // Enable time selection
-                        timeInputLabel="Time:" // Optional label
-                        className="w-full px-3 py-2 bg-[#121212] text-gray-200 border border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
-                        wrapperClassName="w-full" // Make wrapper take full width
-                        isClearable
-                        placeholderText="Click to select date and time"
-                      />
-                      <button onClick={handleUpdateMetadata} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 flex-shrink-0">Save</button>
-                      <button onClick={handleCancelEditDate} className="px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700 flex-shrink-0">Cancel</button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm text-gray-400 p-2 flex-grow">
-                        {documentDate ? documentDate.toLocaleString() : 'No date set'}
-                      </p>
-                      <button onClick={handleEditDate} className="px-4 py-1 bg-gray-700 text-white text-xs rounded-md hover:bg-gray-600 flex-shrink-0">Edit</button>
-                    </div>
-                  )}
+                  {isEditor ? (
+                    isEditingDate ? (
+                      <div className="flex items-center gap-2">
+                        <DatePicker
+                          selected={documentDate}
+                          onChange={handleDateChange}
+                          dateFormat="MMMM d, yyyy h:mm aa" // Adjusted format
+                          showTimeSelect // Enable time selection
+                          timeInputLabel="Time:" // Optional label
+                          className="w-full px-3 py-2 bg-[#121212] text-gray-200 border border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
+                          wrapperClassName="w-full" // Make wrapper take full width
+                          isClearable
+                          placeholderText="Click to select date and time"
+                        />
+                        <button onClick={handleUpdateMetadata} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 flex-shrink-0">Save</button>
+                        <button onClick={handleCancelEditDate} className="px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700 flex-shrink-0">Cancel</button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm text-gray-400 p-2 flex-grow">
+                          {documentDate ? documentDate.toLocaleString() : 'No date set'}
+                        </p>
+                        <button onClick={handleEditDate} className="px-4 py-1 bg-gray-700 text-white text-xs rounded-md hover:bg-gray-600 flex-shrink-0">Edit</button>
+                      </div>
+                    )
+                   ) : (
+                    <p className="text-sm text-gray-400 p-2 flex-grow">
+                      {documentDate ? documentDate.toLocaleString() : 'No date set'}
+                    </p>
+                   )}
                 </div>
-
-
-                {/* Event Editor Section */}
-                <EventEditor
-                    docId={doc.doc_id}
-                    apiURL={apiURL}
-                    selectedEvent={selectedEvent}
-                    setSelectedEvent={setSelectedEvent} // Pass state setter
-                    onEventChange={handleEventChangeInModal} // Pass handler for backend update
-                />
-
-               {/* Tag Editor Section */}
-               <TagEditor docId={doc.doc_id} apiURL={apiURL} />
+                {isEditor ? (
+                  <EventEditor
+                      docId={doc.doc_id}
+                      apiURL={apiURL}
+                      selectedEvent={selectedEvent}
+                      setSelectedEvent={setSelectedEvent}
+                      onEventChange={handleEventChangeInModal}
+                  />
+                ) : (
+                   <ReadOnlyEventDisplay event={selectedEvent} />
+                )}
+               {isEditor ? (
+                   <TagEditor docId={doc.doc_id} apiURL={apiURL} />
+               ) : (
+                   <ReadOnlyTagDisplay docId={doc.doc_id} apiURL={apiURL} />
+               )}
           </div>
         </div>
       </div>

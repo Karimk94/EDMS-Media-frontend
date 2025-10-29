@@ -61,7 +61,6 @@ export const Journey: React.FC<JourneyProps> = ({ apiURL }) => {
   return (
     <div className="bg-[#f4f7f6] text-[#333] p-5 font-sans">
       <div className="max-w-4xl mx-auto mb-8 text-center">
-        <h1 className="text-[#004a99] font-bold mb-5 text-4xl">Chairman's Achievement Journey</h1>
       </div>
       <div className="relative max-w-4xl mx-auto after:content-[''] after:absolute after:w-1 after:bg-[#d1e3ff] after:top-0 after:bottom-0 after:left-1/2 after:-ml-0.5 after:z-10">
         {journeyData && Object.keys(journeyData).sort((a, b) => Number(b) - Number(a)).map(year => (

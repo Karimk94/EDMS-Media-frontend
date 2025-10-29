@@ -40,7 +40,7 @@ export const YearFilter: React.FC<YearFilterProps> = ({ selectedYears, setSelect
   };
 
   const getButtonText = () => {
-    if (selectedYears.length === 0) return 'Year';
+    if (selectedYears.length === 0) return 'Years';
     if (selectedYears.length === 1) return selectedYears[0].toString();
     return `${selectedYears.length} Years`;
   };

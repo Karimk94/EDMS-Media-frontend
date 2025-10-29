@@ -18,6 +18,12 @@ import { EventDocumentModal } from './components/EventDocumentModal';
 import { Journey } from './components/Journey';
 
 type ActiveSection = 'recent' | 'favorites' | 'events' | 'memories' | 'journey';
+
+interface User {
+  username: string;
+  security_level: 'Editor' | 'Viewer';
+}
+
 interface PersonOption {
   value: number;
   label: string;
@@ -34,12 +40,12 @@ const formatToApiDateTime = (date: Date | null): string => {
 };
 
 export default function HomePage() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
 
   const [activeSection, setActiveSection] = useState<ActiveSection>('recent');
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [events, setEvents] = useState<EventStackItem[]>([]); // Use EventStackItem type
+  const [events, setEvents] = useState<EventStackItem[]>([]);
   const [memoryStackItems, setMemoryStackItems] = useState<Document[]>([]);
   const [isShowingFullMemories, setIsShowingFullMemories] =
     useState<boolean>(false);
@@ -68,7 +74,6 @@ export default function HomePage() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [processingDocs, setProcessingDocs] = useState<number[]>([]);
 
-  // State for the Event Document Modal
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [selectedEventIdForModal, setSelectedEventIdForModal] = useState<number | null>(null);
   const [selectedEventNameForModal, setSelectedEventNameForModal] = useState<string>('');
@@ -93,15 +98,12 @@ export default function HomePage() {
     checkUser();
   }, [router]);
 
-  // --- fetchSectionData remains the same as previous version ---
   const fetchSectionData = useCallback(
     async (isMemoryFetch = false) => {
-      // Manage loading state based on context
       if (!isLoadingMemoryStack || isMemoryFetch || activeSection === 'events') {
           setIsLoading(true);
       }
       setError(null);
-      // Reset only the relevant state for the current section
       if (activeSection === 'events') {
           setEvents([]);
       } else {
@@ -111,9 +113,8 @@ export default function HomePage() {
       let url: URL;
       const params = new URLSearchParams();
       params.append('page', String(currentPage));
-      params.append('pageSize', '20'); // Add pageSize consistently
+      params.append('pageSize', '20');
 
-      // Apply filters only if not fetching memories
       if (!isMemoryFetch) {
         if (searchTerm) params.append('search', searchTerm);
         if (selectedPerson && selectedPerson.length > 0) {
@@ -136,10 +137,9 @@ export default function HomePage() {
           params.append('years', selectedYears.join(','));
         }
       } else {
-        // Specific parameters for full memories view
         const now = new Date();
         params.append('memoryMonth', String(now.getMonth() + 1));
-        params.append('sort', 'rtadocdate_desc'); // Sort memories by date
+        params.append('sort', 'rtadocdate_desc'); 
       }
 
       try {
@@ -147,7 +147,7 @@ export default function HomePage() {
         let dataSetter: React.Dispatch<React.SetStateAction<any[]>> =
           setDocuments;
         let dataKey = 'documents';
-        let totalPagesKey = 'total_pages'; // Key for total pages in the response
+        let totalPagesKey = 'total_pages';
 
         if (isMemoryFetch) {
           endpoint = '/documents';
@@ -180,7 +180,6 @@ export default function HomePage() {
         if (endpoint) {
           url = new URL(`${API_PROXY_URL}${endpoint}`, window.location.origin);
           url.search = params.toString();
-          //console.log(`Fetching ${activeSection}: ${url.toString()}`); // Log the URL
 
           const response = await fetch(url);
           if (!response.ok)
@@ -190,11 +189,10 @@ export default function HomePage() {
               }. Status: ${response.status}`
             );
           const data = await response.json();
-          // Debugging the received data structure for events
 
-          dataSetter(data[dataKey] || []); // Set data using the correct setter
-          setTotalPages(data[totalPagesKey] || 1); // Set total pages from response
-        } else if (!isMemoryFetch) { // Handle case where endpoint might be empty (shouldn't happen with default)
+          dataSetter(data[dataKey] || []);
+          setTotalPages(data[totalPagesKey] || 1);
+        } else if (!isMemoryFetch) {
           setDocuments([]);
           setEvents([]);
           setTotalPages(1);
@@ -209,12 +207,10 @@ export default function HomePage() {
             isMemoryFetch ? 'memories' : activeSection
           }. Is the API ready? ${err.message}`
         );
-        // Reset both potentially relevant states on error
         setDocuments([]);
         setEvents([]);
         setTotalPages(1);
       } finally {
-         // Always set loading to false after fetch attempt
         setIsLoading(false);
       }
     },
@@ -228,11 +224,11 @@ export default function HomePage() {
       personCondition,
       selectedTags,
       selectedYears,
-      isLoadingMemoryStack, // Keep dependency
+      isLoadingMemoryStack,
     ]
   );
 
-  // --- fetchMemoryStack remains the same ---
+  // --- fetchMemoryStack ---
    const fetchMemoryStack = async () => {
     setIsLoadingMemoryStack(true);
     try {
@@ -255,17 +251,14 @@ export default function HomePage() {
     }
   };
 
-
-  // --- useEffect hooks for fetching data remain the same ---
    useEffect(() => {
     if (user) {
       if (isShowingFullMemories) {
-        fetchSectionData(true); // Fetch full memories
+        fetchSectionData(true);
       } else {
-        fetchSectionData(false); // Fetch based on activeSection and filters
+        fetchSectionData(false);
       }
     }
-    // Dependency array includes fetchSectionData and currentPage to refetch on page change
   }, [fetchSectionData, isShowingFullMemories, currentPage, user]);
 
   useEffect(() => {
@@ -323,7 +316,6 @@ export default function HomePage() {
             setProcessingDocs(stillProcessing);
             if (stillProcessing.length === 0) {
               clearInterval(interval);
-              // Refresh data if the currently viewed section might have changed
               if (activeSection === 'recent' || activeSection === 'events' || isShowingFullMemories) {
                 fetchSectionData(isShowingFullMemories);
               }
@@ -346,7 +338,6 @@ export default function HomePage() {
     user,
   ]);
 
-  // --- Other handlers (handleSearch, handleClearFilters, etc.) remain the same ---
    const handleSearch = (newSearchTerm: string) => {
     setIsShowingFullMemories(false);
     setSearchTerm(newSearchTerm);
@@ -394,8 +385,6 @@ export default function HomePage() {
       setIsShowingFullMemories(false);
       setActiveSection(section);
       setCurrentPage(1);
-       // Clear filters when changing section? Optional.
-      // handleClearFilters();
     }
   };
 
@@ -405,14 +394,12 @@ export default function HomePage() {
     else setSelectedDoc(doc);
   };
 
-  // --- UPDATED handleEventClick ---
   const handleEventClick = (eventId: number) => {
     const clickedEvent = events.find(e => e.id === eventId);
     if (clickedEvent) {
         setSelectedEventIdForModal(eventId);
-        setSelectedEventNameForModal(clickedEvent.name); // Store name
+        setSelectedEventNameForModal(clickedEvent.name);
         setIsEventModalOpen(true);
-        // Fetching is now handled inside the modal's useEffect
     } else {
         console.warn(`Could not find event details for ID: ${eventId}`);
     }
@@ -451,7 +438,6 @@ export default function HomePage() {
     setIsShowingFullMemories(false);
     setActiveSection('recent');
     setCurrentPage(1);
-    // Fetch is triggered by useEffect on section/page change
     fetch(`${API_PROXY_URL}/process_uploaded_documents`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -513,7 +499,7 @@ export default function HomePage() {
     searchTerm || dateFrom || dateTo || selectedPerson?.length || selectedTags.length || selectedYears.length
   );
 
-  // --- renderContent remains the same as previous version ---
+  // --- renderContent ---
     const renderContent = () => {
     if (isLoading) {
       return (
@@ -554,7 +540,7 @@ export default function HomePage() {
             onDocumentClick={handleDocumentClick}
             apiURL={API_PROXY_URL}
             onTagSelect={handleTagSelect}
-            isLoading={false} // Already handled loading state above
+            isLoading={false}
             processingDocs={processingDocs}
             onToggleFavorite={handleToggleFavorite}
           />
@@ -562,7 +548,7 @@ export default function HomePage() {
       );
     }
 
-    // --- Events View (Using EventStack) ---
+    // --- Events View ---
     if (activeSection === 'events') {
       if (events.length === 0) {
         return (
@@ -579,7 +565,7 @@ export default function HomePage() {
               key={event.id}
               event={event}
               apiURL={API_PROXY_URL}
-              onClick={handleEventClick} // Use the new handler
+              onClick={handleEventClick}
             />
           ))}
         </div>
@@ -601,7 +587,7 @@ export default function HomePage() {
           onDocumentClick={handleDocumentClick}
           apiURL={API_PROXY_URL}
           onTagSelect={handleTagSelect}
-          isLoading={false} // Already handled loading state above
+          isLoading={false}
           processingDocs={processingDocs}
           onToggleFavorite={handleToggleFavorite}
         />
@@ -609,7 +595,7 @@ export default function HomePage() {
     }
   };
 
-  // --- getSectionButtonClass remains the same ---
+  // --- getSectionButtonClass ---
    const getSectionButtonClass = (section: ActiveSection) => {
     const base =
       'flex items-center px-4 py-2 text-sm font-medium rounded-md transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100';
@@ -629,7 +615,7 @@ export default function HomePage() {
 
 return (
   <div className="min-h-screen bg-gray-50 text-gray-900">
-    <Header
+    {user && <Header
       onSearch={handleSearch}
       onClearCache={handleClearCache}
       dateFrom={dateFrom} setDateFrom={setDateFrom}
@@ -644,11 +630,10 @@ return (
       onClearFilters={handleClearFilters}
       hasActiveFilters={hasActiveFilters}
       onLogout={handleLogout}
-    />
+      isEditor={user.security_level === 'Editor'} />}
 
     <nav className="bg-gray-100 px-4 sm:px-6 lg:px-8 py-3 border-b border-gray-200">
       <div className="flex space-x-4 items-center">
-          {/* Navigation buttons remain the same */}
            <button onClick={() => handleSectionChange('recent')} className={getSectionButtonClass('recent')}>
               <img src="/clock.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: activeSection === 'recent' && !isShowingFullMemories ? 'brightness(0) invert(1)' : 'none' }} /> Recently Added
           </button>
@@ -661,7 +646,6 @@ return (
           <button onClick={handleMemoryStackClick} className={getSectionButtonClass('memories')}>
               <img src="/history.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: isShowingFullMemories ? 'brightness(0) invert(1)' : 'none' }} /> Memories
           </button>
-          {/* Add the new Journey button */}
           <button onClick={() => handleSectionChange('journey')} className={getSectionButtonClass('journey')}>
               <img src="/journey.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: activeSection === 'journey' ? 'brightness(0) invert(1)' : 'none' }} /> Journey
           </button>
@@ -683,7 +667,6 @@ return (
         />
       )}
 
-       {/* Memories Stack Section remains the same */}
        {activeSection !== 'journey' && !isShowingFullMemories && (
         <section className="mt-16 pt-8 border-t border-gray-200">
           <h2 className="text-xl font-semibold text-gray-700 mb-4">
@@ -708,13 +691,11 @@ return (
       )}
     </main>
 
-     {/* Existing Modals remain the same */}
-     {selectedDoc && <ImageModal doc={selectedDoc} onClose={() => setSelectedDoc(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} />}
-     {selectedVideo && <VideoModal doc={selectedVideo} onClose={() => setSelectedVideo(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} />}
-     {selectedPdf && <PdfModal doc={selectedPdf} onClose={() => setSelectedPdf(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} />}
-     {isUploadModalOpen && <UploadModal onClose={() => setIsUploadModalOpen(false)} apiURL={API_PROXY_URL} onAnalyze={handleAnalyze} />}
+     {selectedDoc && <ImageModal doc={selectedDoc} onClose={() => setSelectedDoc(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} />}
+     {selectedVideo && <VideoModal doc={selectedVideo} onClose={() => setSelectedVideo(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} />}
+     {selectedPdf && <PdfModal doc={selectedPdf} onClose={() => setSelectedPdf(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} />}
+     {isUploadModalOpen && user?.security_level === 'Editor' && <UploadModal onClose={() => setIsUploadModalOpen(false)} apiURL={API_PROXY_URL} onAnalyze={handleAnalyze} />}
 
-     {/* --- NEW: Render EventDocumentModal --- */}
      <EventDocumentModal
        isOpen={isEventModalOpen}
        onClose={() => setIsEventModalOpen(false)}
@@ -725,4 +706,3 @@ return (
   </div>
 );
 }
-

@@ -78,7 +78,7 @@ export const MemoriesStack: React.FC<MemoriesStackProps> = ({ memories, apiURL, 
 
         // Check if the final date object is valid
         if (!dateObj || isNaN(dateObj.getTime())) {
-            console.log("MemoriesStack: Final dateObj is Invalid Date. Returning null.");
+            //console.log("MemoriesStack: Final dateObj is Invalid Date. Returning null.");
             return null;
         }
 
@@ -87,7 +87,7 @@ export const MemoriesStack: React.FC<MemoriesStackProps> = ({ memories, apiURL, 
 
         // Final check if getFullYear somehow returns NaN (though unlikely if dateObj is valid)
         if (isNaN(year)) {
-             console.log("MemoriesStack: Year is NaN after getFullYear(). Returning null.");
+             //console.log("MemoriesStack: Year is NaN after getFullYear(). Returning null.");
              return null;
         }
         return year;
