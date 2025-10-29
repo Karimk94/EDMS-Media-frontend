@@ -52,12 +52,9 @@ export const EventStack: React.FC<EventStackProps> = ({ event, apiURL, onClick }
 
         {/* Stacked Images */}
         {displayThumbnails.map((thumbUrl, index) => {
-          // Calculate dynamic styles for stacking effect (index is reversed: 0=top, ... 3=bottom)
           const zIndex = 10 - index;
-          const scale = 1 - index * 0.04; // Slightly decrease scale
-          const translateY = index * 6; // Offset vertically
-          // Adjust rotation based on reversed index for visual appeal
-          const rotate = (index === 0 ? 0 : index % 2 === 1 ? -1 : 1.5) * (displayThumbnails.length > 1 ? 1 : 0);
+          const translateX = index * 4;
+          const translateY = index * 4;
           const finalThumbnailUrl = getThumbnailUrl(thumbUrl);
 
           return (
@@ -66,19 +63,18 @@ export const EventStack: React.FC<EventStackProps> = ({ event, apiURL, onClick }
               className="absolute inset-0 transition-transform duration-300 ease-out group-hover:scale-105"
               style={{
                 zIndex: zIndex,
-                transform: `scale(${scale}) translateY(${translateY}px) rotate(${rotate}deg)`,
+                transform: `translate(${translateX}px, ${translateY}px)`,
+                border: '2px solid white',
+                borderRadius: '1rem',
+                overflow: 'hidden'
               }}
             >
               <img
                 src={finalThumbnailUrl}
                 alt={`Thumbnail ${index + 1} for event ${event.name}`}
-                className="w-full h-full object-cover rounded-lg shadow-md border border-white dark:border-gray-800 bg-gray-300 dark:bg-gray-600"
+                className="w-full h-full object-cover"
                 onError={(e) => { (e.target as HTMLImageElement).src = '/no-image.svg'; }}
               />
-              {/* Overlay for the top image (optional) */}
-              {index === 0 && (
-                 <div className="absolute inset-0 bg-black bg-opacity-10 group-hover:bg-opacity-0 transition-opacity rounded-lg"></div>
-              )}
             </div>
           );
         })}
@@ -88,7 +84,7 @@ export const EventStack: React.FC<EventStackProps> = ({ event, apiURL, onClick }
           <div
             className="absolute bottom-1 right-1 bg-black bg-opacity-70 text-white text-xs font-semibold px-1.5 py-0.5 rounded z-20"
             // Position relative to last visible card
-            style={{ transform: `translateY(${Math.min(3, displayThumbnails.length - 1) * 6}px)` }}
+            style={{ transform: `translateY(${Math.min(3, displayThumbnails.length - 1) * 4}px) translateX(${Math.min(3, displayThumbnails.length - 1) * 4}px)` }}
           >
             +{count - 4}
           </div>
