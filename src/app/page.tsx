@@ -150,26 +150,27 @@ export default function HomePage() {
         let totalPagesKey = 'total_pages'; // Key for total pages in the response
 
         if (isMemoryFetch) {
-          endpoint = '/documents'; // Memories use the documents endpoint with specific params
-          dataSetter = setDocuments as React.Dispatch<React.SetStateAction<Document[]>>; // Cast for memories
+          endpoint = '/documents';
+          dataSetter = setDocuments as React.Dispatch<React.SetStateAction<Document[]>>;
           dataKey = 'documents';
         } else {
           switch (activeSection) {
             case 'recent':
               endpoint = '/documents';
               params.append('sort', 'date_desc');
-              dataSetter = setDocuments as React.Dispatch<React.SetStateAction<Document[]>>; // Cast for recent
+              dataSetter = setDocuments as React.Dispatch<React.SetStateAction<Document[]>>;
               dataKey = 'documents';
               break;
             case 'favorites':
               endpoint = '/favorites';
-              dataSetter = setDocuments as React.Dispatch<React.SetStateAction<Document[]>>; // Cast for favorites
-              dataKey = 'documents';
+              dataSetter = setDocuments as React.Dispatch<React.SetStateAction<Document[]>>;
+              dataKey = 'favorites';
               break;
             case 'events':
               endpoint = '/events';
-              dataSetter = setEvents as React.Dispatch<React.SetStateAction<EventStackItem[]>>; // Cast for events
-              dataKey = 'events'; // Expect 'events' key from the updated backend
+              dataSetter = setEvents as React.Dispatch<React.SetStateAction<EventStackItem[]>>;
+              dataKey = 'events'; 
+              params.append('fetch_all', 'false');
               break;
             default:
               throw new Error(`Invalid section: ${activeSection}`);
@@ -179,7 +180,7 @@ export default function HomePage() {
         if (endpoint) {
           url = new URL(`${API_PROXY_URL}${endpoint}`, window.location.origin);
           url.search = params.toString();
-          console.log(`Fetching ${activeSection}: ${url.toString()}`); // Log the URL
+          //console.log(`Fetching ${activeSection}: ${url.toString()}`); // Log the URL
 
           const response = await fetch(url);
           if (!response.ok)
@@ -190,9 +191,7 @@ export default function HomePage() {
             );
           const data = await response.json();
           // Debugging the received data structure for events
-          if (activeSection === 'events') {
-              console.log("Received data for events:", data);
-          }
+
           dataSetter(data[dataKey] || []); // Set data using the correct setter
           setTotalPages(data[totalPagesKey] || 1); // Set total pages from response
         } else if (!isMemoryFetch) { // Handle case where endpoint might be empty (shouldn't happen with default)

@@ -11,7 +11,7 @@ interface EventOption {
 }
 
 interface EventEditorProps {
-  docId?: number; 
+  docId?: number;
   apiURL: string;
   selectedEvent: EventOption | null;
   setSelectedEvent: (event: EventOption | null) => void;
@@ -32,7 +32,7 @@ export const EventEditor: React.FC<EventEditorProps> = ({
   ): Promise<{ options: EventOption[]; hasMore: boolean; additional?: { page: number } }> => {
     const page = additional?.page || 1;
     try {
-      const response = await fetch(`${apiURL}/events?page=${page}&search=${encodeURIComponent(search)}`);
+      const response = await fetch(`${apiURL}/events?page=${page}&search=${encodeURIComponent(search)}&fetch_all=true`);
       if (!response.ok) throw new Error('Failed to fetch events');
       const data = await response.json();
 
@@ -50,11 +50,10 @@ export const EventEditor: React.FC<EventEditorProps> = ({
     }
   };
 
-  // Function to create a new event
   const createEvent = async (inputValue: string): Promise<EventOption | null> => {
     if (!inputValue || inputValue.trim().length < 3) {
-        alert("Event name must be at least 3 characters long.");
-        return null;
+      alert("Event name must be at least 3 characters long.");
+      return null;
     }
     try {
       const response = await fetch(`${apiURL}/events`, {
@@ -68,9 +67,8 @@ export const EventEditor: React.FC<EventEditorProps> = ({
       }
       const newEvent = await response.json();
       const newOption = { value: newEvent.id, label: inputValue.trim() };
-      // No need to call setSelectedEvent here, Creatable handles it
       alert(newEvent.message || 'Event created successfully');
-      return newOption; // Return the new option for Creatable
+      return newOption;
     } catch (error: any) {
       console.error("Error creating event:", error);
       alert(`Error: ${error.message}`);
@@ -79,96 +77,93 @@ export const EventEditor: React.FC<EventEditorProps> = ({
   };
 
   const handleChange = async (newValue: EventOption | null) => {
-     // If used within a document modal context, update the association
     if (docId && onEventChange) {
-        const success = await onEventChange(docId, newValue ? newValue.value : null);
-        if (success) {
-            setSelectedEvent(newValue); // Update local state only if backend update is successful
-        } else {
-             // Optionally revert UI or show error, here we just log it
-             console.error("Failed to update event association in backend for docId:", docId);
-        }
+      const success = await onEventChange(docId, newValue ? newValue.value : null);
+      if (success) {
+        setSelectedEvent(newValue);
+      } else {
+        console.error("Failed to update event association in backend for docId:", docId);
+      }
     } else {
-         // If used outside a modal (like upload), just update the state directly
-         setSelectedEvent(newValue);
+      setSelectedEvent(newValue);
     }
   };
 
   const isValidNewOption = (inputValue: string, selectValue: any, selectOptions: any) => {
     if (inputValue.trim().length < 3) {
-        return false;
+      return false;
     }
     const isOptionAlreadyPresent = selectOptions.some(
-        (option: EventOption) => option.label.toLowerCase() === inputValue.toLowerCase()
+      (option: EventOption) => option.label.toLowerCase() === inputValue.toLowerCase()
     );
     return !isOptionAlreadyPresent;
   };
 
-  // --- react-select styles ---
   const selectStyles = {
     control: (base: any) => ({ ...base, backgroundColor: '#121212', borderColor: '#4b5563', minHeight: '38px', height: '38px' }),
-    menu: (base: any) => ({ ...base, backgroundColor: '#282828', zIndex: 60 }), // Ensure menu is above modal content
+    menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
+    menu: (base: any) => ({ ...base, backgroundColor: '#282828' }),
     option: (base: any, { isFocused }: any) => ({ ...base, backgroundColor: isFocused ? '#4b5563' : '#282828', color: '#e2e8f0', padding: '8px 12px' }),
     singleValue: (base: any) => ({ ...base, color: '#e2e8f0' }),
-    input: (base: any) => ({ ...base, color: '#e2e8f0', margin: '0px' }), // Adjust input margin
-    valueContainer: (base: any) => ({...base, padding: '0 6px'}), // Adjust padding inside control
-    indicatorSeparator: () => ({ display: 'none'}), // Hide separator
-    dropdownIndicator: (base: any) => ({...base, padding: '4px'}), // Adjust dropdown arrow padding
-    clearIndicator: (base: any) => ({...base, padding: '4px'}), // Adjust clear button padding
-    placeholder: (base: any) => ({...base, color: '#9ca3af'}), // Style placeholder
+    input: (base: any) => ({ ...base, color: '#e2e8f0', margin: '0px' }),
+    valueContainer: (base: any) => ({...base, padding: '0 6px'}),
+    indicatorSeparator: () => ({ display: 'none'}),
+    dropdownIndicator: (base: any) => ({...base, padding: '4px'}),
+    clearIndicator: (base: any) => ({...base, padding: '4px'}),
+    placeholder: (base: any) => ({...base, color: '#9ca3af'}),
   };
+
   return (
-  <div className="mb-4">
-    <label className="block text-sm font-medium text-gray-300 mb-1">Event</label>
-    <AnyAsyncPaginate
-      SelectComponent={Creatable}
-      isClearable
-      value={selectedEvent}
-      loadOptions={loadEventOptions}
-      onChange={handleChange}
-      onCreateOption={async (inputValue: string) => {
-        const newOption = await createEvent(inputValue);
-        if (newOption) {
-          handleChange(newOption);
-        }
-      }}
-      isValidNewOption={isValidNewOption}
-      // Allow creating while async options are loading
-      allowCreateWhileLoading={true}
-      createOptionPosition="first"
-      // Ensure the created item has the same shape as EventOption (temporary id -1 until backend returns real id)
-      getNewOptionData={(inputValue: string) => ({ value: -1, label: inputValue })}
-      formatCreateLabel={(inputValue: string) => `Create "${inputValue}"`}
-      noOptionsMessage={(obj: any) => {
-        const input = typeof obj === 'string' ? obj : obj?.inputValue ?? '';
-        const trimmed = input.trim();
-        // If user typed at least 3 chars, show a clickable "Create" option
-        if (trimmed.length >= 3) {
-          return (
-            <div
-              style={{ padding: '8px 12px', cursor: 'pointer', color: '#9ca3af' }}
-              onMouseDown={(e) => {
-                // use onMouseDown to avoid blurring the control before the click registers
-                e.preventDefault();
-                (async () => {
-                  const newOption = await createEvent(trimmed);
-                  if (newOption) handleChange(newOption);
-                })();
-              }}
-            >
-              Create "{trimmed}"
-            </div>
-          );
-        }
-        return input ? "No events found" : "Type to search events...";
-      }}
-      placeholder="Select or create an event..."
-      debounceTimeout={300}
-      additional={{
-        page: 1,
-      }}
-      styles={selectStyles}
-    />
-  </div>
+    <div className="mb-4">
+      <label className="block text-sm font-medium text-gray-300 mb-1">Event</label>
+      <AnyAsyncPaginate
+        SelectComponent={Creatable}
+        isClearable
+        value={selectedEvent}
+        loadOptions={loadEventOptions}
+        onChange={handleChange}
+        onCreateOption={async (inputValue: string) => {
+          const newOption = await createEvent(inputValue);
+          if (newOption) {
+            handleChange(newOption);
+          }
+        }}
+        isValidNewOption={isValidNewOption}
+        allowCreateWhileLoading={true}
+        createOptionPosition="first"
+        getNewOptionData={(inputValue: string) => ({ value: -1, label: inputValue })}
+        formatCreateLabel={(inputValue: string) => `Create "${inputValue}"`}
+        noOptionsMessage={(obj: any) => {
+          const input = typeof obj === 'string' ? obj : obj?.inputValue ?? '';
+          const trimmed = input.trim();
+          if (trimmed.length >= 3) {
+            return (
+              <div
+                style={{ padding: '8px 12px', cursor: 'pointer', color: '#9ca3af' }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  (async () => {
+                    const newOption = await createEvent(trimmed);
+                    if (newOption) handleChange(newOption);
+                  })();
+                }}
+              >
+                Create "{trimmed}"
+              </div>
+            );
+          }
+          return input ? "No events found" : "Type to search events...";
+        }}
+        placeholder="Select or create an event..."
+        debounceTimeout={300}
+        additional={{
+          page: 1,
+        }}
+        styles={selectStyles}
+        // Add these two props to make the menu open upwards and avoid clipping
+        menuPlacement="top"
+        menuPortalTarget={document.body}
+      />
+    </div>
   );
 };
