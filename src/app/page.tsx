@@ -14,12 +14,10 @@ import { UploadableFile } from './components/UploadFileItem';
 import { DocumentItemSkeleton } from './components/DocumentItemSkeleton';
 import { MemoriesStack } from './components/MemoriesStack';
 import { EventStack, EventItem as EventStackItem } from './components/EventStack';
-// Import the new modal
 import { EventDocumentModal } from './components/EventDocumentModal';
+import { Journey } from './components/Journey';
 
-
-type ActiveSection = 'recent' | 'favorites' | 'events' | 'memories';
-
+type ActiveSection = 'recent' | 'favorites' | 'events' | 'memories' | 'journey';
 interface PersonOption {
   value: number;
   label: string;
@@ -630,94 +628,102 @@ export default function HomePage() {
   // --- Main return ---
   if (!user) return null; // Or loading
 
-  return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
-      <Header
-        onSearch={handleSearch}
-        onClearCache={handleClearCache}
-        dateFrom={dateFrom} setDateFrom={setDateFrom}
-        dateTo={dateTo} setDateTo={setDateTo}
-        selectedPerson={selectedPerson} setSelectedPerson={setSelectedPerson}
-        personCondition={personCondition} setPersonCondition={setPersonCondition}
-        selectedTags={selectedTags} setSelectedTags={setSelectedTags}
-        selectedYears={selectedYears} setSelectedYears={handleYearSelect}
-        apiURL={API_PROXY_URL}
-        onOpenUploadModal={() => setIsUploadModalOpen(true)}
-        isProcessing={processingDocs.length > 0}
-        onClearFilters={handleClearFilters}
-        hasActiveFilters={hasActiveFilters}
-        onLogout={handleLogout}
-      />
+return (
+  <div className="min-h-screen bg-gray-50 text-gray-900">
+    <Header
+      onSearch={handleSearch}
+      onClearCache={handleClearCache}
+      dateFrom={dateFrom} setDateFrom={setDateFrom}
+      dateTo={dateTo} setDateTo={setDateTo}
+      selectedPerson={selectedPerson} setSelectedPerson={setSelectedPerson}
+      personCondition={personCondition} setPersonCondition={setPersonCondition}
+      selectedTags={selectedTags} setSelectedTags={setSelectedTags}
+      selectedYears={selectedYears} setSelectedYears={handleYearSelect}
+      apiURL={API_PROXY_URL}
+      onOpenUploadModal={() => setIsUploadModalOpen(true)}
+      isProcessing={processingDocs.length > 0}
+      onClearFilters={handleClearFilters}
+      hasActiveFilters={hasActiveFilters}
+      onLogout={handleLogout}
+    />
 
-      <nav className="bg-gray-100 px-4 sm:px-6 lg:px-8 py-3 border-b border-gray-200">
-        <div className="flex space-x-4 items-center">
-            {/* Navigation buttons remain the same */}
-             <button onClick={() => handleSectionChange('recent')} className={getSectionButtonClass('recent')}>
-                <img src="/clock.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: activeSection === 'recent' && !isShowingFullMemories ? 'brightness(0) invert(1)' : 'none' }} /> Recently Added
-            </button>
-            <button onClick={() => handleSectionChange('favorites')} className={getSectionButtonClass('favorites')}>
-                <img src="/star.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: activeSection === 'favorites' && !isShowingFullMemories ? 'brightness(0) invert(1)' : 'none' }} /> Favorites
-            </button>
-            <button onClick={() => handleSectionChange('events')} className={getSectionButtonClass('events')}>
-                <img src="/history-calendar.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: activeSection === 'events' && !isShowingFullMemories ? 'brightness(0) invert(1)' : 'none' }} /> Events
-            </button>
-            <button onClick={handleMemoryStackClick} className={getSectionButtonClass('memories')}>
-                <img src="/history.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: isShowingFullMemories ? 'brightness(0) invert(1)' : 'none' }} /> Memories
-            </button>
-        </div>
-      </nav>
+    <nav className="bg-gray-100 px-4 sm:px-6 lg:px-8 py-3 border-b border-gray-200">
+      <div className="flex space-x-4 items-center">
+          {/* Navigation buttons remain the same */}
+           <button onClick={() => handleSectionChange('recent')} className={getSectionButtonClass('recent')}>
+              <img src="/clock.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: activeSection === 'recent' && !isShowingFullMemories ? 'brightness(0) invert(1)' : 'none' }} /> Recently Added
+          </button>
+          <button onClick={() => handleSectionChange('favorites')} className={getSectionButtonClass('favorites')}>
+              <img src="/star.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: activeSection === 'favorites' && !isShowingFullMemories ? 'brightness(0) invert(1)' : 'none' }} /> Favorites
+          </button>
+          <button onClick={() => handleSectionChange('events')} className={getSectionButtonClass('events')}>
+              <img src="/history-calendar.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: activeSection === 'events' && !isShowingFullMemories ? 'brightness(0) invert(1)' : 'none' }} /> Events
+          </button>
+          <button onClick={handleMemoryStackClick} className={getSectionButtonClass('memories')}>
+              <img src="/history.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: isShowingFullMemories ? 'brightness(0) invert(1)' : 'none' }} /> Memories
+          </button>
+          {/* Add the new Journey button */}
+          <button onClick={() => handleSectionChange('journey')} className={getSectionButtonClass('journey')}>
+              <img src="/journey.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: activeSection === 'journey' ? 'brightness(0) invert(1)' : 'none' }} /> Journey
+          </button>
+      </div>
+    </nav>
 
-      <main className="px-4 sm:px-6 lg:px-8 py-8">
-        {renderContent()}
+    <main className="px-4 sm:px-6 lg:px-8 py-8">
+      {activeSection === 'journey' ? (
+        <Journey apiURL={API_PROXY_URL} />
+      ) : (
+        renderContent()
+      )}
 
-        {!isLoading && totalPages > 1 && (
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-          />
-        )}
+      {activeSection !== 'journey' && !isLoading && totalPages > 1 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+        />
+      )}
 
-         {/* Memories Stack Section remains the same */}
-         {!isShowingFullMemories && (
-          <section className="mt-16 pt-8 border-t border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-700 mb-4">
-              On this month in the past...
-            </h2>
-            {isLoadingMemoryStack ? (
-              <div className="h-40 w-full max-w-xs bg-gray-200 rounded-lg animate-pulse"></div>
-            ) : memoryStackItems.length > 0 ? (
-              <div className="max-w-xs">
-                <MemoriesStack
-                  memories={memoryStackItems}
-                  apiURL={API_PROXY_URL}
-                  onClick={handleMemoryStackClick}
-                />
-              </div>
-            ) : (
-              <div className="bg-gray-100 p-6 rounded-lg text-center text-gray-500">
-                No memories found for this month.
-              </div>
-            )}
-          </section>
-        )}
-      </main>
+       {/* Memories Stack Section remains the same */}
+       {activeSection !== 'journey' && !isShowingFullMemories && (
+        <section className="mt-16 pt-8 border-t border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-700 mb-4">
+            On this month in the past...
+          </h2>
+          {isLoadingMemoryStack ? (
+            <div className="h-40 w-full max-w-xs bg-gray-200 rounded-lg animate-pulse"></div>
+          ) : memoryStackItems.length > 0 ? (
+            <div className="max-w-xs">
+              <MemoriesStack
+                memories={memoryStackItems}
+                apiURL={API_PROXY_URL}
+                onClick={handleMemoryStackClick}
+              />
+            </div>
+          ) : (
+            <div className="bg-gray-100 p-6 rounded-lg text-center text-gray-500">
+              No memories found for this month.
+            </div>
+          )}
+        </section>
+      )}
+    </main>
 
-       {/* Existing Modals remain the same */}
-       {selectedDoc && <ImageModal doc={selectedDoc} onClose={() => setSelectedDoc(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} />}
-       {selectedVideo && <VideoModal doc={selectedVideo} onClose={() => setSelectedVideo(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} />}
-       {selectedPdf && <PdfModal doc={selectedPdf} onClose={() => setSelectedPdf(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} />}
-       {isUploadModalOpen && <UploadModal onClose={() => setIsUploadModalOpen(false)} apiURL={API_PROXY_URL} onAnalyze={handleAnalyze} />}
+     {/* Existing Modals remain the same */}
+     {selectedDoc && <ImageModal doc={selectedDoc} onClose={() => setSelectedDoc(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} />}
+     {selectedVideo && <VideoModal doc={selectedVideo} onClose={() => setSelectedVideo(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} />}
+     {selectedPdf && <PdfModal doc={selectedPdf} onClose={() => setSelectedPdf(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} />}
+     {isUploadModalOpen && <UploadModal onClose={() => setIsUploadModalOpen(false)} apiURL={API_PROXY_URL} onAnalyze={handleAnalyze} />}
 
-       {/* --- NEW: Render EventDocumentModal --- */}
-       <EventDocumentModal
-         isOpen={isEventModalOpen}
-         onClose={() => setIsEventModalOpen(false)}
-         initialEventId={selectedEventIdForModal}
-         initialEventName={selectedEventNameForModal}
-         apiURL={API_PROXY_URL}
-       />
-    </div>
-  );
+     {/* --- NEW: Render EventDocumentModal --- */}
+     <EventDocumentModal
+       isOpen={isEventModalOpen}
+       onClose={() => setIsEventModalOpen(false)}
+       initialEventId={selectedEventIdForModal}
+       initialEventName={selectedEventNameForModal}
+       apiURL={API_PROXY_URL}
+     />
+  </div>
+);
 }
 
