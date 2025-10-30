@@ -113,6 +113,7 @@ export const UploadFileItem: React.FC<UploadFileItemProps> = ({
               isClearable
               placeholderText="Select date"
               className="w-auto text-xs bg-[#121212] text-gray-200 border border-gray-600 rounded focus:ring-1 focus:ring-red-500 focus:outline-none py-0.5 px-1"
+              autoComplete='off'
             />
           </div>
         )}

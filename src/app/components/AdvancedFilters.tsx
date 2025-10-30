@@ -59,6 +59,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateFrom, setDateFrom
           isClearable
           dateFormat="MMMM d, yyyy"
           className="w-full"
+          autoComplete='off'
         />
       </div>
       <div className="flex items-center gap-2">
@@ -74,6 +75,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateFrom, setDateFrom
           isClearable
           dateFormat="MMMM d, yyyy"
           className="w-full"
+          autoComplete='off'
         />
       </div>
        {(dateFrom || dateTo) && (
