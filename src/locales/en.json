@@ -24,6 +24,7 @@
   "searchForPerson": "Search for a person...",
   "apply": "Apply",
   "clearDates": "Clear Dates",
+  "clearAllYears": "Clear All Years",
   "clearAll": "Clear All",
   "loadingTags": "Loading tags...",
   "noTagsAvailable": "No tags available.",
@@ -66,5 +67,10 @@
   "login": "Login",
   "loggingIn": "Logging in...",
   "loading": "Loading...",
-  "matchCondition": "Match condition"
+  "matchCondition": "Match condition",
+  "noJourney": "No journey data available",
+  "loadingJourney": "Loading Journey...",
+  "filterByTags": "Filter by Tags",
+  "searchTags": "Search Tags",
+  "LoadingTags": "Loading tags"
 }

@@ -15,9 +15,10 @@ interface JourneyData {
 
 interface JourneyProps {
   apiURL: string;
+  t: Function;
 }
 
-export const Journey: React.FC<JourneyProps> = ({ apiURL }) => {
+export const Journey: React.FC<JourneyProps> = ({ apiURL,t  }) => {
   const [journeyData, setJourneyData] = useState<JourneyData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +52,7 @@ export const Journey: React.FC<JourneyProps> = ({ apiURL }) => {
   };
 
   if (isLoading) {
-    return <div className="text-center p-10">Loading Journey...</div>;
+    return <div className="text-center p-10">{t('loadingJourney')}</div>;
   }
 
   if (error) {

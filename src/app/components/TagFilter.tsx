@@ -106,7 +106,7 @@ export const TagFilter: React.FC<TagFilterProps> = ({ apiURL, selectedTags, setS
       {isOpen && (
         <div className="absolute top-full right-0 mt-2 w-80 bg-[#282828] border border-gray-600 rounded-lg shadow-lg z-50 p-4">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-white">Filter by Tags</h3>
+            <h3 className="text-lg font-semibold text-white">{t('filterByTags')}</h3>
             {selectedTags.length > 0 && (
                <button
                   onClick={handleClearTags}
@@ -119,14 +119,14 @@ export const TagFilter: React.FC<TagFilterProps> = ({ apiURL, selectedTags, setS
           <div className="relative mb-4">
             <input
               type="text"
-              placeholder="Search tags..."
+              placeholder={t('searchTags')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full px-3 py-2 bg-[#121212] text-gray-200 border border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
             />
           </div>
           {isLoading ? (
-            <p className="text-gray-400">Loading tags...</p>
+            <p className="text-gray-400">{t('loadingTags')}</p>
           ) : (
             <div
               ref={scrollContainerRef}
@@ -147,10 +147,10 @@ export const TagFilter: React.FC<TagFilterProps> = ({ apiURL, selectedTags, setS
                 </button>
               ))}
                {sortedTags.length === 0 && !searchTerm && (
-                 <p className="text-sm text-gray-500 italic px-1">No tags available.</p>
+                 <p className="text-sm text-gray-500 italic px-1">{t('noTagsAvailable')}</p>
                )}
                {sortedTags.length === 0 && searchTerm && (
-                 <p className="text-sm text-gray-500 italic px-1">No tags match '{searchTerm}'.</p>
+                 <p className="text-sm text-gray-500 italic px-1">{t('noTagsMatch')}</p>
                )}
             </div>
           )}

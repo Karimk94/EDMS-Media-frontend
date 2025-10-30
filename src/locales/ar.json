@@ -25,6 +25,7 @@
   "apply": "تطبيق",
   "clearDates": "مسح التواريخ",
   "clearAll": "مسح الكل",
+  "clearAllYears": "مسح كل السنوات",
   "loadingTags": "جاري تحميل الوسوم...",
   "noTagsAvailable": "لا توجد وسوم متاحة.",
   "noTagsMatch": "لا توجد وسوم تطابق '{searchTerm}'.",
@@ -66,5 +67,11 @@
   "login": "تسجيل الدخول",
   "loggingIn": "جاري تسجيل الدخول...",
   "loading": "جاري التحميل...",
-  "matchCondition": "حالة المطابقة"
+  "matchCondition": "حالة المطابقة",
+  "noJourney": "لا توجد رحلة",
+  "loadingJourney": "جاري تحميل الرحلة...",
+  "filterByTags": "تصفية حسب الوسوم",
+  "searchTags": "بحث في الوسوم",
+  "LoadingTags": "جاري تحميل الوسوم."
+  
 }

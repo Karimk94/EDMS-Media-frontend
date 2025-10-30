@@ -43,7 +43,7 @@ export const YearFilter: React.FC<YearFilterProps> = ({ selectedYears, setSelect
   const getButtonText = () => {
     if (selectedYears.length === 0) t('years');
     if (selectedYears.length === 1) return selectedYears[0].toString();
-    return `${selectedYears.length} ${t('years')}`;
+    return ` ${t('years')}`;
   };
 
   return (
@@ -68,7 +68,7 @@ export const YearFilter: React.FC<YearFilterProps> = ({ selectedYears, setSelect
                 onClick={handleClearYears}
                 className="w-full text-center px-3 py-1.5 text-xs text-red-400 hover:text-red-300 rounded-md mb-2 border border-red-400 hover:border-red-300"
               >
-                Clear All Years
+                {t('clearAllYears')}
               </button>
           )}
           <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto">

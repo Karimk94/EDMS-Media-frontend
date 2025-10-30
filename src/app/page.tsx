@@ -671,7 +671,7 @@ return (
 
     <main className="px-4 sm:px-6 lg:px-8 py-8">
       {activeSection === 'journey' ? (
-        <Journey apiURL={API_PROXY_URL} />
+        <Journey apiURL={API_PROXY_URL} t={t} />
       ) : (
         renderContent()
       )}
