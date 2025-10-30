@@ -1,8 +1,4 @@
-/*
-  Scoped styles for the Journey component.
-  This file will not affect any other part of your application.
-*/
-
+/* --- Base Container --- */
 .journey-container {
   position: relative;
   width: 100%;
@@ -11,94 +7,97 @@
   padding: 40px 20px;
 }
 
-/* The central vertical line */
-.timeline-line {
+/* --- SVG Container 1: THE LINE (BACKGROUND) --- */
+.journey-svg-line {
   position: absolute;
-  top: 40px;
-  bottom: 40px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 4px;
-  background-color: #e5e7eb; /* Light gray background */
-  border-radius: 2px;
-  z-index: 1;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1; /* BEHIND content */
+  pointer-events: none;
+}
+.journey-svg-path-track {
+  fill: none;
+  stroke: #3b82f6; /* Blue line */
+  stroke-width: 4px;
 }
 
-/* The animated dot */
-.animated-dot {
+/* --- SVG Container 2: THE DOT (FOREGROUND) --- */
+.journey-svg-dot-container {
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 24px;
-  height: 24px;
-  background: white;
-  border: 5px solid #1e3a8a; /* Dark blue */
-  border-radius: 9999px;
-  z-index: 3;
-  /* Animation to move it from top to bottom */
-  animation: move-down 45s linear forwards; /* Adjust duration for speed */
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 3; /* IN FRONT of content */
+  pointer-events: none; /* Let clicks pass through */
+}
+.journey-svg-dot {
+  fill: white;
+  stroke: #3b82f6;
+  stroke-width: 3px;
 }
 
-@keyframes move-down {
-  from {
-    top: 40px;
-  }
-  to {
-    top: calc(100% - 40px);
-  }
-}
-
+/* --- Content Layout (Single Centered Column) --- */
 .journey-content-column {
   position: relative;
-  z-index: 2;
+  z-index: 2; /* MIDDLE layer */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .journey-year-section {
-  display: flex;
   position: relative;
-  margin-bottom: 50px;
   width: 100%;
+  max-width: 600px;
+  box-sizing: border-box;
+  margin-bottom: 80px;
 }
 
-/* Odd sections (1st, 3rd, etc.) have content on the right */
-.journey-year-section:nth-child(odd) {
-  justify-content: flex-end;
-}
-
-/* Even sections (2nd, 4th, etc.) have content on the left */
-.journey-year-section:nth-child(even) {
-  justify-content: flex-start;
-}
-
-.year-content-wrapper {
-  width: calc(50% - 50px); /* Half width with a gap from the center */
-}
-
+/* --- Year Header (Absolute Positioned) --- */
 .year-header {
   position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%); /* Center horizontally on the line */
+  top: 30px;
   background-color: #1e3a8a;
   color: white;
-  padding: 8px 16px;
+  padding: 10px 20px;
   border-radius: 9999px;
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: 700;
-  z-index: 5; /* Keep it on top of the line */
+  z-index: 5; /* On top of everything */
+  white-space: nowrap;
 }
 
+/* ODD rows (2024, 2022) - Year on the LEFT */
+.journey-year-section:nth-child(odd) .year-header {
+  right: 100%;
+  margin-right: 70px;
+}
+
+/* EVEN rows (2023, 2021) - Year on the RIGHT */
+.journey-year-section:nth-child(even) .year-header {
+  left: 100%;
+  margin-left: 70px;
+}
+
+/* --- The content block that hides the line --- */
+.year-content-wrapper {
+  position: relative;
+  z-index: 2; /* Same layer as column, ensures it's above line */
+  padding: 1.25rem;
+  background-color: white; /* Opaque background */
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* --- Event Card Styling (Simplified) --- */
 .events-grid {
   display: grid;
-  padding-top: 60px; /* Space to clear the floating year header */
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1.25rem;
 }
 
 .event-card {
-  background-color: white;
-  border-radius: 0.75rem;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -106,23 +105,27 @@
 
 .event-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+  border-radius: 0.75rem;
 }
 
 .event-thumbnail {
   width: 100%;
-  height: auto; /* Allow height to be determined by image aspect ratio */
-  background-color: #f9fafb; /* Light background for letterboxing */
+  aspect-ratio: 16 / 9;
+  background-color: #f9fafb;
+  border-radius: 0.75rem;
 }
 
 .event-thumbnail img {
   width: 100%;
-  height: auto; /* Let the image's height be natural */
-  object-fit: contain; /* Show the full image without cropping */
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0.75rem;
 }
 
 .event-title {
   padding: 1rem;
+  padding-bottom: 0;
   text-align: center;
 }
 
@@ -132,3 +135,4 @@
   font-size: 1rem;
   color: #111827;
 }
+
