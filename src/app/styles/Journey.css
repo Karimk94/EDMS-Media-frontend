@@ -1,0 +1,134 @@
+/*
+  Scoped styles for the Journey component.
+  This file will not affect any other part of your application.
+*/
+
+.journey-container {
+  position: relative;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+/* The central vertical line */
+.timeline-line {
+  position: absolute;
+  top: 40px;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  background-color: #e5e7eb; /* Light gray background */
+  border-radius: 2px;
+  z-index: 1;
+}
+
+/* The animated dot */
+.animated-dot {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 24px;
+  background: white;
+  border: 5px solid #1e3a8a; /* Dark blue */
+  border-radius: 9999px;
+  z-index: 3;
+  /* Animation to move it from top to bottom */
+  animation: move-down 45s linear forwards; /* Adjust duration for speed */
+}
+
+@keyframes move-down {
+  from {
+    top: 40px;
+  }
+  to {
+    top: calc(100% - 40px);
+  }
+}
+
+.journey-content-column {
+  position: relative;
+  z-index: 2;
+}
+
+.journey-year-section {
+  display: flex;
+  position: relative;
+  margin-bottom: 50px;
+  width: 100%;
+}
+
+/* Odd sections (1st, 3rd, etc.) have content on the right */
+.journey-year-section:nth-child(odd) {
+  justify-content: flex-end;
+}
+
+/* Even sections (2nd, 4th, etc.) have content on the left */
+.journey-year-section:nth-child(even) {
+  justify-content: flex-start;
+}
+
+.year-content-wrapper {
+  width: calc(50% - 50px); /* Half width with a gap from the center */
+}
+
+.year-header {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%); /* Center horizontally on the line */
+  background-color: #1e3a8a;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  z-index: 5; /* Keep it on top of the line */
+}
+
+.events-grid {
+  display: grid;
+  padding-top: 60px; /* Space to clear the floating year header */
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.25rem;
+}
+
+.event-card {
+  background-color: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.event-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+}
+
+.event-thumbnail {
+  width: 100%;
+  height: auto; /* Allow height to be determined by image aspect ratio */
+  background-color: #f9fafb; /* Light background for letterboxing */
+}
+
+.event-thumbnail img {
+  width: 100%;
+  height: auto; /* Let the image's height be natural */
+  object-fit: contain; /* Show the full image without cropping */
+}
+
+.event-title {
+  padding: 1rem;
+  text-align: center;
+}
+
+.event-title h3 {
+  margin: 0;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #111827;
+}
