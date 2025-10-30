@@ -19,7 +19,18 @@
 .journey-svg-path-track {
   fill: none;
   stroke: #3b82f6; /* Blue line */
-  stroke-width: 4px;
+  stroke-width: 8px; /* Increased thickness */
+  stroke-linejoin: round; /* Rounded corners */
+  stroke-linecap: round; /* Rounded ends */
+  filter: drop-shadow(3px 3px 2px rgba(0, 0, 0, 0.4)); /* 3D effect */
+}
+
+.journey-svg-path-progress {
+    fill: none;
+    stroke: white;
+    stroke-width: 8px;
+    stroke-linejoin: round;
+    stroke-linecap: round;
 }
 
 /* --- SVG Container 2: THE DOT (FOREGROUND) --- */
@@ -133,6 +144,4 @@
   margin: 0;
   font-weight: 600;
   font-size: 1rem;
-  color: #111827;
 }
-

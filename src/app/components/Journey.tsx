@@ -30,6 +30,9 @@ export const Journey: React.FC<JourneyProps> = ({ apiURL, t }) => {
   const [svgHeight, setSvgHeight] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const yearRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const pathRef = useRef<SVGPathElement | null>(null);
+  const [pathLength, setPathLength] = useState(0);
+
 
   useEffect(() => {
     const fetchJourneyData = async () => {
@@ -106,6 +109,9 @@ export const Journey: React.FC<JourneyProps> = ({ apiURL, t }) => {
 
       setSvgPath(pathCommands.join(' '));
       setSvgHeight(currentY + 40);
+      if (pathRef.current) {
+        setPathLength(pathRef.current.getTotalLength());
+      }
     };
 
     const timer = setTimeout(calculatePath, 100);
@@ -141,10 +147,24 @@ export const Journey: React.FC<JourneyProps> = ({ apiURL, t }) => {
   return (
     <div className="journey-container" ref={containerRef}>
 
-      {/* --- SVG 1: The BLUE LINE (BACKGROUND) --- */}
-      {/* We keep the z-index split to ensure the dot is always on top */}
       <svg className="journey-svg-line" width="100%" height={svgHeight}>
         <path d={svgPath} className="journey-svg-path-track" />
+        <path
+            ref={pathRef}
+            d={svgPath}
+            className="journey-svg-path-progress"
+            style={{
+                strokeDasharray: pathLength,
+                strokeDashoffset: pathLength,
+            }}
+        >
+            <animate
+                attributeName="stroke-dashoffset"
+                values={`${pathLength};0;${pathLength}`}
+                dur="90s"
+                repeatCount="indefinite"
+            />
+        </path>
       </svg>
 
       {/* --- SVG 2: The WHITE DOT (FOREGROUND) --- */}
@@ -154,11 +174,11 @@ export const Journey: React.FC<JourneyProps> = ({ apiURL, t }) => {
         </defs>
         <circle cx="0" cy="0" r="10" className="journey-svg-dot">
           <animateMotion
-            dur="45s"
-            repeatCount="1"
+            dur="90s"
+            repeatCount="indefinite"
             fill="forwards"
-            keyPoints="0;1"
-            keyTimes="0;1"
+            keyPoints="0;1;0"
+            keyTimes="0;0.5;1"
             calcMode="linear"
           >
             <mpath href="#journey-animation-path" />
@@ -208,4 +228,3 @@ export const Journey: React.FC<JourneyProps> = ({ apiURL, t }) => {
     </div>
   );
 };
-
