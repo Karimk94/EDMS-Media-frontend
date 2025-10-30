@@ -5,9 +5,10 @@ import React, { useState, useEffect, useRef } from 'react';
 interface YearFilterProps {
   selectedYears: number[];
   setSelectedYears: (years: number[]) => void;
+  t: Function;
 }
 
-export const YearFilter: React.FC<YearFilterProps> = ({ selectedYears, setSelectedYears }) => {
+export const YearFilter: React.FC<YearFilterProps> = ({ selectedYears, setSelectedYears, t }) => {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -40,9 +41,9 @@ export const YearFilter: React.FC<YearFilterProps> = ({ selectedYears, setSelect
   };
 
   const getButtonText = () => {
-    if (selectedYears.length === 0) return 'Years';
+    if (selectedYears.length === 0) t('years');
     if (selectedYears.length === 1) return selectedYears[0].toString();
-    return `${selectedYears.length} Years`;
+    return `${selectedYears.length} ${t('years')}`;
   };
 
   return (

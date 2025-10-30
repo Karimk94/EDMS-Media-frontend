@@ -16,12 +16,15 @@ import { MemoriesStack } from './components/MemoriesStack';
 import { EventStack, EventItem as EventStackItem } from './components/EventStack';
 import { EventDocumentModal } from './components/EventDocumentModal';
 import { Journey } from './components/Journey';
+import { useTranslations } from './hooks/useTranslations';
+import HtmlLangUpdater from './components/HtmlLangUpdater';
 
 type ActiveSection = 'recent' | 'favorites' | 'events' | 'memories' | 'journey';
 
 interface User {
   username: string;
   security_level: 'Editor' | 'Viewer';
+  lang?: 'en' | 'ar';
 }
 
 interface PersonOption {
@@ -78,16 +81,19 @@ export default function HomePage() {
   const [selectedEventIdForModal, setSelectedEventIdForModal] = useState<number | null>(null);
   const [selectedEventNameForModal, setSelectedEventNameForModal] = useState<string>('');
 
+  const [lang, setLang] = useState<'en' | 'ar'>('en');
+  const t = useTranslations(lang);
 
   const API_PROXY_URL = '/api';
 
-  useEffect(() => {
+useEffect(() => {
     const checkUser = async () => {
       try {
         const response = await fetch('/api/auth/user');
         if (response.ok) {
           const data = await response.json();
           setUser(data.user);
+          setLang(data.user.lang || 'en');
         } else {
           router.push('/login');
         }
@@ -171,6 +177,11 @@ export default function HomePage() {
               dataSetter = setEvents as React.Dispatch<React.SetStateAction<EventStackItem[]>>;
               dataKey = 'events'; 
               params.append('fetch_all', 'false');
+              break;
+              case 'journey':
+              endpoint = '/journey';
+              dataSetter = setDocuments as React.Dispatch<React.SetStateAction<Document[]>>;
+              dataKey = 'events'; 
               break;
             default:
               throw new Error(`Invalid section: ${activeSection}`);
@@ -614,6 +625,8 @@ export default function HomePage() {
   if (!user) return null; // Or loading
 
 return (
+  <>
+  <HtmlLangUpdater lang={lang} />
   <div className="min-h-screen bg-gray-50 text-gray-900">
     {user && <Header
       onSearch={handleSearch}
@@ -630,24 +643,28 @@ return (
       onClearFilters={handleClearFilters}
       hasActiveFilters={hasActiveFilters}
       onLogout={handleLogout}
-      isEditor={user.security_level === 'Editor'} />}
+      isEditor={user.security_level === 'Editor'}
+      lang={lang}
+      setLang={setLang}
+      t={t}
+      />}
 
     <nav className="bg-gray-100 px-4 sm:px-6 lg:px-8 py-3 border-b border-gray-200">
       <div className="flex space-x-4 items-center">
            <button onClick={() => handleSectionChange('recent')} className={getSectionButtonClass('recent')}>
-              <img src="/clock.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: activeSection === 'recent' && !isShowingFullMemories ? 'brightness(0) invert(1)' : 'none' }} /> Recently Added
+              <img src="/clock.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: activeSection === 'recent' && !isShowingFullMemories ? 'brightness(0) invert(1)' : 'none' }} /> {t('recentlyAdded')}
           </button>
           <button onClick={() => handleSectionChange('favorites')} className={getSectionButtonClass('favorites')}>
-              <img src="/star.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: activeSection === 'favorites' && !isShowingFullMemories ? 'brightness(0) invert(1)' : 'none' }} /> Favorites
+              <img src="/star.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: activeSection === 'favorites' && !isShowingFullMemories ? 'brightness(0) invert(1)' : 'none' }} /> {t('favorites')}
           </button>
           <button onClick={() => handleSectionChange('events')} className={getSectionButtonClass('events')}>
-              <img src="/history-calendar.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: activeSection === 'events' && !isShowingFullMemories ? 'brightness(0) invert(1)' : 'none' }} /> Events
+              <img src="/history-calendar.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: activeSection === 'events' && !isShowingFullMemories ? 'brightness(0) invert(1)' : 'none' }} /> {t('events')}
           </button>
           <button onClick={handleMemoryStackClick} className={getSectionButtonClass('memories')}>
-              <img src="/history.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: isShowingFullMemories ? 'brightness(0) invert(1)' : 'none' }} /> Memories
+              <img src="/history.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: isShowingFullMemories ? 'brightness(0) invert(1)' : 'none' }} /> {t('memories')}
           </button>
           <button onClick={() => handleSectionChange('journey')} className={getSectionButtonClass('journey')}>
-              <img src="/journey.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: activeSection === 'journey' ? 'brightness(0) invert(1)' : 'none' }} /> Journey
+              <img src="/journey.svg" alt="" className="w-4 h-4 mr-2 inline-block" style={{ filter: activeSection === 'journey' ? 'brightness(0) invert(1)' : 'none' }} /> {t('journey')}
           </button>
       </div>
     </nav>
@@ -664,6 +681,7 @@ return (
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={handlePageChange}
+          t={t}
         />
       )}
 
@@ -691,9 +709,9 @@ return (
       )}
     </main>
 
-     {selectedDoc && <ImageModal doc={selectedDoc} onClose={() => setSelectedDoc(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} />}
-     {selectedVideo && <VideoModal doc={selectedVideo} onClose={() => setSelectedVideo(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} />}
-     {selectedPdf && <PdfModal doc={selectedPdf} onClose={() => setSelectedPdf(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} />}
+     {selectedDoc && <ImageModal doc={selectedDoc} onClose={() => setSelectedDoc(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} t={t} />}
+     {selectedVideo && <VideoModal doc={selectedVideo} onClose={() => setSelectedVideo(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} t={t}/>}
+     {selectedPdf && <PdfModal doc={selectedPdf} onClose={() => setSelectedPdf(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} t={t}/>}
      {isUploadModalOpen && user?.security_level === 'Editor' && <UploadModal onClose={() => setIsUploadModalOpen(false)} apiURL={API_PROXY_URL} onAnalyze={handleAnalyze} />}
 
      <EventDocumentModal
@@ -704,5 +722,6 @@ return (
        apiURL={API_PROXY_URL}
      />
   </div>
+  </>
 );
 }

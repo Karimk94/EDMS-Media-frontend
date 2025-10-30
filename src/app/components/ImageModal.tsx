@@ -21,6 +21,7 @@ interface ImageModalProps {
   onUpdateAbstractSuccess: () => void;
   onToggleFavorite: (docId: number, isFavorite: boolean) => void;
   isEditor: boolean;
+  t: Function;
 }
 
 const safeParseDate = (dateString: string): Date | null => {
@@ -61,7 +62,7 @@ const formatToApiDate = (date: Date | null): string | null => {
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
 
-export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, onUpdateAbstractSuccess, onToggleFavorite, isEditor }) => {
+export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, onUpdateAbstractSuccess, onToggleFavorite, isEditor, t }) => {
   const [view, setView] = useState<'image' | 'analysis'>('image');
   const [isLoading, setIsLoading] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -331,14 +332,14 @@ export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, on
                               className="w-full h-24 px-3 py-2 bg-[#121212] text-gray-200 border border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
                             />
                             <div className="flex justify-end gap-2">
-                              <button onClick={handleUpdateMetadata} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">Save</button>
-                              <button onClick={handleCancelEditAbstract} className="px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700">Cancel</button>
+                              <button onClick={handleUpdateMetadata} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">{t('save')}</button>
+                              <button onClick={handleCancelEditAbstract} className="px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700">{t('cancel')}</button>
                             </div>
                           </div>
                         ) : (
                           <div className="flex items-start justify-between">
                             <p className="text-sm text-gray-400 mt-1 pr-4">{abstract || 'No abstract available.'}</p>
-                            <button onClick={handleEditAbstract} className="px-4 py-1 bg-gray-700 text-white text-xs rounded-md hover:bg-gray-600 flex-shrink-0">Edit</button>
+                            <button onClick={handleEditAbstract} className="px-4 py-1 bg-gray-700 text-white text-xs rounded-md hover:bg-gray-600 flex-shrink-0">{t('edit')}</button>
                           </div>
                         )
                       ) : (
@@ -348,7 +349,7 @@ export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, on
 
                     {/* Date Taken Section */}
                     <div className="mb-4">
-                      <h3 className="font-semibold text-gray-300 mb-1">Date Taken</h3>
+                      <h3 className="font-semibold text-gray-300 mb-1">{t('dateTaken')}</h3>
                       {isEditor ? (
                         isEditingDate ? (
                           <div className="flex items-center gap-2">
@@ -363,20 +364,20 @@ export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, on
                               isClearable
                               placeholderText="Click to select date and time"
                             />
-                            <button onClick={handleUpdateMetadata} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 flex-shrink-0">Save</button>
-                            <button onClick={handleCancelEditDate} className="px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700 flex-shrink-0">Cancel</button>
+                            <button onClick={handleUpdateMetadata} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 flex-shrink-0">{t('save')}</button>
+                            <button onClick={handleCancelEditDate} className="px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700 flex-shrink-0">{t('cancel')}</button>
                           </div>
                         ) : (
                           <div className="flex items-center gap-2">
                              <p className="text-sm text-gray-400 p-2 flex-grow">
-                              {documentDate ? documentDate.toLocaleString() : 'No date set'}
+                              {documentDate ? documentDate.toLocaleString() : t('noDateSet')}
                             </p>
-                            <button onClick={handleEditDate} className="px-4 py-1 bg-gray-700 text-white text-xs rounded-md hover:bg-gray-600 flex-shrink-0">Edit</button>
+                            <button onClick={handleEditDate} className="px-4 py-1 bg-gray-700 text-white text-xs rounded-md hover:bg-gray-600 flex-shrink-0">{t('edit')}</button>
                           </div>
                         )
                       ) : (
                         <p className="text-sm text-gray-400 p-2 flex-grow">
-                          {documentDate ? documentDate.toLocaleString() : 'No date set'}
+                          {documentDate ? documentDate.toLocaleString() : t('noDateSet')}
                         </p>
                       )}
                     </div>

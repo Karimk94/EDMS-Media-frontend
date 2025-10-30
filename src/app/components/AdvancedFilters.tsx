@@ -15,9 +15,10 @@ interface DateRangePickerProps {
   setDateFrom: (date: Date | null) => void;
   dateTo: Date | null;
   setDateTo: (date: Date | null) => void;
+  t: Function
 }
 
-const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateFrom, setDateFrom, dateTo, setDateTo }) => {
+const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateFrom, setDateFrom, dateTo, setDateTo, t  }) => {
   const handleClear = () => {
     setDateFrom(null);
     setDateTo(null);
@@ -47,7 +48,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateFrom, setDateFrom
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <label htmlFor="dateFrom" className="text-sm text-gray-400 w-12">From:</label>
+        <label htmlFor="dateFrom" className="text-sm text-gray-400 w-12">{t('from')}:</label>
         <DatePicker
           id="dateFrom"
           selected={dateFrom}
@@ -61,7 +62,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateFrom, setDateFrom
         />
       </div>
       <div className="flex items-center gap-2">
-        <label htmlFor="dateTo" className="text-sm text-gray-400 w-12">To:</label>
+        <label htmlFor="dateTo" className="text-sm text-gray-400 w-12">{t('to')}:</label>
         <DatePicker
           id="dateTo"
           selected={dateTo}
@@ -81,7 +82,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateFrom, setDateFrom
           className="w-full mt-2 text-center text-sm text-red-400 hover:text-red-300"
           aria-label="Clear date range"
         >
-          Clear Dates
+          {t('clearDates')}
         </button>
       )}
     </div>
@@ -98,13 +99,14 @@ interface AdvancedFiltersProps {
   personCondition: 'any' | 'all';
   setPersonCondition: (condition: 'any' | 'all') => void;
   apiURL: string;
+  t: Function;
 }
 
 export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({ 
     dateFrom, setDateFrom, dateTo, setDateTo, 
     selectedPerson, setSelectedPerson, 
     personCondition, setPersonCondition,
-    apiURL 
+    apiURL,t
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -155,7 +157,7 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 12.414V17a1 1 0 01-1.447.894l-2-1A1 1 0 018 16.051V12.414L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
         </svg>
-        Filters
+        {t('filters')}
         {activeFilterCount > 0 && (
             <span className="ml-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
                 {activeFilterCount}
@@ -165,28 +167,29 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
 
       {isOpen && (
         <div className="absolute top-full right-0 mt-2 w-80 bg-[#282828] border border-gray-600 rounded-lg shadow-lg z-50 p-4">
-          <h3 className="text-lg font-semibold text-white mb-4">Advanced Filters</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">{t('advancedFilters')}</h3>
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Date Range</label>
+              <label className="block text-sm font-medium text-gray-300 mb-1">{t('dateRange')}</label>
               <DateRangePicker
                 dateFrom={dateFrom}
                 setDateFrom={setDateFrom}
                 dateTo={dateTo}
                 setDateTo={setDateTo}
+                t={t}
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Person</label>
+              <label className="block text-sm font-medium text-gray-300 mb-1">{t('person')}</label>
               <AsyncPaginate
                 isMulti
                 value={selectedPerson}
                 loadOptions={loadPersonOptions}
                 onChange={(value) => setSelectedPerson(value as PersonOption[])}
                 isClearable
-                placeholder="Search for a person..."
+                placeholder={t('searchForPerson')}
                 additional={{
                   page: 1,
                 }}
@@ -202,7 +205,7 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
               />
                {selectedPerson && selectedPerson.length > 1 && (
                 <div className="mt-2">
-                  <label className="block text-xs font-medium text-gray-400 mb-1">Match Condition</label>
+                  <label className="block text-xs font-medium text-gray-400 mb-1">{t('matchCondition')}</label>
                   <div className="flex rounded-md shadow-sm">
                     <button
                       type="button"
@@ -237,7 +240,7 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
                 onClick={() => setIsOpen(false)}
                 className="px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-md hover:bg-red-700 transition"
              >
-                Apply
+                {t('apply')}
              </button>
           </div>
         </div>

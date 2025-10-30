@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 
 interface SearchBarProps {
   onSearch: (searchTerm: string) => void;
+  t: Function;
 }
 
-export const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
+export const SearchBar: React.FC<SearchBarProps> = ({ onSearch ,t }) => {
   const [input, setInput] = useState('');
 
   const handleSearch = () => onSearch(input.trim());
@@ -25,7 +26,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyUp={handleKeyUp}
-        placeholder="Search..."
+        placeholder={t('search')}
         className="flex-1 pl-4 pr-10 py-2 bg-[#121212] text-gray-200 border border-gray-600 rounded-l-full focus:ring-2 focus:ring-red-500 focus:outline-none focus:border-red-500 transition"
       />
       

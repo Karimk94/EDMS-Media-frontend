@@ -21,6 +21,9 @@ interface HeaderProps {
   setSelectedPerson: (person: PersonOption[] | null) => void;
   personCondition: 'any' | 'all';
   setPersonCondition: (condition: 'any' | 'all') => void;
+  lang: 'en' | 'ar';
+  setLang: (lang: 'en' | 'ar') => void;
+  t: Function;
   selectedTags: string[];
   setSelectedTags: (tags: string[]) => void;
   selectedYears: number[];
@@ -45,28 +48,55 @@ export const Header: React.FC<HeaderProps> = ({
   isProcessing,
   hasActiveFilters,
   onLogout,
-  isEditor
-}) => (
+  isEditor,
+  lang, 
+  setLang,
+  t
+}) => {
+  const handleLanguageChange = async () => {
+    const newLang = lang === 'en' ? 'ar' : 'en';
+    try {
+      await fetch('/api/user/language', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lang: newLang }),
+      });
+      setLang(newLang);
+    } catch (error) {
+      console.error('Failed to update language', error);
+    }
+  };
+
+  return (
   <header className="sticky top-0 z-40 bg-[#212121] border-b border-gray-700 px-4 sm:px-6 lg:px-8">
     <div className="flex items-center justify-between h-16">
-      <div className="flex-shrink-0">
+      <div className="flex-shrink-0 flex items-center space-x-3">
         <h1 className="text-xl font-bold text-white">
           <span className="text-red-500">EDMS</span> Media
         </h1>
+        <button
+          onClick={handleLanguageChange}
+          className="px-3 py-1.5 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700"
+        >
+          {lang === 'en' ? 'العربية' : 'English'}
+        </button>
       </div>
+      
 
       <div className="flex-1 flex justify-center px-4 items-center gap-4">
         <div className="w-full max-w-md">
-          <SearchBar onSearch={onSearch} />
+          <SearchBar onSearch={onSearch} t={t}/>
         </div>
         <TagFilter 
           apiURL={apiURL}
           selectedTags={selectedTags}
           setSelectedTags={setSelectedTags}
+          t={t}
         />
         <YearFilter
           selectedYears={selectedYears}
           setSelectedYears={setSelectedYears}
+          t={t}
         />
         <AdvancedFilters
           dateFrom={dateFrom}
@@ -78,6 +108,7 @@ export const Header: React.FC<HeaderProps> = ({
           personCondition={personCondition}
           setPersonCondition={setPersonCondition}
           apiURL={apiURL}
+          t={t}
         />
         {hasActiveFilters && (
           <button
@@ -88,7 +119,7 @@ export const Header: React.FC<HeaderProps> = ({
              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="red" strokeWidth={2}>
                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
              </svg>
-            Clear Filters
+            {t('clearFilters')}
           </button>
         )}
       </div>
@@ -108,7 +139,7 @@ export const Header: React.FC<HeaderProps> = ({
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
             </svg>
-            Upload
+            {t('upload')}
           </button>
         )}
         <button
@@ -116,9 +147,10 @@ export const Header: React.FC<HeaderProps> = ({
           className="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition flex items-center gap-2"
         >
           <img src="/logout.svg" alt="Logout" className="h-5 w-5" />
-          Logout
+          {t('logout')}
         </button>
       </div>
     </div>
   </header>
-);
+      );
+};

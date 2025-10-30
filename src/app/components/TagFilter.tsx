@@ -6,9 +6,10 @@ interface TagFilterProps {
   apiURL: string;
   selectedTags: string[];
   setSelectedTags: (tags: string[]) => void;
+  t: Function;
 }
 
-export const TagFilter: React.FC<TagFilterProps> = ({ apiURL, selectedTags, setSelectedTags }) => {
+export const TagFilter: React.FC<TagFilterProps> = ({ apiURL, selectedTags, setSelectedTags, t }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -94,7 +95,7 @@ export const TagFilter: React.FC<TagFilterProps> = ({ apiURL, selectedTags, setS
         className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white text-sm font-medium rounded-md hover:bg-gray-600 transition"
       >
         <img src="/tag.svg" alt="Tags" className="h-5 w-5" />
-        Tags
+        {t('tags')}
         {selectedTags.length > 0 && (
           <span className="ml-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
             {selectedTags.length}
