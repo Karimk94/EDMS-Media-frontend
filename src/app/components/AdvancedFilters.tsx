@@ -57,9 +57,10 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateFrom, setDateFrom
           startDate={dateFrom}
           endDate={dateTo}
           isClearable
-          dateFormat="MMMM d, yyyy"
+          dateFormat="dd/MM/yyyy"
           className="w-full"
           autoComplete='off'
+          locale="en-GB"
         />
       </div>
       <div className="flex items-center gap-2">
@@ -73,9 +74,10 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateFrom, setDateFrom
           endDate={dateTo}
           minDate={dateFrom ?? undefined}
           isClearable
-          dateFormat="MMMM d, yyyy"
+          dateFormat="dd/MM/yyyy"
           className="w-full"
           autoComplete='off'
+          locale="en-GB"
         />
       </div>
        {(dateFrom || dateTo) && (

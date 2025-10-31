@@ -50,35 +50,25 @@ export const MemoriesStack: React.FC<MemoriesStackProps> = ({ memories, apiURL, 
         return null;
     }
 
-    try {
+try {
         let dateObj: Date | null = null;
         // Attempt to parse DD-MM-YYYY format
-        const parts = firstMemory.date.split('-');
+        const parts = firstMemory.date.split(' ')[0].split('-');
         if (parts.length === 3) {
             const day = parseInt(parts[0], 10);
-            const month = parseInt(parts[1], 10); // Month is 1-based in the string
+            const month = parseInt(parts[1], 10);
             const year = parseInt(parts[2], 10);
-            // Check if parts are valid numbers before creating Date
             if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-                // Month in Date constructor is 0-based
                  dateObj = new Date(year, month - 1, day);
-                 // console.log(`MemoriesStack: Parsed DD-MM-YYYY as: Year=${year}, Month=${month-1}, Day=${day}`);
-            } else {
-                 // console.log("MemoriesStack: Failed to parse DD-MM-YYYY parts as numbers.");
             }
         }
 
-        // Fallback or if parsing DD-MM-YYYY failed, try default constructor
         if (!dateObj || isNaN(dateObj.getTime())) {
-            // console.log("MemoriesStack: DD-MM-YYYY parse failed or resulted in Invalid Date, trying default new Date().");
             dateObj = new Date(firstMemory.date);
         }
 
-        // console.log("MemoriesStack: Parsed date object:", dateObj);
-
         // Check if the final date object is valid
         if (!dateObj || isNaN(dateObj.getTime())) {
-            //console.log("MemoriesStack: Final dateObj is Invalid Date. Returning null.");
             return null;
         }
 

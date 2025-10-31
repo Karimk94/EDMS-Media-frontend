@@ -356,14 +356,15 @@ export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, on
                             <DatePicker
                               selected={documentDate}
                               onChange={handleDateChange}
-                              dateFormat="MMMM d, yyyy h:mm aa" // Adjusted format
-                              showTimeSelect // Enable time selection
-                              timeInputLabel="Time:" // Optional label
+                              dateFormat="dd/MM/yyyy h:mm aa" 
+                              showTimeSelect
+                              timeInputLabel="Time:"
                               className="w-full px-3 py-2 bg-[#121212] text-gray-200 border border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
-                              wrapperClassName="w-full" // Make wrapper take full width
+                              wrapperClassName="w-full"
                               isClearable
                               placeholderText="Click to select date and time"
                               autoComplete='off'
+                              locale="en-GB"
                             />
                             <button onClick={handleUpdateMetadata} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 flex-shrink-0">{t('save')}</button>
                             <button onClick={handleCancelEditDate} className="px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700 flex-shrink-0">{t('cancel')}</button>
@@ -371,14 +372,14 @@ export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, on
                         ) : (
                           <div className="flex items-center gap-2">
                              <p className="text-sm text-gray-400 p-2 flex-grow">
-                              {documentDate ? documentDate.toLocaleString() : t('noDateSet')}
+                              {documentDate ? documentDate.toLocaleString('en-GB') : t('noDateSet')}
                             </p>
                             <button onClick={handleEditDate} className="px-4 py-1 bg-gray-700 text-white text-xs rounded-md hover:bg-gray-600 flex-shrink-0">{t('edit')}</button>
                           </div>
                         )
                       ) : (
                         <p className="text-sm text-gray-400 p-2 flex-grow">
-                          {documentDate ? documentDate.toLocaleString() : t('noDateSet')}
+                          {documentDate ? documentDate.toLocaleString('en-GB') : t('noDateSet')}
                         </p>
                       )}
                     </div>

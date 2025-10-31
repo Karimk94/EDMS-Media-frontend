@@ -23,16 +23,17 @@ interface VideoModalProps {
 }
 
 const safeParseDate = (dateString: string): Date | null => {
- if (!dateString || dateString === "N/A") return null;
-  // Try parsing YYYY-MM-DD HH:MM:SS first
+  if (!dateString || dateString === "N/A") return null;
+
+  // Handle YYYY-MM-DD HH:MM:SS format
   const dateTimeParts = dateString.split(' ');
   if (dateTimeParts.length === 2) {
     const dateParts = dateTimeParts[0].split('-');
-    const timeParts = dateTimeParts[1].split(':');
-    if (dateParts.length === 3 && timeParts.length === 3) {
+    if (dateParts.length === 3) {
       const year = parseInt(dateParts[0], 10);
       const month = parseInt(dateParts[1], 10) - 1;
       const day = parseInt(dateParts[2], 10);
+      const timeParts = dateTimeParts[1].split(':');
       const hours = parseInt(timeParts[0], 10);
       const minutes = parseInt(timeParts[1], 10);
       const seconds = parseInt(timeParts[2], 10);
@@ -42,7 +43,20 @@ const safeParseDate = (dateString: string): Date | null => {
       }
     }
   }
-  // Fallback for other potential formats or just date
+
+  // Handle MM/dd/yyyy format
+  const slashParts = dateString.split('/');
+  if (slashParts.length === 3) {
+    const month = parseInt(slashParts[0], 10) - 1;
+    const day = parseInt(slashParts[1], 10);
+    const year = parseInt(slashParts[2], 10);
+    if (!isNaN(month) && !isNaN(day) && !isNaN(year)) {
+      const date = new Date(year, month, day);
+      if (!isNaN(date.getTime())) return date;
+    }
+  }
+
+
   const date = new Date(dateString);
   return isNaN(date.getTime()) ? null : date;
 };
@@ -286,14 +300,15 @@ export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, on
                         <DatePicker
                           selected={documentDate}
                           onChange={handleDateChange}
-                          dateFormat="MMMM d, yyyy h:mm aa" // Adjusted format
-                          showTimeSelect // Enable time selection
-                          timeInputLabel="Time:" // Optional label
+                          dateFormat="dd/MM/yyyy h:mm aa"
+                          showTimeSelect
+                          timeInputLabel="Time:"
                           className="w-full px-3 py-2 bg-[#121212] text-gray-200 border border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
-                           wrapperClassName="w-full" // Make wrapper take full width
+                           wrapperClassName="w-full"
                           isClearable
                           placeholderText="Click to select date and time"
                           autoComplete='off'
+                          locale="en-GB"
                         />
                         <button onClick={handleUpdateMetadata} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 flex-shrink-0">{t('save')}</button>
                         <button onClick={handleCancelEditDate} className="px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700 flex-shrink-0">{t('cancel')}</button>
@@ -301,14 +316,14 @@ export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, on
                     ) : (
                       <div className="flex items-center gap-2">
                         <p className="text-sm text-gray-400 p-2 flex-grow">
-                          {documentDate ? documentDate.toLocaleString() : 'No date set'}
+                          {documentDate ? documentDate.toLocaleString('en-GB') : 'No date set'}
                         </p>
                         <button onClick={handleEditDate} className="px-4 py-1 bg-gray-700 text-white text-xs rounded-md hover:bg-gray-600 flex-shrink-0">{t('edit')}</button>
                       </div>
                     )
                    ) : (
                     <p className="text-sm text-gray-400 p-2 flex-grow">
-                      {documentDate ? documentDate.toLocaleString() : 'No date set'}
+                      {documentDate ? documentDate.toLocaleString('en-GB') : 'No date set'}
                     </p>
                    )}
                 </div>

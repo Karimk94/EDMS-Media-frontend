@@ -109,17 +109,18 @@ export const UploadFileItem: React.FC<UploadFileItemProps> = ({
             <DatePicker
               selected={editedDateTaken}
               onChange={handleDateChange}
-              dateFormat="Pp"
+              dateFormat="dd/MM/yyyy"
               isClearable
               placeholderText="Select date"
               className="w-auto text-xs bg-[#121212] text-gray-200 border border-gray-600 rounded focus:ring-1 focus:ring-red-500 focus:outline-none py-0.5 px-1"
               autoComplete='off'
+              locale="en-GB"
             />
           </div>
         )}
         {!isActionable && editedDateTaken && (
           <p className="text-xs text-gray-400 mt-1">
-            Date Taken: {editedDateTaken.toLocaleString()}
+            Date Taken: {editedDateTaken.toLocaleString('en-GB')}
           </p>
         )}
 

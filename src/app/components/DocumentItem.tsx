@@ -110,21 +110,24 @@ export const DocumentItem: React.FC<DocumentItemProps> = ({ doc, onDocumentClick
     onTagSelect(tag);
   };
 
-  const formatDateOnly = (dateTimeString: string): string => {
+const formatDateOnly = (dateTimeString: string): string => {
     if (!dateTimeString || dateTimeString === "N/A") {
         return "N/A";
     }
     try {
-        const datePart = dateTimeString.split(' ')[0];
-        if (datePart && datePart.includes('-')) {
-             return datePart;
+        const date = new Date(dateTimeString);
+        if (isNaN(date.getTime())) {
+          return dateTimeString.split(' ')[0];
         }
-        return dateTimeString;
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
     } catch (e) {
         console.warn("Could not format date string:", dateTimeString, e);
-        return dateTimeString;
+        return dateTimeString.split(' ')[0];
     }
-};
+  };
 
 const displayDate = formatDateOnly(doc.date);
 
