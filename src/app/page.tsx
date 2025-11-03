@@ -18,10 +18,7 @@ import { EventDocumentModal } from './components/EventDocumentModal';
 import { Journey } from './components/Journey';
 import { useTranslations } from './hooks/useTranslations';
 import HtmlLangUpdater from './components/HtmlLangUpdater';
-
-// Import the new Sidebar
 import { Sidebar } from './components/Sidebar';
-// Import filters that were moved from Header
 import { TagFilter } from './components/TagFilter';
 import { YearFilter } from './components/YearFilter';
 import { AdvancedFilters } from './components/AdvancedFilters';
@@ -91,14 +88,12 @@ export default function HomePage() {
   const [lang, setLang] = useState<'en' | 'ar'>('en');
   const t = useTranslations(lang);
 
-  // State for the new sidebar - starts open
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  // NEW: State to track if the first load has completed
   const [initialLoadDone, setInitialLoadDone] = useState(false);
 
   const API_PROXY_URL = '/api';
 
-useEffect(() => {
+  useEffect(() => {
     const checkUser = async () => {
       try {
         const response = await fetch('/api/auth/user');
@@ -119,13 +114,13 @@ useEffect(() => {
   const fetchSectionData = useCallback(
     async (isMemoryFetch = false) => {
       if (!isLoadingMemoryStack || isMemoryFetch || activeSection === 'events') {
-          setIsLoading(true);
+        setIsLoading(true);
       }
       setError(null);
       if (activeSection === 'events') {
-          setEvents([]);
+        setEvents([]);
       } else {
-          setDocuments([]);
+        setDocuments([]);
       }
 
       let url: URL;
@@ -157,7 +152,7 @@ useEffect(() => {
       } else {
         const now = new Date();
         params.append('memoryMonth', String(now.getMonth() + 1));
-        params.append('sort', 'rtadocdate_desc'); 
+        params.append('sort', 'rtadocdate_desc');
       }
 
       try {
@@ -187,13 +182,13 @@ useEffect(() => {
             case 'events':
               endpoint = '/events';
               dataSetter = setEvents as React.Dispatch<React.SetStateAction<EventStackItem[]>>;
-              dataKey = 'events'; 
+              dataKey = 'events';
               params.append('fetch_all', 'false');
               break;
-              case 'journey':
+            case 'journey':
               endpoint = '/journey';
               dataSetter = setDocuments as React.Dispatch<React.SetStateAction<Document[]>>;
-              dataKey = 'events'; 
+              dataKey = 'events';
               break;
             default:
               throw new Error(`Invalid section: ${activeSection}`);
@@ -207,8 +202,7 @@ useEffect(() => {
           const response = await fetch(url);
           if (!response.ok)
             throw new Error(
-              `Failed to fetch ${
-                isMemoryFetch ? 'memories' : activeSection
+              `Failed to fetch ${isMemoryFetch ? 'memories' : activeSection
               }. Status: ${response.status}`
             );
           const data = await response.json();
@@ -226,8 +220,7 @@ useEffect(() => {
           err
         );
         setError(
-          `Failed to fetch ${
-            isMemoryFetch ? 'memories' : activeSection
+          `Failed to fetch ${isMemoryFetch ? 'memories' : activeSection
           }. Is the API ready? ${err.message}`
         );
         setDocuments([]);
@@ -235,7 +228,6 @@ useEffect(() => {
         setTotalPages(1);
       } finally {
         setIsLoading(false);
-        // NEW: Close sidebar after initial load
         if (!initialLoadDone) {
           setIsSidebarOpen(false);
           setInitialLoadDone(true);
@@ -253,12 +245,12 @@ useEffect(() => {
       selectedTags,
       selectedYears,
       isLoadingMemoryStack,
-      initialLoadDone, // NEW: Add dependency
+      initialLoadDone,
     ]
   );
 
   // --- fetchMemoryStack ---
-   const fetchMemoryStack = async () => {
+  const fetchMemoryStack = async () => {
     setIsLoadingMemoryStack(true);
     try {
       const now = new Date();
@@ -280,7 +272,7 @@ useEffect(() => {
     }
   };
 
-   useEffect(() => {
+  useEffect(() => {
     if (user) {
       if (isShowingFullMemories) {
         fetchSectionData(true);
@@ -296,7 +288,7 @@ useEffect(() => {
     }
   }, [user]);
 
-   useEffect(() => {
+  useEffect(() => {
     if (user) {
       const storedProcessingDocs = localStorage.getItem('processingDocs');
       if (storedProcessingDocs) {
@@ -367,7 +359,7 @@ useEffect(() => {
     user,
   ]);
 
-   const handleSearch = (newSearchTerm: string) => {
+  const handleSearch = (newSearchTerm: string) => {
     setIsShowingFullMemories(false);
     setSearchTerm(newSearchTerm);
     setCurrentPage(1);
@@ -375,8 +367,6 @@ useEffect(() => {
 
   const handleClearFilters = () => {
     setIsShowingFullMemories(false);
-    // Keep search term, as per original logic (clear button is separate from search)
-    // setSearchTerm(''); 
     setDateFrom(null);
     setDateTo(null);
     setSelectedPerson(null);
@@ -412,7 +402,7 @@ useEffect(() => {
 
   const handleSectionChange = (section: ActiveSection) => {
     if (section === 'memories') {
-      handleMemoryStackClick(); 
+      handleMemoryStackClick();
     } else if (section !== activeSection || isShowingFullMemories) {
       setIsShowingFullMemories(false);
       setActiveSection(section);
@@ -429,11 +419,11 @@ useEffect(() => {
   const handleEventClick = (eventId: number) => {
     const clickedEvent = events.find(e => e.id === eventId);
     if (clickedEvent) {
-        setSelectedEventIdForModal(eventId);
-        setSelectedEventNameForModal(clickedEvent.name);
-        setIsEventModalOpen(true);
+      setSelectedEventIdForModal(eventId);
+      setSelectedEventNameForModal(clickedEvent.name);
+      setIsEventModalOpen(true);
     } else {
-        console.warn(`Could not find event details for ID: ${eventId}`);
+      console.warn(`Could not find event details for ID: ${eventId}`);
     }
   };
 
@@ -495,18 +485,18 @@ useEffect(() => {
         throw new Error('Failed to update favorite status');
       }
       if (activeSection === 'favorites' || activeSection === 'recent') {
-          setDocuments(
-            documents.map((d) =>
-              d.doc_id === docId ? { ...d, is_favorite: isFavorite } : d
-            )
-          );
+        setDocuments(
+          documents.map((d) =>
+            d.doc_id === docId ? { ...d, is_favorite: isFavorite } : d
+          )
+        );
       }
       if (activeSection === 'favorites' && !isFavorite) {
-          fetchSectionData(false);
+        fetchSectionData(false);
       }
-       setMemoryStackItems(
-           memoryStackItems.map(m => m.doc_id === docId ? { ...m, is_favorite: isFavorite } : m)
-       );
+      setMemoryStackItems(
+        memoryStackItems.map(m => m.doc_id === docId ? { ...m, is_favorite: isFavorite } : m)
+      );
     } catch (error) {
       console.error(error);
     }
@@ -529,11 +519,11 @@ useEffect(() => {
   };
 
   const hasActiveFilters = Boolean(
-     dateFrom || dateTo || selectedPerson?.length || selectedTags.length || selectedYears.length
+    dateFrom || dateTo || selectedPerson?.length || selectedTags.length || selectedYears.length
   );
 
   // --- renderContent ---
-    const renderContent = () => {
+  const renderContent = () => {
     if (isLoading) {
       return (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8">
@@ -620,7 +610,7 @@ useEffect(() => {
           isLoading={false}
           processingDocs={processingDocs}
           onToggleFavorite={handleToggleFavorite}
-          lang= {lang}
+          lang={lang}
         />
       );
     }
@@ -636,153 +626,152 @@ useEffect(() => {
 
   const rtlMainClass = lang === 'ar' ? 'rtl' : 'ltr';
 
-return (
-  <>
-  <HtmlLangUpdater lang={lang} />
-  <div className={`flex flex-col h-screen ${rtlMainClass}`}>
-    <Header
-      onSearch={handleSearch}
-      onClearCache={handleClearCache}
-      apiURL={API_PROXY_URL}
-      onOpenUploadModal={() => setIsUploadModalOpen(true)}
-      isProcessing={processingDocs.length > 0}
-      onLogout={handleLogout}
-      isEditor={user.security_level === 'Editor'}
-      lang={lang}
-      setLang={setLang}
-      t={t}
-      isSidebarOpen={isSidebarOpen}
-      toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-      />
-    
-    <div className={`flex flex-1 overflow-hidden ${lang === 'ar' ? 'flex-row-reverse' : ''}`}>
-      <Sidebar
-        isSidebarOpen={isSidebarOpen}
-        activeSection={activeSection}
-        handleSectionChange={handleSectionChange}
-        isShowingFullMemories={isShowingFullMemories}
-        t={t}
-        lang={lang}
-      />
+  return (
+    <>
+      <HtmlLangUpdater lang={lang} />
+      <div className={`flex flex-col h-screen ${rtlMainClass}`}>
+        <Header
+          onSearch={handleSearch}
+          onClearCache={handleClearCache}
+          apiURL={API_PROXY_URL}
+          onOpenUploadModal={() => setIsUploadModalOpen(true)}
+          isProcessing={processingDocs.length > 0}
+          onLogout={handleLogout}
+          isEditor={user.security_level === 'Editor'}
+          lang={lang}
+          setLang={setLang}
+          t={t}
+          isSidebarOpen={isSidebarOpen}
+          toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        />
 
-      <main className="flex-1 overflow-y-auto bg-gray-50 text-gray-900 p-4 sm:p-6 lg:p-8">
-        
-        {/* --- New Filter Bar --- */}
-        {activeSection !== 'journey' && !isShowingFullMemories && (
-          <div className={`flex items-center gap-4 mb-6 pb-6 border-b border-gray-200 ${lang === 'ar' ? 'flex-row-reverse' : ''}`}>
-            <TagFilter 
-              apiURL={API_PROXY_URL}
-              selectedTags={selectedTags}
-              setSelectedTags={(tags) => {
-                setSelectedTags(tags);
-                setCurrentPage(1);
-              }}
-              t={t}
-              lang={lang}
-            />
-            <YearFilter
-              selectedYears={selectedYears}
-              setSelectedYears={(years) => {
-                setSelectedYears(years);
-                setCurrentPage(1);
-              }}
-              t={t}
-            />
-            <AdvancedFilters
-              dateFrom={dateFrom}
-              setDateFrom={(date) => {
-                setDateFrom(date);
-                setCurrentPage(1);
-              }}
-              dateTo={dateTo}
-              setDateTo={(date) => {
-                setDateTo(date);
-                setCurrentPage(1);
-              }}
-              selectedPerson={selectedPerson}
-              setSelectedPerson={(person) => {
-                setSelectedPerson(person);
-                setCurrentPage(1);
-              }}
-              personCondition={personCondition}
-              setPersonCondition={(condition) => {
-                setPersonCondition(condition);
-                setCurrentPage(1);
-              }}
-              apiURL={API_PROXY_URL}
-              t={t}
-            />
-            {hasActiveFilters && (
-              <button
-                onClick={handleClearFilters}
-                className="px-3 py-2 bg-gray-200 text-gray-700 text-xs font-medium rounded-md hover:bg-red-100 hover:text-red-700 transition flex items-center gap-1"
-                title="Clear all active filters"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                {t('clearFilters')}
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* --- Main Content --- */}
-        {activeSection === 'journey' ? (
-          <Journey apiURL={API_PROXY_URL} t={t} />
-        ) : (
-          renderContent()
-        )}
-
-        {/* --- Pagination (conditonal) --- */}
-        {activeSection !== 'journey' && !isLoading && totalPages > 1 && (
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
+        <div className={`flex flex-1 overflow-hidden ${lang === 'ar' ? 'flex-row-reverse' : ''}`}>
+          <Sidebar
+            isSidebarOpen={isSidebarOpen}
+            activeSection={activeSection}
+            handleSectionChange={handleSectionChange}
+            isShowingFullMemories={isShowingFullMemories}
             t={t}
+            lang={lang}
           />
-        )}
 
-        {/* --- Memories Stack (conditional) --- */}
-        {activeSection !== 'journey' && !isShowingFullMemories && (
-          <section className="mt-16 pt-8 border-t border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-700 mb-4">
-              {t('memoriesFromPast')}
-            </h2>
-            {isLoadingMemoryStack ? (
-              <div className="h-40 w-full max-w-xs bg-gray-200 rounded-lg animate-pulse"></div>
-            ) : memoryStackItems.length > 0 ? (
-              <div className="max-w-xs">
-                <MemoriesStack
-                  memories={memoryStackItems}
+          <main className="flex-1 overflow-y-auto bg-gray-50 text-gray-900 p-4 sm:p-6 lg:p-8 min-w-0">
+
+            {activeSection !== 'journey' && !isShowingFullMemories && (
+              <div className={`flex items-center gap-4 mb-6 pb-6 border-b border-gray-200 justify-end ${lang === 'ar' ? 'flex-row-reverse' : ''}`}>
+                <TagFilter
                   apiURL={API_PROXY_URL}
-                  onClick={handleMemoryStackClick}
+                  selectedTags={selectedTags}
+                  setSelectedTags={(tags) => {
+                    setSelectedTags(tags);
+                    setCurrentPage(1);
+                  }}
+                  t={t}
+                  lang={lang}
                 />
-              </div>
-            ) : (
-              <div className="bg-gray-100 p-6 rounded-lg text-center text-gray-500">
-                {t('noMemoriesFound')}
+                <YearFilter
+                  selectedYears={selectedYears}
+                  setSelectedYears={(years) => {
+                    setSelectedYears(years);
+                    setCurrentPage(1);
+                  }}
+                  t={t}
+                />
+                <AdvancedFilters
+                  dateFrom={dateFrom}
+                  setDateFrom={(date) => {
+                    setDateFrom(date);
+                    setCurrentPage(1);
+                  }}
+                  dateTo={dateTo}
+                  setDateTo={(date) => {
+                    setDateTo(date);
+                    setCurrentPage(1);
+                  }}
+                  selectedPerson={selectedPerson}
+                  setSelectedPerson={(person) => {
+                    setSelectedPerson(person);
+                    setCurrentPage(1);
+                  }}
+                  personCondition={personCondition}
+                  setPersonCondition={(condition) => {
+                    setPersonCondition(condition);
+                    setCurrentPage(1);
+                  }}
+                  apiURL={API_PROXY_URL}
+                  t={t}
+                />
+                {hasActiveFilters && (
+                  <button
+                    onClick={handleClearFilters}
+                    className="px-3 py-2 bg-gray-200 text-gray-700 text-xs font-medium rounded-md hover:bg-red-100 hover:text-red-700 transition flex items-center gap-1"
+                    title="Clear all active filters"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    {t('clearFilters')}
+                  </button>
+                )}
               </div>
             )}
-          </section>
-        )}
-      </main>
-    </div>
 
-     {/* Modals */}
-     {selectedDoc && <ImageModal doc={selectedDoc} onClose={() => setSelectedDoc(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} t={t} lang={lang} />}
-     {selectedVideo && <VideoModal doc={selectedVideo} onClose={() => setSelectedVideo(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} t={t} lang={lang}/>}
-     {selectedPdf && <PdfModal doc={selectedPdf} onClose={() => setSelectedPdf(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} t={t} lang={lang}/>}
-     {isUploadModalOpen && user?.security_level === 'Editor' && <UploadModal onClose={() => setIsUploadModalOpen(false)} apiURL={API_PROXY_URL} onAnalyze={handleAnalyze} />}
-     <EventDocumentModal
-       isOpen={isEventModalOpen}
-       onClose={() => setIsEventModalOpen(false)}
-       initialEventId={selectedEventIdForModal}
-       initialEventName={selectedEventNameForModal}
-       apiURL={API_PROXY_URL}
-     />
-  </div>
-  </>
-);
+            {/* --- Main Content --- */}
+            {activeSection === 'journey' ? (
+              <Journey apiURL={API_PROXY_URL} t={t} />
+            ) : (
+              renderContent()
+            )}
+
+            {/* --- Pagination (conditonal) --- */}
+            {activeSection !== 'journey' && !isLoading && totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                t={t}
+              />
+            )}
+
+            {/* --- Memories Stack (conditional) --- */}
+            {activeSection !== 'journey' && !isShowingFullMemories && (
+              <section className="mt-16 pt-8 border-t border-gray-200">
+                <h2 className="text-xl font-semibold text-gray-700 mb-4">
+                  {t('memoriesFromPast')}
+                </h2>
+                {isLoadingMemoryStack ? (
+                  <div className="h-40 w-full max-w-xs bg-gray-200 rounded-lg animate-pulse"></div>
+                ) : memoryStackItems.length > 0 ? (
+                  <div className="max-w-xs">
+                    <MemoriesStack
+                      memories={memoryStackItems}
+                      apiURL={API_PROXY_URL}
+                      onClick={handleMemoryStackClick}
+                    />
+                  </div>
+                ) : (
+                  <div className="bg-gray-100 p-6 rounded-lg text-center text-gray-500">
+                    {t('noMemoriesFound')}
+                  </div>
+                )}
+              </section>
+            )}
+          </main>
+        </div>
+
+        {/* Modals */}
+        {selectedDoc && <ImageModal doc={selectedDoc} onClose={() => setSelectedDoc(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} t={t} lang={lang} />}
+        {selectedVideo && <VideoModal doc={selectedVideo} onClose={() => setSelectedVideo(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} t={t} lang={lang} />}
+        {selectedPdf && <PdfModal doc={selectedPdf} onClose={() => setSelectedPdf(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} t={t} lang={lang} />}
+        {isUploadModalOpen && user?.security_level === 'Editor' && <UploadModal onClose={() => setIsUploadModalOpen(false)} apiURL={API_PROXY_URL} onAnalyze={handleAnalyze} />}
+        <EventDocumentModal
+          isOpen={isEventModalOpen}
+          onClose={() => setIsEventModalOpen(false)}
+          initialEventId={selectedEventIdForModal}
+          initialEventName={selectedEventNameForModal}
+          apiURL={API_PROXY_URL}
+        />
+      </div>
+    </>
+  );
 }

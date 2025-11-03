@@ -16,6 +16,7 @@
   z-index: 1; /* BEHIND content */
   pointer-events: none;
 }
+
 .journey-svg-path-track {
   fill: none;
   stroke: #3b82f6; /* Blue line */
@@ -28,7 +29,7 @@
 .journey-svg-path-progress {
     fill: none;
     stroke: white;
-    stroke-width: 8px;
+    stroke-width: 6px;
     stroke-linejoin: round;
     stroke-linecap: round;
 }
@@ -42,10 +43,15 @@
   z-index: 3; /* IN FRONT of content */
   pointer-events: none; /* Let clicks pass through */
 }
+
 .journey-svg-dot {
-  fill: white;
-  stroke: #3b82f6;
-  stroke-width: 3px;
+  fill: #3b82f6;
+  stroke: white;
+  stroke-width: 1px;                       /* thinner stroke */
+  filter: drop-shadow(1px 1px 1px rgba(0, 0, 0, 0.35));
+  transform: scale(0.6);                   /* scale the dot down */
+  transform-origin: center;
+  transform-box: fill-box;                 /* ensures proper scaling for SVG elements */
 }
 
 /* --- Content Layout (Single Centered Column) --- */

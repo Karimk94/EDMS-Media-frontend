@@ -1,5 +1,5 @@
-import en from '../../locales/en.json';
 import ar from '../../locales/ar.json';
+import en from '../../locales/en.json';
 
 const translations = { en, ar };
 

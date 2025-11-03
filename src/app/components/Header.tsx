@@ -101,9 +101,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Side: Actions */}
         <div
-          className={`flex items-center ${
-            lang === 'ar' ? 'gap-4' : 'gap-4'
-          } ${searchBarMargin}`}
+          className={`flex items-center gap-4 ${searchBarMargin} ${rtlClass}`}
         >
           {isProcessing && (
             <div className="flex items-center gap-2 text-white text-sm">
