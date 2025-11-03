@@ -2,7 +2,6 @@
 
 import React from 'react';
 
-// Define the props for the Sidebar
 interface SidebarProps {
   isSidebarOpen: boolean;
   activeSection: 'recent' | 'favorites' | 'events' | 'memories' | 'journey';
@@ -12,7 +11,6 @@ interface SidebarProps {
   lang: 'en' | 'ar';
 }
 
-// Reusable navigation link component
 const NavLink: React.FC<{
   icon: string;
   label: string;
@@ -25,18 +23,16 @@ const NavLink: React.FC<{
   const inactiveClass = 'text-gray-400 hover:bg-gray-700 hover:text-white';
   const rtlClass = lang === 'ar' ? 'flex-row-reverse' : '';
   
-  // Style to make icons white
   const iconFilterStyle = { filter: 'brightness(0) invert(1)' };
 
   return (
     <button
       onClick={onClick}
-      className={`flex items-center w-full p-3 rounded-lg transition-colors duration-150 ease-in-out ${
+      className={`relative flex items-center w-full p-3 rounded-lg transition-colors duration-150 ease-in-out group ${
         isActive ? activeClass : inactiveClass
       } ${rtlClass} ${
         !isSidebarOpen ? 'justify-center' : ''
       } ${
-        // UPDATED: Use gap-4 for spacing only when sidebar is open
         isSidebarOpen ? 'gap-4' : ''
       }`}
     >
@@ -44,13 +40,24 @@ const NavLink: React.FC<{
         src={icon}
         alt=""
         className={`w-6 h-6 flex-shrink-0 ${
-          // UPDATED: Use opacity to dim inactive icons
           isActive ? 'opacity-100' : 'opacity-70'
         }`}
-        // UPDATED: Apply filter to all icons
         style={iconFilterStyle}
       />
       {isSidebarOpen && <span className="truncate">{label}</span>}
+      
+      {!isSidebarOpen && (
+        <span 
+          className={`absolute top-1/2 -translate-y-1/2 z-50
+                     bg-gray-900 text-white px-3 py-1 rounded-md text-sm font-medium
+                     opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100
+                     transition-all duration-150 pointer-events-none whitespace-nowrap
+                     ${lang === 'ar' ? 'right-full mr-4' : 'left-full ml-4'}
+                    `}
+        >
+          {label}
+        </span>
+      )}
     </button>
   );
 };
@@ -63,7 +70,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   t,
   lang,
 }) => {
-  // Helper to determine the active state correctly
   const getIsActive = (section: 'recent' | 'favorites' | 'events' | 'memories' | 'journey') => {
     if (isShowingFullMemories) {
       return section === 'memories';
@@ -73,7 +79,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const sidebarWidth = isSidebarOpen ? 'w-60' : 'w-20';
   const padding = isSidebarOpen ? 'p-4' : 'p-2';
-  // Border is now always on the right
   const borderClass = 'border-r';
 
   return (

@@ -588,7 +588,6 @@ useEffect(() => {
           </p>
         );
       }
-      // Render a grid of EventStack components
       return (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8">
           {events.map((event) => (
@@ -603,7 +602,6 @@ useEffect(() => {
       );
     }
 
-    // --- Default: Recent or Favorites (Document List) ---
     else {
       if (documents.length === 0) {
         return (
@@ -627,8 +625,6 @@ useEffect(() => {
     }
   };
 
-  
-  // --- Main return ---
   if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
@@ -658,8 +654,7 @@ return (
       toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
       />
     
-    {/* Main layout - REMOVED flex-row-reverse logic */}
-    <div className="flex flex-1 overflow-hidden">
+    <div className={`flex flex-1 overflow-hidden ${lang === 'ar' ? 'flex-row-reverse' : ''}`}>
       <Sidebar
         isSidebarOpen={isSidebarOpen}
         activeSection={activeSection}
