@@ -412,7 +412,7 @@ useEffect(() => {
 
   const handleSectionChange = (section: ActiveSection) => {
     if (section === 'memories') {
-      handleMemoryStackClick();
+      handleMemoryStackClick(); 
     } else if (section !== activeSection || isShowingFullMemories) {
       setIsShowingFullMemories(false);
       setActiveSection(section);
@@ -482,6 +482,7 @@ useEffect(() => {
 
   const handleMemoryStackClick = () => {
     setIsShowingFullMemories(true);
+    setActiveSection('memories');
     setCurrentPage(1);
   };
 
