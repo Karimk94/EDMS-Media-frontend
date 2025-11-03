@@ -62,7 +62,6 @@ body {
     padding: 0.5rem 0.75rem;
     background-color: #121212;
     color: #e2e8f0;
-    border: 1px solid #4b5563;
     border-radius: 0.375rem;
 }
 .react-datepicker__input-container input:focus {

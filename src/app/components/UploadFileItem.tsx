@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import DatePicker from 'react-datepicker';
 
 export type UploadStatus = 'pending' | 'uploading' | 'processing' | 'success' | 'error';
 
-// Updated interface to include editable fields
 export interface UploadableFile {
   id: string;
   file: File;
@@ -11,33 +10,28 @@ export interface UploadableFile {
   progress: number;
   docnumber?: number;
   error?: string;
-  // Editable fields
   editedFileName: string;
   editedDateTaken: Date | null;
+  dateSource?: 'exif' | 'filename_full' | 'filename_partial' | 'file';
 }
 
 interface UploadFileItemProps {
   uploadableFile: UploadableFile;
   onRemove: () => void;
-  // Add handlers to update state in parent
   onUpdateFileName: (id: string, newName: string) => void;
   onUpdateDateTaken: (id: string, newDate: Date | null) => void;
 }
 
-// Helper to format Date to datetime-local string (YYYY-MM-DDTHH:mm)
 const formatDateForInput = (date: Date | null): string => {
   if (!date) return '';
-  // Adjust for local timezone offset before formatting
   const offset = date.getTimezoneOffset() * 60000;
   const localDate = new Date(date.getTime() - offset);
   return localDate.toISOString().slice(0, 16);
 };
 
-// Helper to parse datetime-local string back to Date
 const parseDateFromInput = (dateString: string): Date | null => {
   if (!dateString) return null;
   try {
-    // Directly parse the local datetime string
     const date = new Date(dateString);
     return isNaN(date.getTime()) ? null : date;
   } catch (e) {
@@ -53,18 +47,17 @@ export const UploadFileItem: React.FC<UploadFileItemProps> = ({
   onUpdateFileName,
   onUpdateDateTaken
 }) => {
-  const { id, file, status, progress, error, editedFileName, editedDateTaken } = uploadableFile;
+  const { id, file, status, progress, error, editedFileName, editedDateTaken, dateSource } = uploadableFile;
   const isActionable = status === 'pending' || status === 'error';
-  const [showDatePicker, setShowDatePicker] = useState(false); // State for date picker visibility
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // Handle local changes and propagate up
   const handleFileNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onUpdateFileName(id, e.target.value);
   };
 
   const handleDateChange = (date: Date | null) => {
     onUpdateDateTaken(id, date);
-    setShowDatePicker(false); // Close picker after selection
+    setShowDatePicker(false);
   };
 
   const getStatusIndicator = () => {
@@ -81,6 +74,23 @@ export const UploadFileItem: React.FC<UploadFileItemProps> = ({
         return <div className="w-6 h-6 bg-gray-600 rounded-full"></div>;
     }
   };
+  
+  const getDatePickerTitle = () => {
+    switch (dateSource) {
+      case 'file':
+        return "Date Taken not found. Using file modification date as fallback.";
+      case 'filename_partial':
+        return "Date Taken not found. Using partial date (Year) from filename as fallback.";
+      case 'filename_full':
+        return "Date Taken not found. Using full date parsed from filename.";
+      case 'exif':
+        return "Date Taken (from EXIF metadata).";
+      default:
+        return "Date Taken";
+    }
+  };
+
+  const isHighlighted = dateSource === 'file' || dateSource === 'filename_partial';
 
   return (
     <div className="bg-[#333] p-4 rounded-lg flex items-start gap-4">
@@ -112,7 +122,10 @@ export const UploadFileItem: React.FC<UploadFileItemProps> = ({
               dateFormat="dd/MM/yyyy"
               isClearable
               placeholderText="Select date"
-              className="w-auto text-xs bg-[#121212] text-gray-200 border border-gray-600 rounded focus:ring-1 focus:ring-red-500 focus:outline-none py-0.5 px-1"
+              className={`w-auto text-xs bg-[#121212] text-gray-200 border rounded focus:ring-1 focus:ring-red-500 focus:outline-none py-0.5 px-1 ${
+                isHighlighted ? 'border-yellow-500 border-2' : 'border-gray-600'
+              }`}
+              title={getDatePickerTitle()}
               autoComplete='off'
               locale="en-GB"
             />

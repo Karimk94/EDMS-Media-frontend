@@ -1,12 +1,11 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { UploadFileItem, UploadableFile, UploadStatus } from './UploadFileItem';
-import ExifReader from 'exifreader'; // Example library for EXIF data
+import ExifReader from 'exifreader';
 import { EventEditor } from './EventEditor';
 
 const formatDateTimeForAPI = (date: Date | null): string | null => {
     if (!date) return null;
     const pad = (num: number) => num.toString().padStart(2, '0');
-    // Ensure the date object is valid before formatting
     if (isNaN(date.getTime())) return null;
     try {
         return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
@@ -14,6 +13,50 @@ const formatDateTimeForAPI = (date: Date | null): string | null => {
         console.error("Error formatting date:", e, date);
         return null; // Return null if formatting fails
     }
+};
+
+const parseDateFromFilename = (filename: string): { date: Date | null, source: 'filename_full' | 'filename_partial' | null } => {
+  let match;
+
+  // 1. YYYYMMDD (Full)
+  match = filename.match(/(\d{4})(\d{2})(\d{2})/);
+  if (match) {
+    const date = new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
+    if (!isNaN(date.getTime()) && date.getFullYear() === parseInt(match[1])) {
+       return { date, source: 'filename_full' };
+    }
+  }
+
+  // 2. YYYY-MM-DD (Full)
+  match = filename.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const date = new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
+    if (!isNaN(date.getTime()) && date.getFullYear() === parseInt(match[1])) {
+      return { date, source: 'filename_full' };
+    }
+  }
+  
+  // 3. DD-MM-YYYY (Full)
+  match = filename.match(/(\d{2})-(\d{2})-(\d{4})/);
+  if (match) {
+    const date = new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]));
+    if (!isNaN(date.getTime()) && date.getFullYear() === parseInt(match[3])) {
+      return { date, source: 'filename_full' };
+    }
+  }
+
+  // 4. Just a year (1950-2039) (Partial)
+  // Use word boundaries \b to avoid matching parts of other numbers
+  match = filename.match(/\b(19[5-9]\d|20[0-3]\d)\b/); 
+  if (match) {
+    // Set to Jan 1st of that year.
+    const date = new Date(parseInt(match[1]), 0, 1); 
+    if (!isNaN(date.getTime())) {
+      return { date, source: 'filename_partial' };
+    }
+  }
+
+  return { date: null, source: null };
 };
 
 
@@ -50,22 +93,45 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, onAna
     } catch (error) {
       console.warn(`Could not read EXIF data for ${file.name}:`, error);
     }
-    return null; // Default to null if no EXIF data or parsing fails
+    return null;
   };
 
 
   const handleFiles = async (selectedFiles: FileList | null) => {
     if (!selectedFiles) return;
+
     const newUploadPromises = Array.from(selectedFiles).map(async (file) => {
-        // Attempt to get EXIF date, default to null if not found/possible
+        
+        let finalDate: Date | null = null;
+        let dateSource: UploadableFile['dateSource'] = undefined; 
+
+        // 1. Try EXIF
         const exifDate = await extractExifDate(file);
+        
+        if (exifDate) {
+            finalDate = exifDate;
+            dateSource = 'exif';
+        } else {
+            // 2. Try Filename
+            const { date: filenameDate, source: filenameSource } = parseDateFromFilename(file.name);
+            if (filenameDate && filenameSource) {
+                finalDate = filenameDate;
+                dateSource = filenameSource;
+            } else if (file.lastModified) {
+                // 3. Fallback to File Modified
+                finalDate = new Date(file.lastModified);
+                dateSource = 'file';
+            }
+        }
+
         return {
             id: `file-${fileIdCounter.current++}`,
             file,
             status: 'pending',
             progress: 0,
-            editedFileName: file.name, // Initialize with original name
-            editedDateTaken: exifDate, // Initialize with extracted EXIF date or null
+            editedFileName: file.name,
+            editedDateTaken: finalDate,
+            dateSource: dateSource
         } as UploadableFile;
     });
 
@@ -78,7 +144,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, onAna
     event.stopPropagation();
     setIsDragOver(false);
     handleFiles(event.dataTransfer.files);
-  }, []); // Added handleFiles to dependency array if it changes, though unlikely here
+  }, []); 
 
   const onDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -100,13 +166,12 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, onAna
     setFiles(prev => prev.map(f => f.id === id ? { ...f, status, ...updates } : f));
   };
 
-  // Handlers to update specific fields from child
   const handleUpdateFileName = (id: string, newName: string) => {
     setFiles(prev => prev.map(f => f.id === id ? { ...f, editedFileName: newName } : f));
   };
 
   const handleUpdateDateTaken = (id: string, newDate: Date | null) => {
-    setFiles(prev => prev.map(f => f.id === id ? { ...f, editedDateTaken: newDate } : f));
+    setFiles(prev => prev.map(f => f.id === id ? { ...f, editedDateTaken: newDate, dateSource: undefined } : f));
   };
 
   const handleUpload = async () => {
@@ -117,24 +182,20 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, onAna
 
     const uploadPromises = pendingFiles.map(uploadableFile => {
       return new Promise<void>((resolve) => {
-        const { id, file, editedFileName, editedDateTaken } = uploadableFile; // Get potentially edited values
+        const { id, file, editedFileName, editedDateTaken } = uploadableFile;
         updateFileStatus(id, 'uploading', { progress: 0 });
 
         const formData = new FormData();
         formData.append('file', file);
-        // Use editedFileName if available and not empty, otherwise original file name
         formData.append('docname', (editedFileName && editedFileName.trim()) ? editedFileName.trim() : file.name);
-        formData.append('abstract', ``); // Keep abstract empty for now
+        formData.append('abstract', ``); 
 
-        // --- Append event_id if selected ---
         if (selectedEvent) {
           formData.append('event_id', String(selectedEvent.value));
         }
-        // --- End Append event_id ---
 
-        // Add formatted date_taken if available
         const formattedDate = formatDateTimeForAPI(editedDateTaken);
-        console.log(`File ${id}: Original Date:`, editedDateTaken, `Formatted Date for API:`, formattedDate); // Debug log
+        console.log(`File ${id}: Original Date:`, editedDateTaken, `Formatted Date for API:`, formattedDate);
         if (formattedDate) {
           formData.append('date_taken', formattedDate);
         }
@@ -167,7 +228,6 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, onAna
                  const response = JSON.parse(xhr.responseText);
                  errorMsg = response.error || errorMsg;
              } catch (e) {
-                 // Keep default error message
              }
              updateFileStatus(id, 'error', { error: errorMsg });
           }
@@ -226,7 +286,6 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, onAna
                 apiURL={apiURL}
                 selectedEvent={selectedEvent}
                 setSelectedEvent={setSelectedEvent}
-                // No docId or onEventChange needed here
               />
             </div>
         </div>
@@ -241,8 +300,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, onAna
                             key={f.id}
                             uploadableFile={f}
                             onRemove={() => removeFile(f.id)}
-                            onUpdateFileName={handleUpdateFileName} // Pass handler
-                            onUpdateDateTaken={handleUpdateDateTaken} // Pass handler
+                            onUpdateFileName={handleUpdateFileName}
+                            onUpdateDateTaken={handleUpdateDateTaken}
                         />
                     ))
                 ) : (
