@@ -170,7 +170,7 @@ useEffect(() => {
             case 'favorites':
               endpoint = '/favorites';
               dataSetter = setDocuments as React.Dispatch<React.SetStateAction<Document[]>>;
-              dataKey = 'favorites';
+              dataKey = 'documents';
               break;
             case 'events':
               endpoint = '/events';
@@ -554,6 +554,7 @@ useEffect(() => {
             isLoading={false}
             processingDocs={processingDocs}
             onToggleFavorite={handleToggleFavorite}
+            lang={lang}
           />
         </>
       );
@@ -601,6 +602,7 @@ useEffect(() => {
           isLoading={false}
           processingDocs={processingDocs}
           onToggleFavorite={handleToggleFavorite}
+          lang= {lang}
         />
       );
     }
@@ -709,9 +711,9 @@ return (
       )}
     </main>
 
-     {selectedDoc && <ImageModal doc={selectedDoc} onClose={() => setSelectedDoc(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} t={t} />}
-     {selectedVideo && <VideoModal doc={selectedVideo} onClose={() => setSelectedVideo(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} t={t}/>}
-     {selectedPdf && <PdfModal doc={selectedPdf} onClose={() => setSelectedPdf(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} t={t}/>}
+     {selectedDoc && <ImageModal doc={selectedDoc} onClose={() => setSelectedDoc(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} t={t} lang={lang} />}
+     {selectedVideo && <VideoModal doc={selectedVideo} onClose={() => setSelectedVideo(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} t={t} lang={lang}/>}
+     {selectedPdf && <PdfModal doc={selectedPdf} onClose={() => setSelectedPdf(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} t={t} lang={lang}/>}
      {isUploadModalOpen && user?.security_level === 'Editor' && <UploadModal onClose={() => setIsUploadModalOpen(false)} apiURL={API_PROXY_URL} onAnalyze={handleAnalyze} />}
 
      <EventDocumentModal

@@ -9,7 +9,8 @@ interface DocumentListProps {
   onTagSelect: (tag: string) => void;
   isLoading: boolean;
   processingDocs: number[];
-  onToggleFavorite: (docId: number, isFavorite: boolean) => void; // Added prop
+  onToggleFavorite: (docId: number, isFavorite: boolean) => void;
+  lang: 'en' | 'ar';
 }
 
 export const DocumentList: React.FC<DocumentListProps> = ({
@@ -19,7 +20,8 @@ export const DocumentList: React.FC<DocumentListProps> = ({
   onTagSelect,
   isLoading,
   processingDocs,
-  onToggleFavorite // Destructure prop
+  onToggleFavorite,
+  lang
 }) => (
   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8">
     {isLoading
@@ -32,7 +34,8 @@ export const DocumentList: React.FC<DocumentListProps> = ({
             apiURL={apiURL}
             onTagSelect={onTagSelect}
             isProcessing={processingDocs.includes(doc.doc_id)}
-            onToggleFavorite={onToggleFavorite} // Pass prop down
+            onToggleFavorite={onToggleFavorite}
+            lang={lang}
           />
         ))}
   </div>

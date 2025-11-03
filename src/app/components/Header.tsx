@@ -92,6 +92,7 @@ export const Header: React.FC<HeaderProps> = ({
           selectedTags={selectedTags}
           setSelectedTags={setSelectedTags}
           t={t}
+          lang={lang}
         />
         <YearFilter
           selectedYears={selectedYears}

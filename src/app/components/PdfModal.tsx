@@ -19,6 +19,7 @@ interface PdfModalProps {
   onToggleFavorite: (docId: number, isFavorite: boolean) => void;
   isEditor: boolean;
   t: Function;
+  lang: 'en' | 'ar';
 }
 
 const safeParseDate = (dateString: string): Date | null => {
@@ -58,7 +59,7 @@ const formatToApiDate = (date: Date | null): string | null => {
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
 
-export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpdateAbstractSuccess, onToggleFavorite, isEditor, t }) => {
+export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpdateAbstractSuccess, onToggleFavorite, isEditor, t, lang }) => {
   const [isDetailsVisible, setIsDetailsVisible] = useState(true);
 
   const [isEditingDate, setIsEditingDate] = useState(false);
@@ -346,9 +347,9 @@ export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpda
                    <ReadOnlyEventDisplay event={selectedEvent} />
                 )}
                {isEditor ? (
-                   <TagEditor docId={doc.doc_id} apiURL={apiURL} />
+                   <TagEditor docId={doc.doc_id} apiURL={apiURL} lang={lang}/>
                ) : (
-                   <ReadOnlyTagDisplay docId={doc.doc_id} apiURL={apiURL} />
+                   <ReadOnlyTagDisplay docId={doc.doc_id} apiURL={apiURL} lang={lang}/>
                )}
           </div>
         </div>

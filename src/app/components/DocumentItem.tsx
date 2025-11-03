@@ -20,9 +20,10 @@ interface DocumentItemProps {
     onTagSelect: (tag: string) => void;
     isProcessing: boolean;
     onToggleFavorite: (docId: number, isFavorite: boolean) => void;
+    lang: 'en' | 'ar';
 }
 
-export const DocumentItem: React.FC<DocumentItemProps> = ({ doc, onDocumentClick, apiURL, onTagSelect, isProcessing, onToggleFavorite }) => {
+export const DocumentItem: React.FC<DocumentItemProps> = ({ doc, onDocumentClick, apiURL, onTagSelect, isProcessing, onToggleFavorite, lang }) => {
   const [isPopupVisible, setIsPopupVisible] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -47,7 +48,7 @@ export const DocumentItem: React.FC<DocumentItemProps> = ({ doc, onDocumentClick
     const fetchTags = async () => {
       setIsLoadingTags(true);
       try {
-        const response = await fetch(`${apiURL}/tags/${doc.doc_id}`);
+        const response = await fetch(`${apiURL}/tags/${doc.doc_id}?lang=${lang}`);
         if (response.ok) {
           const data = await response.json();
           setItemTags(data.tags || []);

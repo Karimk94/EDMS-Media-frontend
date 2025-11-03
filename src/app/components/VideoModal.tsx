@@ -20,6 +20,7 @@ interface VideoModalProps {
   onToggleFavorite: (docId: number, isFavorite: boolean) => void;
   isEditor: boolean;
   t: Function;
+  lang: 'en' | 'ar';
 }
 
 const safeParseDate = (dateString: string): Date | null => {
@@ -73,7 +74,7 @@ const formatToApiDate = (date: Date | null): string | null => {
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
 
-export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, onUpdateAbstractSuccess, onToggleFavorite, isEditor, t }) => {
+export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, onUpdateAbstractSuccess, onToggleFavorite, isEditor, t, lang }) => {
   const [isEditingDate, setIsEditingDate] = useState(false);
   const [documentDate, setDocumentDate] = useState<Date | null>(safeParseDate(doc.date));
   const [initialDate, setInitialDate] = useState<Date | null>(safeParseDate(doc.date));
@@ -339,9 +340,9 @@ export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, on
                     <ReadOnlyEventDisplay event={selectedEvent} />
                  )}
                  {isEditor ? (
-                    <TagEditor docId={doc.doc_id} apiURL={apiURL} />
+                    <TagEditor docId={doc.doc_id} apiURL={apiURL} lang= {lang} />
                  ) : (
-                    <ReadOnlyTagDisplay docId={doc.doc_id} apiURL={apiURL} />
+                    <ReadOnlyTagDisplay docId={doc.doc_id} apiURL={apiURL} lang={lang}/>
                  )}
             </CollapsibleSection>
           </div>

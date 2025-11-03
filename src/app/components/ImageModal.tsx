@@ -22,6 +22,7 @@ interface ImageModalProps {
   onToggleFavorite: (docId: number, isFavorite: boolean) => void;
   isEditor: boolean;
   t: Function;
+  lang: 'en' | 'ar';
 }
 
 const safeParseDate = (dateString: string): Date | null => {
@@ -62,7 +63,7 @@ const formatToApiDate = (date: Date | null): string | null => {
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
 
-export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, onUpdateAbstractSuccess, onToggleFavorite, isEditor, t }) => {
+export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, onUpdateAbstractSuccess, onToggleFavorite, isEditor, t, lang }) => {
   const [view, setView] = useState<'image' | 'analysis'>('image');
   const [isLoading, setIsLoading] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -401,9 +402,9 @@ export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, on
 
                     {/* --- Tag Section (Conditional) --- */}
                     {isEditor ? (
-                       <TagEditor docId={doc.doc_id} apiURL={apiURL} />
+                       <TagEditor docId={doc.doc_id} apiURL={apiURL} lang={lang} />
                     ) : (
-                        <ReadOnlyTagDisplay docId={doc.doc_id} apiURL={apiURL} />
+                        <ReadOnlyTagDisplay docId={doc.doc_id} apiURL={apiURL} lang={lang} />
                     )}
                      {/* --- END Tag Section --- */}
                 </CollapsibleSection>

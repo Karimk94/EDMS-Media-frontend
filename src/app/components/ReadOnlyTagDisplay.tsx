@@ -3,9 +3,10 @@ import React, { useState, useEffect } from 'react';
 interface ReadOnlyTagDisplayProps {
   docId: number;
   apiURL: string;
+  lang: 'en' | 'ar';
 }
 
-export const ReadOnlyTagDisplay: React.FC<ReadOnlyTagDisplayProps> = ({ docId, apiURL }) => {
+export const ReadOnlyTagDisplay: React.FC<ReadOnlyTagDisplayProps> = ({ docId, apiURL, lang }) => {
   const [tags, setTags] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -13,7 +14,7 @@ export const ReadOnlyTagDisplay: React.FC<ReadOnlyTagDisplayProps> = ({ docId, a
     const fetchTags = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch(`${apiURL}/tags/${docId}`);
+        const response = await fetch(`${apiURL}/tags/${docId}?lang=${lang}`);
         if (response.ok) {
           const data = await response.json();
           setTags((data.tags || []).sort((a: string, b: string) => a.localeCompare(b)));
@@ -28,7 +29,7 @@ export const ReadOnlyTagDisplay: React.FC<ReadOnlyTagDisplayProps> = ({ docId, a
       }
     };
     fetchTags();
-  }, [docId, apiURL]);
+  }, [docId, apiURL, lang]);
 
   return (
     <div className="mt-4">

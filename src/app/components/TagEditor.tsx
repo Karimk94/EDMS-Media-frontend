@@ -3,9 +3,10 @@ import React, { useState, useEffect, useRef } from 'react';
 interface TagEditorProps {
   docId: number;
   apiURL: string;
+  lang: 'en' | 'ar';
 }
 
-export const TagEditor: React.FC<TagEditorProps> = ({ docId, apiURL }) => {
+export const TagEditor: React.FC<TagEditorProps> = ({ docId, apiURL, lang }) => {
   const [tags, setTags] = useState<string[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -21,8 +22,8 @@ export const TagEditor: React.FC<TagEditorProps> = ({ docId, apiURL }) => {
           setIsLoading(true);
           try {
               const [docTagsRes, allTagsRes] = await Promise.all([
-                  fetch(`${apiURL}/tags/${docId}`),
-                  fetch(`${apiURL}/tags`),
+                  fetch(`${apiURL}/tags/${docId}?lang=${lang}`),
+                  fetch(`${apiURL}/tags?lang=${lang}`),
               ]);
               const docTagsData = docTagsRes.ok ? await docTagsRes.json() : { tags: [] };
               const allTagsData = allTagsRes.ok ? await allTagsRes.json() : [];
@@ -35,7 +36,7 @@ export const TagEditor: React.FC<TagEditorProps> = ({ docId, apiURL }) => {
           }
       };
       fetchInitialData();
-  }, [docId, apiURL]);
+  }, [docId, apiURL, lang]);
 
   useEffect(() => {
     if (!isSuggestionVisible || !inputRef.current) {
@@ -92,7 +93,7 @@ export const TagEditor: React.FC<TagEditorProps> = ({ docId, apiURL }) => {
     setIsSuggestionVisible(false);
 
     try {
-      const response = await fetch(`${apiURL}/tags/${docId}`, {
+      const response = await fetch(`${apiURL}/tags/${docId}?lang=${lang}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tag: trimmedTag }),
       });
       if (!response.ok) {

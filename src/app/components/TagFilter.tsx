@@ -7,9 +7,10 @@ interface TagFilterProps {
   selectedTags: string[];
   setSelectedTags: (tags: string[]) => void;
   t: Function;
+  lang: 'en' | 'ar';
 }
 
-export const TagFilter: React.FC<TagFilterProps> = ({ apiURL, selectedTags, setSelectedTags, t }) => {
+export const TagFilter: React.FC<TagFilterProps> = ({ apiURL, selectedTags, setSelectedTags, t, lang }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -26,7 +27,7 @@ export const TagFilter: React.FC<TagFilterProps> = ({ apiURL, selectedTags, setS
     if (!tagsFetched) {
       setIsLoading(true);
       try {
-        const response = await fetch(`${apiURL}/tags`);
+        const response = await fetch(`${apiURL}/tags?lang=${lang}`);
         if (!response.ok) throw new Error('Failed to fetch tags');
         const data = await response.json();
         setAllTags(data);
