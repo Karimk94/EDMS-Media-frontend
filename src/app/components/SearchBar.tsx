@@ -3,9 +3,10 @@ import React, { useState } from 'react';
 interface SearchBarProps {
   onSearch: (searchTerm: string) => void;
   t: Function;
+  lang: 'en' | 'ar';
 }
 
-export const SearchBar: React.FC<SearchBarProps> = ({ onSearch ,t }) => {
+export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, t, lang }) => {
   const [input, setInput] = useState('');
 
   const handleSearch = () => onSearch(input.trim());
@@ -16,43 +17,78 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch ,t }) => {
 
   const handleClear = () => {
     setInput('');
-    onSearch(''); // Trigger a search with no criteria
+    onSearch('');
   };
 
   return (
-    <div className="flex w-full relative items-stretch"> {/* Changed items-center to items-stretch */}
-      <input 
-        type="text" 
+    <div
+      className="flex w-full relative items-stretch"
+    >
+      <input
+        type="text"
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyUp={handleKeyUp}
         placeholder={t('search')}
-        className="flex-1 pl-4 pr-10 py-2 bg-[#121212] text-gray-200 border border-gray-600 rounded-l-full focus:ring-2 focus:ring-red-500 focus:outline-none focus:border-red-500 transition"
+        className={`flex-1 py-2 bg-[#121212] text-gray-200 border border-gray-600 focus:ring-2 focus:ring-red-500 focus:outline-none focus:border-red-500 transition 
+                    ${lang === 'ar' 
+                      ? 'pr-4 pl-10 rounded-r-full' 
+                      : 'pl-4 pr-10 rounded-l-full'
+                    }`}
       />
-      
-      {/* Clear button (X) */}
+
       {input.length > 0 && (
         <button
           onClick={handleClear}
-          className="absolute right-[68px] top-0 bottom-0 my-auto p-2 text-gray-400 hover:text-white"
+          className={`absolute top-0 bottom-0 my-auto p-2 text-gray-400 hover:text-white 
+                      ${lang === 'ar' 
+                        ? 'left-[68px]' 
+                        : 'right-[68px]'
+                      }`}
           aria-label="Clear search"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M6 18L18 6M6 6l12 12"
+            ></path>
           </svg>
         </button>
       )}
 
-      {/* Search button */}
-      <button 
+      <button
         onClick={handleSearch}
-        className="px-5 bg-gray-700 border border-gray-600 border-l-0 rounded-r-full hover:bg-gray-600 transition"
+        className={`px-5 bg-gray-700 border border-gray-600 hover:bg-gray-600 transition 
+                    ${lang === 'ar' 
+                      ? 'rounded-l-full border-r-0' 
+                      : 'rounded-r-full border-l-0'
+                    }`}
         aria-label="Search"
       >
-        <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        <svg
+          className="w-5 h-5 text-gray-300"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          ></path>
         </svg>
       </button>
     </div>
   );
 };
+

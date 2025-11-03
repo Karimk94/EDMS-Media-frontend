@@ -71,7 +71,7 @@ export const YearFilter: React.FC<YearFilterProps> = ({ selectedYears, setSelect
                 {t('clearAllYears')}
               </button>
           )}
-          <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto">
+          <div className="grid grid-cols-3 gap-2">
             {years.map(year => (
               <button
                 key={year}
