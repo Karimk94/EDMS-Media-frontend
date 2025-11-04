@@ -127,6 +127,7 @@ export default function HomePage() {
       const params = new URLSearchParams();
       params.append('page', String(currentPage));
       params.append('pageSize', '20');
+      params.append('lang', lang);
 
       if (!isMemoryFetch) {
         if (searchTerm) params.append('search', searchTerm);
