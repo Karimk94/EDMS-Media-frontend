@@ -65,7 +65,7 @@ export const DocumentItem: React.FC<DocumentItemProps> = ({ doc, onDocumentClick
     if (!isProcessing) {
       fetchTags();
     }
-  }, [doc.doc_id, apiURL, isProcessing]);
+  }, [doc.doc_id, apiURL, isProcessing, lang]);
   
   const MAX_VISIBLE_TAGS = 3;
   const hasOverflow = itemTags.length > MAX_VISIBLE_TAGS;

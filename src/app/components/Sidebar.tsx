@@ -52,7 +52,7 @@ const NavLink: React.FC<{
                      bg-gray-900 text-white px-3 py-1 rounded-md text-sm font-medium
                      opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100
                      transition-all duration-150 pointer-events-none whitespace-nowrap
-                     left-full ml-4 rtl:left-auto rtl:right-full rtl:ml-0 rtl:mr-4
+                     left-full ml-4
                     `}
         >
           {label}
@@ -79,7 +79,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const sidebarWidth = isSidebarOpen ? 'w-60' : 'w-20';
   const padding = isSidebarOpen ? 'p-4' : 'p-2';
-  // Border is now always on the right
   const borderClass = 'border-r';
 
   return (

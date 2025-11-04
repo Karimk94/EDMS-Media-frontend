@@ -52,6 +52,11 @@ export const TagFilter: React.FC<TagFilterProps> = ({ apiURL, selectedTags, setS
     };
   }, [wrapperRef]);
 
+  useEffect(() => {
+    setTagsFetched(false);
+    setAllTags([]);
+  }, [lang]);
+
   const handleTagClick = (tag: string) => {
     const newSelectedTags = selectedTags.includes(tag)
       ? selectedTags.filter(t => t !== tag)

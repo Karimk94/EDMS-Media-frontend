@@ -247,6 +247,7 @@ export default function HomePage() {
       selectedYears,
       isLoadingMemoryStack,
       initialLoadDone,
+      lang
     ]
   );
 
@@ -281,7 +282,7 @@ export default function HomePage() {
         fetchSectionData(false);
       }
     }
-  }, [fetchSectionData, isShowingFullMemories, currentPage, user]);
+  }, [fetchSectionData, isShowingFullMemories, currentPage, user, lang]);
 
   useEffect(() => {
     if (user) {
