@@ -22,6 +22,8 @@ import { Sidebar } from './components/Sidebar';
 import { TagFilter } from './components/TagFilter';
 import { YearFilter } from './components/YearFilter';
 import { AdvancedFilters } from './components/AdvancedFilters';
+import { registerLocale } from 'react-datepicker'; 
+import { enGB } from 'date-fns/locale/en-GB';
 
 type ActiveSection = 'recent' | 'favorites' | 'events' | 'memories' | 'journey';
 
@@ -45,6 +47,8 @@ const formatToApiDateTime = (date: Date | null): string => {
     date.getSeconds()
   )}`;
 };
+
+registerLocale('en-GB', enGB);
 
 export default function HomePage() {
   const [user, setUser] = useState<User | null>(null);
