@@ -1,5 +1,6 @@
 import React from 'react';
 import { SearchBar } from './SearchBar';
+import Link from 'next/link';
 
 interface PersonOption {
   value: number;
@@ -81,9 +82,11 @@ export const Header: React.FC<HeaderProps> = ({
               ></path>
             </svg>
           </button>
-          <h1 className={`text-xl font-bold text-white ${logoMargin}`}>
-            <span className="text-red-500">EDMS</span> Media
-          </h1>
+          <Link href="/">
+            <h1 className={`text-xl font-bold text-white ${logoMargin} cursor-pointer`}>
+              <span className="text-red-500">EDMS</span> Media
+            </h1>
+          </Link>
           <button
             onClick={handleLanguageChange}
             className={`px-3 py-1.5 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 ${logoMargin}`}

@@ -25,13 +25,21 @@ export const Journey: React.FC<JourneyProps> = ({ apiURL, t }) => {
   const [error, setError] = useState<string | null>(null);
   const [modalData, setModalData] = useState<{ title: string; images: string[]; startIndex: number } | null>(null);
 
-  // --- State for SVG path ---
   const [svgPath, setSvgPath] = useState('');
   const [svgHeight, setSvgHeight] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const yearRefs = useRef<(HTMLDivElement | null)[]>([]);
   const pathRef = useRef<SVGPathElement | null>(null);
   const [pathLength, setPathLength] = useState(0);
+
+  const getThumbnailUrl = (thumbnailPath: string) => {
+      if (!thumbnailPath) {
+          return '/no-image.svg';
+      }
+      const baseUrl = apiURL.endsWith('/') ? apiURL.slice(0, -1) : apiURL;
+      const finalPath = thumbnailPath.startsWith('/') ? thumbnailPath.slice(1) : thumbnailPath;
+      return `${baseUrl}/${finalPath}`;
+  };
 
 
   useEffect(() => {
@@ -141,7 +149,7 @@ export const Journey: React.FC<JourneyProps> = ({ apiURL, t }) => {
     return <div className="text-center p-10 text-red-500">{error}</div>;
   }
 
-  const sortedYears = journeyData ? Object.keys(journeyData).sort((a, b) => Number(b) - Number(a)) : [];
+  const sortedYears = journeyData ? Object.keys(journeyData).sort((a, b) => Number(a) - Number(b)) : [];
   yearRefs.current = [];
 
   return (
@@ -167,7 +175,6 @@ export const Journey: React.FC<JourneyProps> = ({ apiURL, t }) => {
         </path>
       </svg>
 
-      {/* --- SVG 2: The WHITE DOT (FOREGROUND) --- */}
       <svg className="journey-svg-dot-container" width="100%" height={svgHeight}>
         <defs>
           <path id="journey-animation-path" d={svgPath} />
@@ -186,7 +193,6 @@ export const Journey: React.FC<JourneyProps> = ({ apiURL, t }) => {
         </circle>
       </svg>
       
-      {/* --- Content Column (Single, Centered) --- */}
       <div className="journey-content-column">
         {sortedYears.map((year, index) => (
           <div
@@ -197,20 +203,70 @@ export const Journey: React.FC<JourneyProps> = ({ apiURL, t }) => {
             <div className="year-header">{year}</div>
             <div className="year-content-wrapper">
               <div className="events-grid">
-                {journeyData && journeyData[year].map((event, eventIndex) => (
-                  <div className="event-card" key={eventIndex} onClick={() => openGallery(event.title, event.gallery, 0)}>
-                    <div className="event-thumbnail">
-                      <img
-                        src={`${apiURL}/${event.thumbnail}`}
-                        alt={`Thumbnail for ${event.title}`}
-                        onError={(e) => { (e.target as HTMLImageElement).src = '/no-image.svg'; }}
-                      />
+                {journeyData && journeyData[year].map((event, eventIndex) => {
+                  
+                  const count = Array.isArray(event.gallery) ? event.gallery.length : 1;
+                  
+                  const displayCount = Math.min(count, 4);
+                  const displayThumbnails = new Array(displayCount).fill(event.thumbnail).reverse();
+
+                  return (
+                    <div
+                      className="flex flex-col items-center group cursor-pointer"
+                      key={eventIndex}
+                      onClick={() => openGallery(event.title, event.gallery, 0)}
+                      title={`Event: ${event.title} (${count} ${count === 1 ? 'item' : 'items'})`}
+                    >
+                      <div className="relative w-full aspect-[16/9]">
+                        {count > 1 && (
+                          <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 rounded-lg transform scale-95 translate-y-2 opacity-50 group-hover:opacity-70 transition-all duration-300"></div>
+                        )}
+
+                        {displayThumbnails.map((thumbUrl, idx) => {
+                          const zIndex = 10 - idx;
+                          const translateX = idx * 4;
+                          const translateY = idx * 4;
+                          const finalThumbnailUrl = getThumbnailUrl(thumbUrl);
+
+                          return (
+                            <div
+                              key={`${eventIndex}-${idx}`}
+                              className="absolute inset-0 transition-transform duration-300 ease-out group-hover:scale-105"
+                              style={{
+                                zIndex: zIndex,
+                                transform: `translate(${translateX}px, ${translateY}px)`,
+                                border: '2px solid white', 
+                                borderRadius: '1rem',
+                                overflow: 'hidden'
+                              }}
+                            >
+                              <img
+                                src={finalThumbnailUrl}
+                                alt={`Thumbnail ${idx + 1} for event ${event.title}`}
+                                className="w-full h-full object-cover"
+                                onError={(e) => { (e.target as HTMLImageElement).src = '/no-image.svg'; }}
+                              />
+                            </div>
+                          );
+                        })}
+
+                        {count > 4 && (
+                          <div
+                            className="absolute bottom-1 right-1 bg-black bg-opacity-70 text-white text-xs font-semibold px-1.5 py-0.5 rounded z-20"
+                            style={{
+                              transform: `translateY(${Math.min(3, displayThumbnails.length - 1) * 4}px) translateX(${Math.min(3, displayThumbnails.length - 1) * 4}px)`
+                            }}
+                          >
+                            +{count - 4}
+                          </div>
+                        )}
+                      </div>
+                      <h3 className="mt-2 font-semibold text-sm text-center text-black-800 dark:text-black-200 truncate w-full group-hover:text-gray-600 dark:group-hover:text-gray-400 transition-colors">
+                        {event.title}
+                      </h3>
                     </div>
-                    <div className="event-title">
-                      <h3>{event.title}</h3>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
