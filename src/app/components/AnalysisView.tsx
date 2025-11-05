@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { PersonSelector } from './PersonSelector';
 
 interface AnalysisViewProps {
   result: any;
@@ -111,13 +112,13 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ result, docId, apiUR
                   )}
                   <label className="font-semibold text-gray-300">Face #{face.index}</label>
                 </div>
-                <input 
-                  type="text"
-                  placeholder="Enter or correct name..."
+                
+                <PersonSelector
+                  apiURL={apiURL}
                   value={faceNames[face.index] || ''}
-                  onChange={(e) => handleNameChange(face.index, e.target.value)}
-                  className="px-3 py-2 bg-[#121212] text-gray-200 border border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
+                  onChange={(name) => handleNameChange(face.index, name)}
                 />
+
                 <button 
                   onClick={() => handleSaveFace(face)}
                   disabled={savingFaceIndex === face.index}
