@@ -14,6 +14,7 @@ interface PersonSelectorProps {
   apiURL: string;
   value: string;
   onChange: (name: string) => void;
+  lang: 'en' | 'ar';
 }
 
 const selectStyles = {
@@ -30,7 +31,7 @@ const selectStyles = {
   placeholder: (base: any) => ({...base, color: '#9ca3af'}),
 };
 
-export const PersonSelector: React.FC<PersonSelectorProps> = ({ apiURL, value, onChange }) => {
+export const PersonSelector: React.FC<PersonSelectorProps> = ({ apiURL, value, onChange, lang }) => {
 
   const loadPersonOptions = async (
     search: string,
@@ -39,15 +40,18 @@ export const PersonSelector: React.FC<PersonSelectorProps> = ({ apiURL, value, o
   ): Promise<{ options: PersonOption[]; hasMore: boolean; additional?: { page: number } }> => {
     const page = additional?.page || 1;
     try {
-      const response = await fetch(`${apiURL}/persons?page=${page}&search=${encodeURIComponent(search)}`);
+      const response = await fetch(`${apiURL}/persons?page=${page}&search=${encodeURIComponent(search)}&lang=${lang}`);
       if (!response.ok) throw new Error('Failed to fetch persons');
       const data = await response.json();
 
       const options = data.options.map((person: any) => {
-        const label = person.name_arabic
-          ? `${person.name_english} - ${person.name_arabic}`
-          : person.name_english;
-        return { value: person.name_english, label };
+        const label = (lang === 'ar' && person.name_arabic)
+          ? `${person.name_arabic} - ${person.name_english}`
+          : `${person.name_english}${person.name_arabic ? ` - ${person.name_arabic}` : ''}`;
+        
+        const value = (lang === 'ar' && person.name_arabic) ? person.name_arabic : person.name_english;
+
+        return { value: value, label };
       });
 
       return {
@@ -78,6 +82,7 @@ export const PersonSelector: React.FC<PersonSelectorProps> = ({ apiURL, value, o
     <AnyAsyncPaginate
       SelectComponent={Creatable}
       isClearable
+      key={lang}
       value={currentOption}
       loadOptions={loadPersonOptions}
       onChange={handleChange}

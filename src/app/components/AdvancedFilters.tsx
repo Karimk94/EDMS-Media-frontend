@@ -104,13 +104,14 @@ interface AdvancedFiltersProps {
   setPersonCondition: (condition: 'any' | 'all') => void;
   apiURL: string;
   t: Function;
+  lang: 'en' | 'ar';
 }
 
 export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({ 
     dateFrom, setDateFrom, dateTo, setDateTo, 
     selectedPerson, setSelectedPerson, 
     personCondition, setPersonCondition,
-    apiURL,t
+    apiURL, t, lang
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -135,14 +136,15 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
     additional: { page: number } | undefined
   ) => {
     const page = additional?.page || 1;
-    const response = await fetch(`${apiURL}/persons?page=${page}&search=${search}`);
+    const response = await fetch(`${apiURL}/persons?page=${page}&search=${search}&lang=${lang}`);
     const data = await response.json();
     
     return {
       options: data.options.map((person: any) => {
-        const label = person.name_arabic 
-          ? `${person.name_english} - ${person.name_arabic}`
-          : person.name_english;
+        const label = (lang === 'ar' && person.name_arabic)
+          ? `${person.name_arabic} - ${person.name_english}`
+          : `${person.name_english}${person.name_arabic ? ` - ${person.name_arabic}` : ''}`;
+        
         return { value: person.id, label };
       }),
       hasMore: data.hasMore,
@@ -188,6 +190,7 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">{t('person')}</label>
               <AsyncPaginate
+                key={lang}
                 isMulti
                 value={selectedPerson}
                 loadOptions={loadPersonOptions}

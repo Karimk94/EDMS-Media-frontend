@@ -385,28 +385,22 @@ export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, on
                       )}
                     </div>
 
-
-                    {/* --- Event Section (Conditional) --- */}
                     {isEditor ? (
                       <EventEditor
                           docId={doc.doc_id}
                           apiURL={apiURL}
                           selectedEvent={selectedEvent}
-                          setSelectedEvent={setSelectedEvent} // Pass state setter
-                          onEventChange={handleEventChangeInModal} // Pass handler for backend update
+                          setSelectedEvent={setSelectedEvent}
+                          onEventChange={handleEventChangeInModal}
                       />
                     ) : (
                        <ReadOnlyEventDisplay event={selectedEvent} />
                     )}
-                    {/* --- END Event Section --- */}
-
-                    {/* --- Tag Section (Conditional) --- */}
                     {isEditor ? (
                        <TagEditor docId={doc.doc_id} apiURL={apiURL} lang={lang} />
                     ) : (
                         <ReadOnlyTagDisplay docId={doc.doc_id} apiURL={apiURL} lang={lang} />
                     )}
-                     {/* --- END Tag Section --- */}
                 </CollapsibleSection>
               </div>
               {doc.media_type === 'image' && isEditor && (
@@ -436,11 +430,12 @@ export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, on
               docId={doc.doc_id}
               apiURL={apiURL}
               onUpdateAbstractSuccess={() => {
-                  onUpdateAbstractSuccess(); // Call original prop
-                  setView('image'); // Switch back to image view after successful abstract update
-                  setAnalysisResult(null); // Clear analysis result
+                  onUpdateAbstractSuccess();
+                  setView('image');
+                  setAnalysisResult(null);
                   setError(null);
               }}
+              lang={lang}
             />
           )}
         </div>

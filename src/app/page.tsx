@@ -706,6 +706,7 @@ export default function HomePage() {
                   }}
                   apiURL={API_PROXY_URL}
                   t={t}
+                  lang={lang}
                 />
                 {hasActiveFilters && (
                   <button

@@ -6,9 +6,10 @@ interface AnalysisViewProps {
   docId: number;
   apiURL: string;
   onUpdateAbstractSuccess: () => void;
+  lang: 'en' | 'ar';
 }
 
-export const AnalysisView: React.FC<AnalysisViewProps> = ({ result, docId, apiURL, onUpdateAbstractSuccess }) => {
+export const AnalysisView: React.FC<AnalysisViewProps> = ({ result, docId, apiURL, onUpdateAbstractSuccess, lang }) => {
   const [faceNames, setFaceNames] = useState<{ [key: number]: string }>({});
   const [isUpdating, setIsUpdating] = useState(false);
   const [savingFaceIndex, setSavingFaceIndex] = useState<number | null>(null);
@@ -59,7 +60,7 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ result, docId, apiUR
       await fetch(`${apiURL}/add_person`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim() }),
+        body: JSON.stringify({ name: name.trim(), lang: lang }),
       });
 
     } catch (error: any) {
@@ -117,6 +118,7 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ result, docId, apiUR
                   apiURL={apiURL}
                   value={faceNames[face.index] || ''}
                   onChange={(name) => handleNameChange(face.index, name)}
+                  lang={lang}
                 />
 
                 <button 
