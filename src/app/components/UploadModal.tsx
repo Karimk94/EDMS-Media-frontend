@@ -195,7 +195,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, onAna
         }
 
         const formattedDate = formatDateTimeForAPI(editedDateTaken);
-        console.log(`File ${id}: Original Date:`, editedDateTaken, `Formatted Date for API:`, formattedDate);
+        //console.log(`File ${id}: Original Date:`, editedDateTaken, `Formatted Date for API:`, formattedDate);
         if (formattedDate) {
           formData.append('date_taken', formattedDate);
         }

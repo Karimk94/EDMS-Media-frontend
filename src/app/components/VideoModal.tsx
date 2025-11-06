@@ -187,7 +187,7 @@ export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, on
     }
 
 
-    console.log("Payload for metadata update:", payload); // Debug log
+    //console.log("Payload for metadata update:", payload); // Debug log
 
     try {
       const response = await fetch(`${apiURL}/update_metadata`, {
@@ -222,7 +222,7 @@ export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, on
 
   // Handler for Event changes in the modal (IMPLEMENTED)
   const handleEventChangeInModal = async (docIdParam: number, eventId: number | null): Promise<boolean> => {
-      console.log(`Updating event association for doc ${docIdParam} to eventId ${eventId}`);
+      //console.log(`Updating event association for doc ${docIdParam} to eventId ${eventId}`);
       try {
           const response = await fetch(`${apiURL}/document/${docIdParam}/event`, { // Use the new PUT endpoint
               method: 'PUT',
@@ -233,7 +233,7 @@ export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, on
               const errorData = await response.json();
               throw new Error(errorData.error || 'Failed to update event association');
           }
-          console.log("Backend event association updated successfully.");
+          //console.log("Backend event association updated successfully.");
           return true; // Indicate success
       } catch (error: any) {
           console.error('Failed to update event association:', error);

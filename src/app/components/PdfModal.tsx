@@ -172,7 +172,7 @@ export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpda
         return; // No changes to save
     }
 
-    console.log("Payload for metadata update:", payload); // Debug log
+    //console.log("Payload for metadata update:", payload); // Debug log
 
     try {
       const response = await fetch(`${apiURL}/update_metadata`, {
@@ -207,7 +207,7 @@ export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpda
 
    // Handler for Event changes in the modal (IMPLEMENTED)
   const handleEventChangeInModal = async (docIdParam: number, eventId: number | null): Promise<boolean> => {
-      console.log(`Updating event association for doc ${docIdParam} to eventId ${eventId}`);
+      //console.log(`Updating event association for doc ${docIdParam} to eventId ${eventId}`);
       try {
           const response = await fetch(`${apiURL}/document/${docIdParam}/event`, { // Use the new PUT endpoint
               method: 'PUT',
@@ -218,7 +218,7 @@ export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpda
               const errorData = await response.json();
               throw new Error(errorData.error || 'Failed to update event association');
           }
-          console.log("Backend event association updated successfully.");
+          //console.log("Backend event association updated successfully.");
           return true; // Indicate success
       } catch (error: any) {
           console.error('Failed to update event association:', error);
