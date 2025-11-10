@@ -16,14 +16,48 @@ interface EventEditorProps {
   selectedEvent: EventOption | null;
   setSelectedEvent: (event: EventOption | null) => void;
   onEventChange?: (docId: number, eventId: number | null) => Promise<boolean>;
+  theme: 'light' | 'dark';
 }
+
+const getSelectStyles = (theme: 'light' | 'dark') => ({
+  control: (base: any) => ({ 
+    ...base, 
+    backgroundColor: theme === 'dark' ? 'var(--color-bg-input)' : 'var(--color-bg-input)',
+    borderColor: theme === 'dark' ? 'var(--color-border-secondary)' : 'var(--color-border-secondary)',
+    minHeight: '38px', 
+    height: '38px',
+    boxShadow: 'none',
+    '&:hover': {
+      borderColor: theme === 'dark' ? 'var(--color-border-primary)' : 'var(--color-border-primary)',
+    }
+  }),
+  menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
+  menu: (base: any) => ({ 
+    ...base, 
+    backgroundColor: theme === 'dark' ? 'var(--color-bg-tertiary)' : 'var(--color-bg-modal)' 
+  }),
+  option: (base: any, { isFocused }: any) => ({ 
+    ...base, 
+    backgroundColor: isFocused ? (theme === 'dark' ? 'var(--color-border-secondary)' : 'var(--color-bg-secondary)') : (theme === 'dark' ? 'var(--color-bg-tertiary)' : 'var(--color-bg-modal)'),
+    color: 'var(--color-text-primary)', 
+    padding: '8px 12px' 
+  }),
+  singleValue: (base: any) => ({ ...base, color: 'var(--color-text-primary)' }),
+  input: (base: any) => ({ ...base, color: 'var(--color-text-primary)', margin: '0px' }),
+  valueContainer: (base: any) => ({...base, padding: '0 6px'}),
+  indicatorSeparator: () => ({ display: 'none'}),
+  dropdownIndicator: (base: any) => ({...base, padding: '4px', color: 'var(--color-text-muted)'}),
+  clearIndicator: (base: any) => ({...base, padding: '4px', color: 'var(--color-text-muted)'}),
+  placeholder: (base: any) => ({...base, color: 'var(--color-text-muted)'}),
+});
 
 export const EventEditor: React.FC<EventEditorProps> = ({
   docId,
   apiURL,
   selectedEvent,
   setSelectedEvent,
-  onEventChange
+  onEventChange,
+  theme
 }) => {
   const loadEventOptions = async (
     search: string,
@@ -99,23 +133,11 @@ export const EventEditor: React.FC<EventEditorProps> = ({
     return !isOptionAlreadyPresent;
   };
 
-  const selectStyles = {
-    control: (base: any) => ({ ...base, backgroundColor: '#121212', borderColor: '#4b5563', minHeight: '38px', height: '38px' }),
-    menuPortal: (base: any) => ({ ...base, zIndex: 9999 }),
-    menu: (base: any) => ({ ...base, backgroundColor: '#282828' }),
-    option: (base: any, { isFocused }: any) => ({ ...base, backgroundColor: isFocused ? '#4b5563' : '#282828', color: '#e2e8f0', padding: '8px 12px' }),
-    singleValue: (base: any) => ({ ...base, color: '#e2e8f0' }),
-    input: (base: any) => ({ ...base, color: '#e2e8f0', margin: '0px' }),
-    valueContainer: (base: any) => ({...base, padding: '0 6px'}),
-    indicatorSeparator: () => ({ display: 'none'}),
-    dropdownIndicator: (base: any) => ({...base, padding: '4px'}),
-    clearIndicator: (base: any) => ({...base, padding: '4px'}),
-    placeholder: (base: any) => ({...base, color: '#9ca3af'}),
-  };
+  const selectStyles = getSelectStyles(theme);
 
   return (
     <div className="mb-4">
-      <label className="block text-sm font-medium text-gray-300 mb-1">Event</label>
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Event</label>
       <AnyAsyncPaginate
         SelectComponent={Creatable}
         isClearable
@@ -139,7 +161,7 @@ export const EventEditor: React.FC<EventEditorProps> = ({
           if (trimmed.length >= 3) {
             return (
               <div
-                style={{ padding: '8px 12px', cursor: 'pointer', color: '#9ca3af' }}
+                style={{ padding: '8px 12px', cursor: 'pointer', color: 'var(--color-text-muted)' }}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   (async () => {
@@ -160,7 +182,6 @@ export const EventEditor: React.FC<EventEditorProps> = ({
           page: 1,
         }}
         styles={selectStyles}
-        // Add these two props to make the menu open upwards and avoid clipping
         menuPlacement="top"
         menuPortalTarget={document.body}
       />

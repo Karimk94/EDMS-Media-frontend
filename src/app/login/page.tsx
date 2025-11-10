@@ -8,23 +8,19 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isChecking, setIsChecking] = useState(true); // State to check session
+  const [isChecking, setIsChecking] = useState(true);
   const router = useRouter();
 
-  // New useEffect to check for an existing session on page load
   useEffect(() => {
     const checkSession = async () => {
       try {
         const response = await fetch('/api/auth/user');
         if (response.ok) {
-          // If the user is already logged in, redirect to the main page
           router.push('/');
         } else {
-          // If not logged in, stop checking and show the login form
           setIsChecking(false);
         }
       } catch (err) {
-        // On error, assume not logged in
         setIsChecking(false);
       }
     };
@@ -59,24 +55,23 @@ export default function LoginPage() {
     }
   };
 
-  // While checking the session, show a loading indicator or nothing
   if (isChecking) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
+      <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white">
         <div>Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
-      <div className="w-full max-w-md p-8 space-y-8 bg-gray-800 rounded-lg shadow-lg">
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white">
+      <div className="w-full max-w-md p-8 space-y-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
         <h1 className="text-2xl font-bold text-center">EDMS Media Login</h1>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label
               htmlFor="username"
-              className="block mb-2 text-sm font-medium text-gray-400"
+              className="block mb-2 text-sm font-medium text-gray-600 dark:text-gray-400"
             >
               Username
             </label>
@@ -86,13 +81,13 @@ export default function LoginPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md focus:ring-red-500 focus:outline-none"
+              className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-red-500 focus:outline-none"
             />
           </div>
           <div>
             <label
               htmlFor="password"
-              className="block mb-2 text-sm font-medium text-gray-400"
+              className="block mb-2 text-sm font-medium text-gray-600 dark:text-gray-400"
             >
               Password
             </label>
@@ -102,7 +97,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md focus:ring-red-500 focus:outline-none"
+              className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-red-500 focus:outline-none"
             />
           </div>
           {error && <p className="text-red-500 text-sm">{error}</p>}

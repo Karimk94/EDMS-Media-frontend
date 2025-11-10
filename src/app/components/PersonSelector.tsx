@@ -15,23 +15,44 @@ interface PersonSelectorProps {
   value: string;
   onChange: (name: string) => void;
   lang: 'en' | 'ar';
+  theme: 'light' | 'dark';
 }
 
-const selectStyles = {
-  control: (base: any) => ({ ...base, backgroundColor: '#121212', borderColor: '#4b5563', minHeight: '38px', height: '38px' }),
+const getSelectStyles = (theme: 'light' | 'dark') => ({
+  control: (base: any) => ({ 
+    ...base, 
+    backgroundColor: theme === 'dark' ? 'var(--color-bg-input)' : 'var(--color-bg-input)',
+    borderColor: theme === 'dark' ? 'var(--color-border-secondary)' : 'var(--color-border-secondary)',
+    minHeight: '38px', 
+    height: '38px',
+    boxShadow: 'none',
+    '&:hover': {
+      borderColor: theme === 'dark' ? 'var(--color-border-primary)' : 'var(--color-border-primary)',
+    }
+  }),
   menuPortal: (base: any) => ({ ...base, zIndex: 99999 }),
-  menu: (base: any) => ({ ...base, backgroundColor: '#282828' }),
-  option: (base: any, { isFocused }: any) => ({ ...base, backgroundColor: isFocused ? '#4b5563' : '#282828', color: '#e2e8f0', padding: '8px 12px' }),
-  singleValue: (base: any) => ({ ...base, color: '#e2e8f0' }),
-  input: (base: any) => ({ ...base, color: '#e2e8f0', margin: '0px' }),
+  menu: (base: any) => ({ 
+    ...base, 
+    backgroundColor: theme === 'dark' ? 'var(--color-bg-tertiary)' : 'var(--color-bg-modal)' 
+  }),
+  option: (base: any, { isFocused }: any) => ({ 
+    ...base, 
+    backgroundColor: isFocused ? (theme === 'dark' ? 'var(--color-border-secondary)' : 'var(--color-bg-secondary)') : (theme === 'dark' ? 'var(--color-bg-tertiary)' : 'var(--color-bg-modal)'),
+    color: 'var(--color-text-primary)', 
+    padding: '8px 12px' 
+  }),
+  singleValue: (base: any) => ({ ...base, color: 'var(--color-text-primary)' }),
+  input: (base: any) => ({ ...base, color: 'var(--color-text-primary)', margin: '0px' }),
   valueContainer: (base: any) => ({...base, padding: '0 6px'}),
   indicatorSeparator: () => ({ display: 'none'}),
-  dropdownIndicator: (base: any) => ({...base, padding: '4px'}),
-  clearIndicator: (base: any) => ({...base, padding: '4px'}),
-  placeholder: (base: any) => ({...base, color: '#9ca3af'}),
-};
+  dropdownIndicator: (base: any) => ({...base, padding: '4px', color: 'var(--color-text-muted)'}),
+  clearIndicator: (base: any) => ({...base, padding: '4px', color: 'var(--color-text-muted)'}),
+  placeholder: (base: any) => ({...base, color: 'var(--color-text-muted)'}),
+});
 
-export const PersonSelector: React.FC<PersonSelectorProps> = ({ apiURL, value, onChange, lang }) => {
+export const PersonSelector: React.FC<PersonSelectorProps> = ({ apiURL, value, onChange, lang, theme }) => {
+
+  const selectStyles = getSelectStyles(theme);
 
   const loadPersonOptions = async (
     search: string,
@@ -82,7 +103,7 @@ export const PersonSelector: React.FC<PersonSelectorProps> = ({ apiURL, value, o
     <AnyAsyncPaginate
       SelectComponent={Creatable}
       isClearable
-      key={lang}
+      key={lang + theme}
       value={currentOption}
       loadOptions={loadPersonOptions}
       onChange={handleChange}

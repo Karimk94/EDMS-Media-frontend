@@ -18,6 +18,7 @@ import { EventDocumentModal } from './components/EventDocumentModal';
 import { Journey } from './components/Journey';
 import { useTranslations } from './hooks/useTranslations';
 import HtmlLangUpdater from './components/HtmlLangUpdater';
+import HtmlThemeUpdater from './components/HtmlThemeUpdater';
 import { Sidebar } from './components/Sidebar';
 import { TagFilter } from './components/TagFilter';
 import { YearFilter } from './components/YearFilter';
@@ -31,6 +32,7 @@ interface User {
   username: string;
   security_level: 'Editor' | 'Viewer';
   lang?: 'en' | 'ar';
+  theme?: 'light' | 'dark';
 }
 
 interface PersonOption {
@@ -90,6 +92,7 @@ export default function HomePage() {
   const [selectedEventNameForModal, setSelectedEventNameForModal] = useState<string>('');
 
   const [lang, setLang] = useState<'en' | 'ar'>('en');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light'); // Add theme state
   const t = useTranslations(lang);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -105,6 +108,7 @@ export default function HomePage() {
           const data = await response.json();
           setUser(data.user);
           setLang(data.user.lang || 'en');
+          setTheme(data.user.theme || 'light'); // Set theme from user data
         } else {
           router.push('/login');
         }
@@ -114,6 +118,30 @@ export default function HomePage() {
     };
     checkUser();
   }, [router]);
+
+  // Handle theme change and persist to backend
+  const handleThemeChange = async (newTheme: 'light' | 'dark') => {
+    if (!user) return;
+    try {
+      // Optimistically update UI
+      setTheme(newTheme);
+      
+      // Update backend
+      await fetch('/api/user/theme', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme: newTheme }),
+      });
+      
+      // Update user state
+      setUser(prevUser => prevUser ? ({ ...prevUser, theme: newTheme }) : null);
+
+    } catch (error) {
+      console.error('Failed to update theme', error);
+      // Revert on failure (optional)
+      setTheme(newTheme === 'light' ? 'dark' : 'light'); 
+    }
+  };
 
   const fetchSectionData = useCallback(
     async (isMemoryFetch = false) => {
@@ -542,7 +570,7 @@ export default function HomePage() {
 
     if (error) {
       return (
-        <div className="text-center text-red-600 bg-red-100 p-4 rounded-md border border-red-300">
+        <div className="text-center text-red-600 bg-red-100 dark:bg-red-900 dark:text-red-200 p-4 rounded-md border border-red-300 dark:border-red-700">
           {error}
         </div>
       );
@@ -552,14 +580,14 @@ export default function HomePage() {
     if (isShowingFullMemories) {
       if (documents.length === 0) {
         return (
-          <p className="text-center text-gray-500 py-10">
+          <p className="text-center text-gray-500 dark:text-gray-400 py-10">
             {t('noMemoriesFound')}
           </p>
         );
       }
       return (
         <>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
             {t('memoriesFromPast')}
           </h2>
           <DocumentList
@@ -580,7 +608,7 @@ export default function HomePage() {
     if (activeSection === 'events') {
       if (events.length === 0) {
         return (
-          <p className="text-center text-gray-500 py-10">
+          <p className="text-center text-gray-500 dark:text-gray-400 py-10">
             {t('noDocumentsFound')}
           </p>
         );
@@ -602,7 +630,7 @@ export default function HomePage() {
     else {
       if (documents.length === 0) {
         return (
-          <p className="text-center text-gray-500 py-10">
+          <p className="text-center text-gray-500 dark:text-gray-400 py-10">
             {t('noDocumentsFound')}
           </p>
         );
@@ -624,7 +652,7 @@ export default function HomePage() {
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
+      <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white">
         <div>{t('loading')}</div>
       </div>
     );
@@ -635,6 +663,7 @@ export default function HomePage() {
   return (
     <>
       <HtmlLangUpdater lang={lang} />
+      <HtmlThemeUpdater theme={theme} />
       <div className={`flex flex-col h-screen ${rtlMainClass}`}>
         <Header
           onSearch={handleSearch}
@@ -649,6 +678,8 @@ export default function HomePage() {
           t={t}
           isSidebarOpen={isSidebarOpen}
           toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          theme={theme}
+          onThemeChange={handleThemeChange}
         />
 
         <div className={`flex flex-1 overflow-hidden ${lang === 'ar' ? 'flex-row-reverse' : ''}`}>
@@ -661,10 +692,10 @@ export default function HomePage() {
             lang={lang}
           />
 
-          <main className="flex-1 overflow-y-auto bg-gray-50 text-gray-900 p-4 sm:p-6 lg:p-8 min-w-0">
+          <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-[#1f1f1f] text-gray-900 dark:text-gray-100 p-4 sm:p-6 lg:p-8 min-w-0">
 
             {activeSection !== 'journey' && !isShowingFullMemories && (
-              <div className={`flex items-center gap-4 mb-6 pb-6 border-b border-gray-200 justify-end ${lang === 'ar' ? 'flex-row-reverse' : ''}`}>
+              <div className={`flex items-center gap-4 mb-6 pb-6 border-b border-gray-200 dark:border-gray-700 justify-end ${lang === 'ar' ? 'flex-row-reverse' : ''}`}>
                 <TagFilter
                   apiURL={API_PROXY_URL}
                   selectedTags={selectedTags}
@@ -707,11 +738,12 @@ export default function HomePage() {
                   apiURL={API_PROXY_URL}
                   t={t}
                   lang={lang}
+                  theme={theme}
                 />
                 {hasActiveFilters && (
                   <button
                     onClick={handleClearFilters}
-                    className="px-3 py-2 bg-gray-200 text-gray-700 text-xs font-medium rounded-md hover:bg-red-100 hover:text-red-700 transition flex items-center gap-1"
+                    className="px-3 py-2 bg-gray-200 text-gray-700 text-xs font-medium rounded-md hover:bg-red-100 hover:text-red-700 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-red-900 dark:hover:text-red-300 transition flex items-center gap-1"
                     title="Clear all active filters"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -742,12 +774,12 @@ export default function HomePage() {
 
             {/* --- Memories Stack (conditional) --- */}
             {activeSection !== 'journey' && !isShowingFullMemories && (
-              <section className="mt-16 pt-8 border-t border-gray-200">
-                <h2 className="text-xl font-semibold text-gray-700 mb-4">
+              <section className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700">
+                <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-4">
                   {t('memoriesFromPast')}
                 </h2>
                 {isLoadingMemoryStack ? (
-                  <div className="h-40 w-full max-w-xs bg-gray-200 rounded-lg animate-pulse"></div>
+                  <div className="h-40 w-full max-w-xs bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
                 ) : memoryStackItems.length > 0 ? (
                   <div className="max-w-xs">
                     <MemoriesStack
@@ -757,7 +789,7 @@ export default function HomePage() {
                     />
                   </div>
                 ) : (
-                  <div className="bg-gray-100 p-6 rounded-lg text-center text-gray-500">
+                  <div className="bg-gray-100 dark:bg-gray-800 p-6 rounded-lg text-center text-gray-500 dark:text-gray-400">
                     {t('noMemoriesFound')}
                   </div>
                 )}
@@ -767,16 +799,17 @@ export default function HomePage() {
         </div>
 
         {/* Modals */}
-        {selectedDoc && <ImageModal doc={selectedDoc} onClose={() => setSelectedDoc(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} t={t} lang={lang} />}
-        {selectedVideo && <VideoModal doc={selectedVideo} onClose={() => setSelectedVideo(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} t={t} lang={lang} />}
-        {selectedPdf && <PdfModal doc={selectedPdf} onClose={() => setSelectedPdf(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} t={t} lang={lang} />}
-        {isUploadModalOpen && user?.security_level === 'Editor' && <UploadModal onClose={() => setIsUploadModalOpen(false)} apiURL={API_PROXY_URL} onAnalyze={handleAnalyze} />}
+        {selectedDoc && <ImageModal doc={selectedDoc} onClose={() => setSelectedDoc(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} t={t} lang={lang} theme={theme} />}
+        {selectedVideo && <VideoModal doc={selectedVideo} onClose={() => setSelectedVideo(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} t={t} lang={lang} theme={theme} />}
+        {selectedPdf && <PdfModal doc={selectedPdf} onClose={() => setSelectedPdf(null)} apiURL={API_PROXY_URL} onUpdateAbstractSuccess={handleUpdateMetadataSuccess} onToggleFavorite={handleToggleFavorite} isEditor={user?.security_level === 'Editor'} t={t} lang={lang} theme={theme} />}
+        {isUploadModalOpen && user?.security_level === 'Editor' && <UploadModal onClose={() => setIsUploadModalOpen(false)} apiURL={API_PROXY_URL} onAnalyze={handleAnalyze} theme={theme} />}
         <EventDocumentModal
           isOpen={isEventModalOpen}
           onClose={() => setIsEventModalOpen(false)}
           initialEventId={selectedEventIdForModal}
           initialEventName={selectedEventNameForModal}
           apiURL={API_PROXY_URL}
+          theme={theme}
         />
       </div>
     </>

@@ -20,6 +20,7 @@ interface PdfModalProps {
   isEditor: boolean;
   t: Function;
   lang: 'en' | 'ar';
+  theme: 'light' | 'dark'; // Add theme prop
 }
 
 const safeParseDate = (dateString: string): Date | null => {
@@ -59,7 +60,7 @@ const formatToApiDate = (date: Date | null): string | null => {
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
 
-export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpdateAbstractSuccess, onToggleFavorite, isEditor, t, lang }) => {
+export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpdateAbstractSuccess, onToggleFavorite, isEditor, t, lang, theme }) => {
   const [isDetailsVisible, setIsDetailsVisible] = useState(true);
 
   const [isEditingDate, setIsEditingDate] = useState(false);
@@ -229,27 +230,27 @@ export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpda
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4 md:p-8" onClick={onClose}>
-      <div className="bg-[#282828] text-gray-200 rounded-xl w-full max-w-6xl h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-[#282828] text-gray-900 dark:text-gray-200 rounded-xl w-full max-w-6xl h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="p-6 relative flex-shrink-0 flex justify-between items-center border-b border-gray-700">
+        <div className="p-6 relative flex-shrink-0 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
              {/* Favorite Button */}
              <button
                onClick={handleToggleFavorite}
-               className="text-white hover:text-yellow-400 p-1"
+               className="text-gray-600 dark:text-white hover:text-yellow-400 p-1"
                title={isFavorite ? "Remove from favorites" : "Add to favorites"}
              >
-               <svg className={`w-6 h-6 ${isFavorite ? 'text-yellow-400' : 'text-gray-300'}`} fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+               <svg className={`w-6 h-6 ${isFavorite ? 'text-yellow-400' : 'text-gray-400 dark:text-gray-300'}`} fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isFavorite ? 1 : 2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.539 1.118l-3.976-2.888a1 1 0 00-1.175 0l-3.976 2.888c-.784.57-1.838-.196-1.539-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588 1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                </svg>
              </button>
-             <h2 className="text-xl font-bold text-white">{doc.docname}</h2>
+             <h2 className="text-xl font-bold text-gray-900 dark:text-white">{doc.docname}</h2>
           </div>
           <div className="flex items-center gap-4">
              {/* Details Toggle Button */}
              <button
                 onClick={() => setIsDetailsVisible(!isDetailsVisible)}
-                className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
+                className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
                 title={isDetailsVisible ? "Hide Details" : "Show Details"}
               >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -257,7 +258,7 @@ export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpda
                   </svg>
               </button>
             {/* Close Button */}
-            <button onClick={onClose} className="text-gray-400 hover:text-white text-3xl">&times;</button>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-900 dark:hover:text-white text-3xl">&times;</button>
           </div>
         </div>
 
@@ -273,17 +274,17 @@ export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpda
           </div>
 
           {/* Details Panel */}
-          <div className={`transition-all duration-300 ${isDetailsVisible ? 'md:col-span-1 opacity-100' : 'hidden opacity-0'} p-4 bg-[#1f1f1f] rounded-lg overflow-y-auto`}>
+          <div className={`transition-all duration-300 ${isDetailsVisible ? 'md:col-span-1 opacity-100' : 'hidden opacity-0'} p-4 bg-gray-50 dark:bg-[#1f1f1f] rounded-lg overflow-y-auto`}>
                {/* Abstract Section */}
                <div className="mb-4">
-                  <h3 className="font-semibold text-gray-300 mb-1">Abstract</h3>
+                  <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-1">Abstract</h3>
                   {isEditor ? (
                     isEditingAbstract ? (
                       <div className="flex flex-col gap-2">
                         <textarea
                           value={abstract}
                           onChange={(e) => setAbstract(e.target.value)}
-                          className="w-full h-24 px-3 py-2 bg-[#121212] text-gray-200 border border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
+                          className="w-full h-24 px-3 py-2 bg-white dark:bg-[#121212] text-gray-900 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
                         />
                         <div className="flex justify-end gap-2">
                           <button onClick={handleUpdateMetadata} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">{t('save')}</button>
@@ -292,16 +293,16 @@ export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpda
                       </div>
                     ) : (
                       <div className="flex items-start justify-between">
-                        <p className="text-sm text-gray-400 mt-1 pr-4">{abstract || 'No abstract available.'}</p>
-                        <button onClick={handleEditAbstract} className="px-4 py-1 bg-gray-700 text-white text-xs rounded-md hover:bg-gray-600 flex-shrink-0">{t('edit')}</button>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 pr-4">{abstract || 'No abstract available.'}</p>
+                        <button onClick={handleEditAbstract} className="px-4 py-1 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white text-xs rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 flex-shrink-0">{t('edit')}</button>
                       </div>
                     )
                   ) : (
-                     <p className="text-sm text-gray-400 mt-1 pr-4">{abstract || 'No abstract available.'}</p>
+                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 pr-4">{abstract || 'No abstract available.'}</p>
                   )}
                 </div>
                <div className="mb-4">
-                  <h3 className="font-semibold text-gray-300 mb-1">{t('dateTaken')}</h3>
+                  <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-1">{t('dateTaken')}</h3>
                   {isEditor ? (
                     isEditingDate ? (
                       <div className="flex items-center gap-2">
@@ -311,7 +312,7 @@ export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpda
                           dateFormat="dd/MM/yyyy h:mm aa"
                           showTimeSelect
                           timeInputLabel="Time:"
-                          className="w-full px-3 py-2 bg-[#121212] text-gray-200 border border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
+                          className="w-full px-3 py-2 bg-white dark:bg-[#121212] text-gray-900 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
                           wrapperClassName="w-full"
                           isClearable
                           placeholderText="Click to select date and time"
@@ -323,14 +324,14 @@ export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpda
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
-                        <p className="text-sm text-gray-400 p-2 flex-grow">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 p-2 flex-grow">
                           {documentDate ? documentDate.toLocaleString('en-GB') : 'No date set'}
                         </p>
-                        <button onClick={handleEditDate} className="px-4 py-1 bg-gray-700 text-white text-xs rounded-md hover:bg-gray-600 flex-shrink-0">{t('edit')}</button>
+                        <button onClick={handleEditDate} className="px-4 py-1 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white text-xs rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 flex-shrink-0">{t('edit')}</button>
                       </div>
                     )
                    ) : (
-                    <p className="text-sm text-gray-400 p-2 flex-grow">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 p-2 flex-grow">
                       {documentDate ? documentDate.toLocaleString('en-GB') : 'No date set'}
                     </p>
                    )}
@@ -342,12 +343,13 @@ export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpda
                       selectedEvent={selectedEvent}
                       setSelectedEvent={setSelectedEvent}
                       onEventChange={handleEventChangeInModal}
+                      theme={theme}
                   />
                 ) : (
                    <ReadOnlyEventDisplay event={selectedEvent} />
                 )}
                {isEditor ? (
-                   <TagEditor docId={doc.doc_id} apiURL={apiURL} lang={lang}/>
+                   <TagEditor docId={doc.doc_id} apiURL={apiURL} lang={lang} theme={theme} />
                ) : (
                    <ReadOnlyTagDisplay docId={doc.doc_id} apiURL={apiURL} lang={lang}/>
                )}

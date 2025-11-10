@@ -19,12 +19,10 @@ const NavLink: React.FC<{
   onClick: () => void;
   lang: 'en' | 'ar';
 }> = ({ icon, label, isActive, isSidebarOpen, onClick, lang }) => {
-  const activeClass = 'bg-gray-700 text-white';
-  const inactiveClass = 'text-gray-400 hover:bg-gray-700 hover:text-white';
+  const activeClass = 'bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-white';
+  const inactiveClass = 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white';
   const rtlClass = lang === 'ar' ? 'flex-row-reverse' : '';
   
-  const iconFilterStyle = { filter: 'brightness(0) invert(1)' };
-
   return (
     <button
       onClick={onClick}
@@ -39,20 +37,20 @@ const NavLink: React.FC<{
       <img
         src={icon}
         alt=""
-        className={`w-6 h-6 flex-shrink-0 ${
+        className={`w-6 h-6 flex-shrink-0 dark:brightness-0 dark:invert ${
           isActive ? 'opacity-100' : 'opacity-70'
         }`}
-        style={iconFilterStyle}
       />
       {isSidebarOpen && <span className="truncate">{label}</span>}
       
       {!isSidebarOpen && (
         <span 
           className={`absolute top-1/2 -translate-y-1/2 z-50
-                     bg-gray-900 text-white px-3 py-1 rounded-md text-sm font-medium
+                     bg-white text-gray-900 border border-gray-200 shadow-lg dark:bg-gray-900 dark:text-white dark:border-gray-700 
+                     px-3 py-1 rounded-md text-sm font-medium
                      opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100
                      transition-all duration-150 pointer-events-none whitespace-nowrap
-                     left-full ml-4
+                     ${lang === 'ar' ? 'right-full mr-4' : 'left-full ml-4'}
                     `}
         >
           {label}
@@ -78,12 +76,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const sidebarWidth = isSidebarOpen ? 'w-60' : 'w-20';
-  const padding = isSidebarOpen ? 'p-4' : 'p-2';
-  const borderClass = 'border-r';
+  const padding = isSidebarOpen ? 'p-4' : 'p-3'; // Adjusted padding for collapsed
+  const borderClass = lang === 'ar' ? 'border-l' : 'border-r';
 
   return (
     <aside
-      className={`flex-shrink-0 bg-[#212121] text-white ${sidebarWidth} ${padding} transition-all duration-300 ease-in-out flex flex-col ${borderClass} border-gray-700`}
+      className={`flex-shrink-0 bg-[var(--color-bg-sidebar)] ${sidebarWidth} ${padding} transition-all duration-300 ease-in-out flex flex-col ${borderClass} border-[var(--color-border-primary)]`}
     >
       <nav className="flex-1 space-y-2">
         <NavLink

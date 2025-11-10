@@ -12,6 +12,8 @@ interface HeaderProps {
   onClearCache: () => void;
   lang: 'en' | 'ar';
   setLang: (lang: 'en' | 'ar') => void;
+  theme: 'light' | 'dark';
+  onThemeChange: (theme: 'light' | 'dark') => void;
   t: Function;
   apiURL: string;
   onOpenUploadModal: () => void;
@@ -32,6 +34,8 @@ export const Header: React.FC<HeaderProps> = ({
   isEditor,
   lang,
   setLang,
+  theme,
+  onThemeChange,
   t,
   isSidebarOpen,
   toggleSidebar,
@@ -57,14 +61,14 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header
-      className={`sticky top-0 z-40 bg-[#212121] border-b border-gray-700 px-4 sm:px-6 lg:px-8 ${rtlClass}`}
+      className={`sticky top-0 z-40 bg-[var(--color-bg-header)] border-b border-[var(--color-border-primary)] px-4 sm:px-6 lg:px-8 ${rtlClass}`}
     >
       <div className={`flex items-center justify-between h-16 ${rtlClass}`}>
-        {/* Left Side: Toggle, Logo, Lang */}
+        {/* Left Side: Toggle, Logo, Lang, Theme */}
         <div className={`flex-shrink-0 flex items-center ${rtlClass}`}>
           <button
             onClick={toggleSidebar}
-            className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-gray-700"
+            className="p-2 rounded-full text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
             aria-label={isSidebarOpen ? 'Close menu' : 'Open menu'}
           >
             <svg
@@ -83,15 +87,29 @@ export const Header: React.FC<HeaderProps> = ({
             </svg>
           </button>
           <Link href="/">
-            <h1 className={`text-xl font-bold text-white ${logoMargin} cursor-pointer`}>
+            <h1
+              className={`text-xl font-bold text-gray-900 dark:text-white ${logoMargin} cursor-pointer`}
+            >
               <span className="text-red-500">EDMS</span> Media
             </h1>
           </Link>
           <button
             onClick={handleLanguageChange}
-            className={`px-3 py-1.5 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 ${logoMargin}`}
+            className={`px-3 py-1.5 bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-white text-sm font-medium rounded-md hover:bg-gray-300 dark:hover:bg-gray-700 ${logoMargin}`}
           >
             {lang === 'en' ? 'العربية' : 'English'}
+          </button>
+          {/* Theme Toggle Button */}
+          <button
+            onClick={() => onThemeChange(theme === 'light' ? 'dark' : 'light')}
+            className={`p-2 rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-700 ${logoMargin}`}
+            aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+          >
+            {theme === 'light' ? (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m8.66-15.66l-.707.707M4.04 19.96l-.707.707M21 12h-1M4 12H3m16.96-7.96l-.707-.707M5.75 5.75l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"></path></svg>
+            )}
           </button>
         </div>
 
@@ -107,7 +125,7 @@ export const Header: React.FC<HeaderProps> = ({
           className={`flex items-center gap-4 ${searchBarMargin} ${rtlClass}`}
         >
           {isProcessing && (
-            <div className="flex items-center gap-2 text-white text-sm">
+            <div className="flex items-center gap-2 text-gray-900 dark:text-white text-sm">
               <div className="w-5 h-5 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
               <span>{t('processing')}</span>
             </div>
@@ -134,9 +152,9 @@ export const Header: React.FC<HeaderProps> = ({
           )}
           <button
             onClick={onLogout}
-            className="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition flex items-center gap-2"
+            className="px-4 py-2 bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-white text-sm font-medium rounded-md hover:bg-gray-300 dark:hover:bg-gray-700 transition flex items-center gap-2"
           >
-            <img src="/logout.svg" alt="Logout" className="h-5 w-5" />
+            <img src="/logout.svg" alt="Logout" className="h-5 w-5 dark:brightness-0 dark:invert" />
             <span>{t('logout')}</span>
           </button>
         </div>

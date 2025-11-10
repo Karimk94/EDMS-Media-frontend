@@ -48,7 +48,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateFrom, setDateFrom
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <label htmlFor="dateFrom" className="text-sm text-gray-400 w-12">{t('from')}:</label>
+        <label htmlFor="dateFrom" className="text-sm text-gray-500 dark:text-gray-400 w-12">{t('from')}:</label>
         <DatePicker
           id="dateFrom"
           selected={dateFrom}
@@ -58,13 +58,13 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateFrom, setDateFrom
           endDate={dateTo}
           isClearable
           dateFormat="dd/MM/yyyy"
-          className="w-full px-3 py-2 bg-[#121212] text-gray-200 border border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
+          className="w-full px-3 py-2 bg-gray-50 dark:bg-[#121212] text-gray-900 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
           autoComplete='off'
           locale="en-GB"
         />
       </div>
       <div className="flex items-center gap-2">
-        <label htmlFor="dateTo" className="text-sm text-gray-400 w-12">{t('to')}:</label>
+        <label htmlFor="dateTo" className="text-sm text-gray-500 dark:text-gray-400 w-12">{t('to')}:</label>
         <DatePicker
           id="dateTo"
           selected={dateTo}
@@ -75,7 +75,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateFrom, setDateFrom
           minDate={dateFrom ?? undefined}
           isClearable
           dateFormat="dd/MM/yyyy"
-          className="w-full px-3 py-2 bg-[#121212] text-gray-200 border border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
+          className="w-full px-3 py-2 bg-gray-50 dark:bg-[#121212] text-gray-900 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
           autoComplete='off'
           locale="en-GB"
         />
@@ -93,6 +93,38 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateFrom, setDateFrom
   );
 };
 
+// Function to generate styles based on theme
+const getSelectStyles = (theme: 'light' | 'dark') => ({
+  control: (base: any) => ({ 
+    ...base, 
+    backgroundColor: theme === 'dark' ? 'var(--color-bg-input)' : 'var(--color-bg-input)',
+    borderColor: theme === 'dark' ? 'var(--color-border-secondary)' : 'var(--color-border-secondary)',
+    boxShadow: 'none',
+    '&:hover': {
+      borderColor: theme === 'dark' ? 'var(--color-border-primary)' : 'var(--color-border-primary)',
+    }
+  }),
+  menu: (base: any) => ({ 
+    ...base, 
+    backgroundColor: theme === 'dark' ? 'var(--color-bg-tertiary)' : 'var(--color-bg-modal)' 
+  }),
+  option: (base: any, { isFocused }: any) => ({ 
+    ...base, 
+    backgroundColor: isFocused ? (theme === 'dark' ? 'var(--color-border-secondary)' : 'var(--color-bg-secondary)') : (theme === 'dark' ? 'var(--color-bg-tertiary)' : 'var(--color-bg-modal)'),
+    color: 'var(--color-text-primary)', 
+  }),
+  multiValue: (base: any) => ({ ...base, backgroundColor: theme === 'dark' ? 'var(--color-border-secondary)' : 'var(--color-bg-tertiary)' }),
+  multiValueLabel: (base: any) => ({ ...base, color: 'var(--color-text-primary)' }),
+  multiValueRemove: (base: any) => ({ ...base, '&:hover': { backgroundColor: 'var(--color-border-primary)', color: 'var(--color-text-primary)' } }),
+  singleValue: (base: any) => ({ ...base, color: 'var(--color-text-primary)' }),
+  input: (base: any) => ({ ...base, color: 'var(--color-text-primary)' }),
+  indicatorSeparator: () => ({ display: 'none'}),
+  dropdownIndicator: (base: any) => ({...base, color: 'var(--color-text-muted)'}),
+  clearIndicator: (base: any) => ({...base, color: 'var(--color-text-muted)'}),
+  placeholder: (base: any) => ({...base, color: 'var(--color-text-muted)'}),
+});
+
+
 interface AdvancedFiltersProps {
   dateFrom: Date | null;
   setDateFrom: (date: Date | null) => void;
@@ -105,16 +137,18 @@ interface AdvancedFiltersProps {
   apiURL: string;
   t: Function;
   lang: 'en' | 'ar';
+  theme: 'light' | 'dark'; // Add theme prop
 }
 
 export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({ 
     dateFrom, setDateFrom, dateTo, setDateTo, 
     selectedPerson, setSelectedPerson, 
     personCondition, setPersonCondition,
-    apiURL, t, lang
+    apiURL, t, lang, theme
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const selectStyles = getSelectStyles(theme); // Get styles based on theme
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -158,7 +192,7 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
     <div className="relative" ref={wrapperRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white text-sm font-medium rounded-md hover:bg-gray-600 transition"
+        className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-white text-sm font-medium rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition shadow-sm"
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 12.414V17a1 1 0 01-1.447.894l-2-1A1 1 0 018 16.051V12.414L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
@@ -172,12 +206,12 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
       </button>
 
       {isOpen && (
-        <div className="absolute top-full right-0 mt-2 w-80 bg-[#282828] border border-gray-600 rounded-lg shadow-lg z-50 p-4">
-          <h3 className="text-lg font-semibold text-white mb-4">{t('advancedFilters')}</h3>
+        <div className="absolute top-full right-0 mt-2 w-80 bg-white dark:bg-[#282828] border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-50 p-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('advancedFilters')}</h3>
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">{t('dateRange')}</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('dateRange')}</label>
               <DateRangePicker
                 dateFrom={dateFrom}
                 setDateFrom={setDateFrom}
@@ -188,7 +222,7 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">{t('person')}</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('person')}</label>
               <AsyncPaginate
                 key={lang}
                 isMulti
@@ -200,19 +234,11 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
                 additional={{
                   page: 1,
                 }}
-                styles={{
-                  control: (base) => ({ ...base, backgroundColor: '#121212', borderColor: '#4b5563' }),
-                  menu: (base) => ({ ...base, backgroundColor: '#282828' }),
-                  option: (base, { isFocused }) => ({ ...base, backgroundColor: isFocused ? '#4b5563' : '#282828', color: '#e2e8f0' }),
-                  multiValue: (base) => ({ ...base, backgroundColor: '#4b5563' }),
-                  multiValueLabel: (base) => ({ ...base, color: '#e2e8f0' }),
-                  singleValue: (base) => ({ ...base, color: '#e2e8f0' }),
-                  input: (base) => ({ ...base, color: '#e2e8f0' }),
-                }}
+                styles={selectStyles}
               />
                {selectedPerson && selectedPerson.length > 1 && (
                 <div className="mt-2">
-                  <label className="block text-xs font-medium text-gray-400 mb-1">{t('matchCondition')}</label>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('matchCondition')}</label>
                   <div className="flex rounded-md shadow-sm">
                     <button
                       type="button"
@@ -220,7 +246,7 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
                       className={`px-4 py-1 text-sm font-medium rounded-l-md w-1/2 transition ${
                         personCondition === 'any'
                           ? 'bg-red-600 text-white z-10 ring-1 ring-red-500'
-                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                       }`}
                     >
                       Any (OR)
@@ -231,7 +257,7 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
                       className={`-ml-px px-4 py-1 text-sm font-medium rounded-r-md w-1/2 transition ${
                         personCondition === 'all'
                           ? 'bg-red-600 text-white z-10 ring-1 ring-red-500'
-                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                       }`}
                     >
                       All (AND)
