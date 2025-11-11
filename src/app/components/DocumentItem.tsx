@@ -135,7 +135,6 @@ const displayDate = formatDateOnly(doc.date);
   const thumbnailUrl = `${apiURL}/${doc.thumbnail_url.startsWith('cache') ? '' : 'api/'}${doc.thumbnail_url}`;
 
   return (
-    // Removed `overflow-hidden`
     <div 
       onClick={() => onDocumentClick(doc)}
       className="cursor-pointer group flex flex-col relative"
@@ -175,12 +174,7 @@ const displayDate = formatDateOnly(doc.date);
       <div className="flex flex-col flex-grow">
         <h3 className="font-bold text-base text-gray-900 dark:text-white truncate group-hover:text-gray-600 dark:group-hover:text-gray-400 transition">{doc.docname || "No title available."}</h3>
         <p className="text-xs text-gray-500 dark:text-gray-400">{displayDate}</p>
-        
-        {/*
-          Removed `h-5` to allow this container to grow if tags wrap.
-          Added `mb-1` to create space if tags *do* wrap.
-        */}
-        <div className="relative mt-auto pt-1 mb-1">
+        <div className="relative mt-auto pt-1 mb-1 h-5">
           {isLoadingTags ? (
             <div className="flex flex-wrap gap-1">
                 <div className="h-5 bg-gray-300 dark:bg-gray-700 rounded w-12"></div>
@@ -189,16 +183,12 @@ const displayDate = formatDateOnly(doc.date);
           ) : (
             itemTags.length > 0 && (
               <>
-                {/*
-                  Replaced `flex-nowrap` with `flex-wrap`
-                */}
-                <div className="flex flex-wrap items-center gap-1">
+                <div className="flex flex-nowrap items-center gap-1 overflow-hidden">
                   {visibleTags.map((tag, index) => (
                     <button 
                       key={index} 
                       onClick={(e) => handleTagClick(e, tag)} 
-                      // Removed `truncate` and `max-w-32`
-                      className="flex-shrink-0 bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200 text-xs font-medium px-2 py-0.5 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
+                      className="truncate min-w-0 bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200 text-xs font-medium px-2 py-0.5 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
                       title={tag}
                     >
                       {tag}
