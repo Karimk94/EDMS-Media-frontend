@@ -64,6 +64,7 @@ export interface UploadModalProps {
   onClose: () => void;
   apiURL: string;
   onAnalyze: (uploadedFiles: UploadableFile[]) => void;
+  theme: 'light' | 'dark';
 }
 
 interface EventOption {
@@ -71,7 +72,7 @@ interface EventOption {
   label: string;
 }
 
-export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, onAnalyze }) => {
+export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, onAnalyze, theme }) => {
   const [files, setFiles] = useState<UploadableFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -286,6 +287,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, onAna
                 apiURL={apiURL}
                 selectedEvent={selectedEvent}
                 setSelectedEvent={setSelectedEvent}
+                theme={theme}
               />
             </div>
         </div>

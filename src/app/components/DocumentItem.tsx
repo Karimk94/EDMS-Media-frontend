@@ -51,7 +51,7 @@ export const DocumentItem: React.FC<DocumentItemProps> = ({ doc, onDocumentClick
         const response = await fetch(`${apiURL}/tags/${doc.doc_id}?lang=${lang}`);
         if (response.ok) {
           const data = await response.json();
-          setItemTags(data.tags || []);
+          setItemTags((data.tags || []));
         } else {
           setItemTags([]);
         }
@@ -135,6 +135,7 @@ const displayDate = formatDateOnly(doc.date);
   const thumbnailUrl = `${apiURL}/${doc.thumbnail_url.startsWith('cache') ? '' : 'api/'}${doc.thumbnail_url}`;
 
   return (
+    // Removed `overflow-hidden`
     <div 
       onClick={() => onDocumentClick(doc)}
       className="cursor-pointer group flex flex-col relative"
@@ -148,7 +149,7 @@ const displayDate = formatDateOnly(doc.date);
         <img 
           src={thumbnailUrl}
           alt="Thumbnail" 
-          className="w-full h-full object-cover rounded-lg bg-gray-800 group-hover:opacity-80 transition"
+          className="w-full h-full object-cover rounded-lg bg-gray-200 dark:bg-gray-800 group-hover:opacity-80 transition"
           onError={(e) => { (e.target as HTMLImageElement).src = '/no-image.svg'; }}
         />
         {doc.media_type === 'video' && (
@@ -166,30 +167,38 @@ const displayDate = formatDateOnly(doc.date);
           className="absolute top-2 left-2 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black bg-opacity-30 text-white hover:text-yellow-400"
         >
           <svg className={`w-6 h-6 ${isFavorite ? 'text-yellow-400' : 'text-gray-300'}`} fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.539 1.118l-3.976-2.888a1 1 0 00-1.175 0l-3.976 2.888c-.784.57-1.838-.196-1.539-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.539 1.118l-3.976-2.888a1 1 0 00-1.175 0l-3.976 2.888c-.784.57-1.838-.196-1.539-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588 1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
           </svg>
         </button>
       </div>
 
       <div className="flex flex-col flex-grow">
-        <h3 className="font-bold text-base text-black truncate group-hover:text-gray-400 transition">{doc.docname || "No title available."}</h3>
-        <p className="text-xs text-gray-400">{displayDate}</p>
+        <h3 className="font-bold text-base text-gray-900 dark:text-white truncate group-hover:text-gray-600 dark:group-hover:text-gray-400 transition">{doc.docname || "No title available."}</h3>
+        <p className="text-xs text-gray-500 dark:text-gray-400">{displayDate}</p>
         
-        <div className="relative mt-auto pt-1">
+        {/*
+          Removed `h-5` to allow this container to grow if tags wrap.
+          Added `mb-1` to create space if tags *do* wrap.
+        */}
+        <div className="relative mt-auto pt-1 mb-1">
           {isLoadingTags ? (
-            <div className="flex flex-wrap gap-1 animate-pulse">
-                <div className="h-5 bg-gray-700 rounded w-12"></div>
-                <div className="h-5 bg-gray-700 rounded w-16"></div>
+            <div className="flex flex-wrap gap-1">
+                <div className="h-5 bg-gray-300 dark:bg-gray-700 rounded w-12"></div>
+                <div className="h-5 bg-gray-300 dark:bg-gray-700 rounded w-16"></div>
             </div>
           ) : (
             itemTags.length > 0 && (
               <>
-                <div className="flex flex-nowrap items-center gap-1">
+                {/*
+                  Replaced `flex-nowrap` with `flex-wrap`
+                */}
+                <div className="flex flex-wrap items-center gap-1">
                   {visibleTags.map((tag, index) => (
                     <button 
                       key={index} 
                       onClick={(e) => handleTagClick(e, tag)} 
-                      className="truncate max-w-32 flex-shrink-0 bg-gray-200 text-black text-xs font-medium px-2 py-0.5 rounded-md hover:bg-gray-300"
+                      // Removed `truncate` and `max-w-32`
+                      className="flex-shrink-0 bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200 text-xs font-medium px-2 py-0.5 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
                       title={tag}
                     >
                       {tag}
@@ -202,7 +211,7 @@ const displayDate = formatDateOnly(doc.date);
                         e.stopPropagation();
                         setIsPopupVisible(prev => !prev);
                       }}
-                      className="flex-shrink-0 bg-gray-300 text-black text-xs font-medium px-2 py-0.5 rounded-md hover:bg-gray-400 transition-colors"
+                      className="flex-shrink-0 bg-gray-300 text-gray-800 dark:bg-gray-600 dark:text-gray-200 text-xs font-medium px-2 py-0.5 rounded-md hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors"
                     >
                       +{hiddenCount}
                     </button>
@@ -213,11 +222,11 @@ const displayDate = formatDateOnly(doc.date);
                     ref={popupRef}
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
-                    className="absolute bottom-full left-0 mb-2 w-auto min-w-[150px] max-w-xs bg-white rounded-md shadow-lg p-2 z-10"
+                    className="absolute bottom-full left-0 mb-2 w-auto min-w-[150px] max-w-xs bg-white dark:bg-gray-800 rounded-md shadow-lg p-2 z-10 border border-gray-100 dark:border-gray-700"
                   >
                     <div className="flex flex-wrap gap-1">
                       {itemTags.map((tag, index) => (
-                        <button key={index} onClick={(e) => handleTagClick(e, tag)} className="bg-gray-200 text-black text-xs font-medium px-2 py-0.5 rounded-md hover:bg-gray-300">
+                        <button key={index} onClick={(e) => handleTagClick(e, tag)} className="bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200 text-xs font-medium px-2 py-0.5 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600">
                           {tag}
                         </button>
                       ))}

@@ -6,8 +6,9 @@ interface EventDocumentModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialEventId: number | null;
-  initialEventName: string; // Pass the event name
+  initialEventName: string;
   apiURL: string;
+  theme: 'light' | 'dark';
 }
 
 export const EventDocumentModal: React.FC<EventDocumentModalProps> = ({
@@ -16,6 +17,7 @@ export const EventDocumentModal: React.FC<EventDocumentModalProps> = ({
   initialEventId,
   initialEventName,
   apiURL,
+  theme
 }) => {
   const [currentDoc, setCurrentDoc] = useState<Document | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -34,24 +36,22 @@ export const EventDocumentModal: React.FC<EventDocumentModalProps> = ({
         throw new Error(errorData.error || `Failed to fetch document page ${page}`);
       }
       const data = await response.json();
-      setCurrentDoc(data.document); // Backend now returns a single document object
+      setCurrentDoc(data.document);
       setCurrentPage(data.page);
       setTotalPages(data.total_pages);
     } catch (err: any) {
       console.error("Error fetching event document:", err);
       setError(err.message);
-      setCurrentDoc(null); // Clear doc on error
+      setCurrentDoc(null);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Fetch the first document when the modal opens or eventId changes
   useEffect(() => {
     if (isOpen && initialEventId) {
-      fetchDocumentForPage(initialEventId, 1); // Start at page 1
+      fetchDocumentForPage(initialEventId, 1);
     } else {
-      // Reset state when modal is closed or eventId is null
       setCurrentDoc(null);
       setCurrentPage(1);
       setTotalPages(1);
@@ -84,7 +84,7 @@ export const EventDocumentModal: React.FC<EventDocumentModalProps> = ({
       case 'video':
         return (
           <video controls autoPlay className="w-full max-h-[70vh] rounded-lg bg-black">
-            <source src={mediaUrl} type="video/mp4" /> {/* Adjust type if needed */}
+            <source src={mediaUrl} type="video/mp4" />
             Your browser does not support the video tag.
           </video>
         );
@@ -99,13 +99,20 @@ export const EventDocumentModal: React.FC<EventDocumentModalProps> = ({
     return null;
   }
 
+  const modalBg = theme === 'dark' ? 'bg-[#282828]' : 'bg-white';
+  const textColor = theme === 'dark' ? 'text-gray-200' : 'text-gray-900';
+  const borderColor = theme === 'dark' ? 'border-gray-700' : 'border-gray-200';
+  const headerTextColor = theme === 'dark' ? 'text-white' : 'text-gray-900';
+  const closeColor = theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-400 hover:text-gray-900';
+  const footerTextColor = theme === 'dark' ? 'text-gray-400' : 'text-gray-500';
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-90 z-[60] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-[#282828] text-gray-200 rounded-xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+      <div className={`${modalBg} ${textColor} rounded-xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden`} onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="p-4 relative flex-shrink-0 flex justify-between items-center border-b border-gray-700">
-          <h2 className="text-lg font-bold text-white truncate pr-10">{initialEventName}</h2>
-          <button onClick={onClose} className="absolute top-3 right-3 text-gray-400 hover:text-white text-3xl z-10">&times;</button>
+        <div className={`p-4 relative flex-shrink-0 flex justify-between items-center border-b ${borderColor}`}>
+          <h2 className={`text-lg font-bold ${headerTextColor} truncate pr-10`}>{initialEventName}</h2>
+          <button onClick={onClose} className={`absolute top-3 right-3 ${closeColor} text-3xl z-10`}>&times;</button>
         </div>
 
         {/* Body */}
@@ -155,7 +162,7 @@ export const EventDocumentModal: React.FC<EventDocumentModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-3 flex-shrink-0 flex justify-between items-center border-t border-gray-700 text-sm text-gray-400">
+        <div className={`p-3 flex-shrink-0 flex justify-between items-center border-t ${borderColor} text-sm ${footerTextColor}`}>
             <span>{currentDoc?.docname || '...'}</span>
             <span>{currentPage} / {totalPages}</span>
         </div>

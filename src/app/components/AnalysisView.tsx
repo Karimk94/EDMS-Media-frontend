@@ -7,9 +7,10 @@ interface AnalysisViewProps {
   apiURL: string;
   onUpdateAbstractSuccess: () => void;
   lang: 'en' | 'ar';
+  theme: 'light' | 'dark';
 }
 
-export const AnalysisView: React.FC<AnalysisViewProps> = ({ result, docId, apiURL, onUpdateAbstractSuccess, lang }) => {
+export const AnalysisView: React.FC<AnalysisViewProps> = ({ result, docId, apiURL, onUpdateAbstractSuccess, lang, theme }) => {
   const [faceNames, setFaceNames] = useState<{ [key: number]: string }>({});
   const [isUpdating, setIsUpdating] = useState(false);
   const [savingFaceIndex, setSavingFaceIndex] = useState<number | null>(null);
@@ -93,15 +94,21 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ result, docId, apiUR
     }
   };
 
+  const headerColor = theme === 'dark' ? 'text-white' : 'text-gray-900';
+  const bgColor = theme === 'dark' ? 'bg-[#1f1f1f]' : 'bg-gray-100';
+  const subTextColor = theme === 'dark' ? 'text-gray-300' : 'text-gray-700';
+  const mutedTextColor = theme === 'dark' ? 'text-gray-400' : 'text-gray-500';
+  const borderColor = theme === 'dark' ? 'border-gray-700' : 'border-gray-200';
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 overflow-y-auto h-full">
       <img src={`data:image/jpeg;base64,${result.processed_image}`} alt="Processed" className="rounded-lg mx-auto max-w-full" />
       
       <div className="space-y-4">
-        <h3 className="font-bold text-lg text-white">Detected Faces</h3>
+        <h3 className={`font-bold text-lg ${headerColor}`}>Detected Faces</h3>
         {result.faces?.length > 0 ? (
           result.faces.map((face: any) => (
-            <div key={face.index} className="p-3 bg-[#1f1f1f] rounded-lg">
+            <div key={face.index} className={`p-3 ${bgColor} rounded-lg`}>
               <div className="grid grid-cols-[auto,1fr,auto] gap-4 items-center">
                 <div className="flex items-center gap-2">
                   {face.thumbnail_b64 && (
@@ -111,7 +118,7 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ result, docId, apiUR
                       className="w-16 h-16 rounded-md object-cover"
                     />
                   )}
-                  <label className="font-semibold text-gray-300">Face #{face.index}</label>
+                  <label className={`font-semibold ${subTextColor}`}>Face #{face.index}</label>
                 </div>
                 
                 <PersonSelector
@@ -119,6 +126,7 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ result, docId, apiUR
                   value={faceNames[face.index] || ''}
                   onChange={(name) => handleNameChange(face.index, name)}
                   lang={lang}
+                  theme={theme}
                 />
 
                 <button 
@@ -137,18 +145,18 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ result, docId, apiUR
                 </button>
               </div>
               {face.distance !== null && face.name !== 'Unknown' && (
-                <div className="mt-2 text-right text-xs text-gray-400">
+                <div className={`mt-2 text-right text-xs ${mutedTextColor}`}>
                   Match Distance: <span className="font-mono text-green-400">{face.distance?.toFixed(4)}</span> (lower is better)
                 </div>
               )}
             </div>
           ))
-        ) : <p className="text-gray-400">No faces were detected in this image.</p>}
+        ) : <p className={`${mutedTextColor}`}>No faces were detected in this image.</p>}
       </div>
 
       {confirmedNames.length > 0 && (
-        <div className="p-4 bg-[#1f1f1f] rounded-lg">
-          <h4 className="font-semibold text-gray-300 mb-2">Confirmed VIPs to be Saved to title:</h4>
+        <div className={`p-4 ${bgColor} rounded-lg`}>
+          <h4 className={`font-semibold ${subTextColor} mb-2`}>Confirmed VIPs to be Saved to title:</h4>
           <div className="flex flex-wrap gap-2">
             {confirmedNames.map(([index, name]) => (
               <span key={index} className="flex items-center px-3 py-1 bg-green-600 text-white text-sm font-medium rounded-full">
@@ -168,7 +176,7 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ result, docId, apiUR
         </div>
       )}
 
-      <div className="pt-4 border-t border-gray-700">
+      <div className={`pt-4 border-t ${borderColor}`}>
         <button 
           onClick={handleUpdateAbstract}
           disabled={confirmedNames.length === 0 || isUpdating}

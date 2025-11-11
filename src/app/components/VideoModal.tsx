@@ -21,12 +21,12 @@ interface VideoModalProps {
   isEditor: boolean;
   t: Function;
   lang: 'en' | 'ar';
+  theme: 'light' | 'dark';
 }
 
 const safeParseDate = (dateString: string): Date | null => {
   if (!dateString || dateString === "N/A") return null;
 
-  // Handle YYYY-MM-DD HH:MM:SS format
   const dateTimeParts = dateString.split(' ');
   if (dateTimeParts.length === 2) {
     const dateParts = dateTimeParts[0].split('-');
@@ -45,7 +45,6 @@ const safeParseDate = (dateString: string): Date | null => {
     }
   }
 
-  // Handle MM/dd/yyyy format
   const slashParts = dateString.split('/');
   if (slashParts.length === 3) {
     const month = parseInt(slashParts[0], 10) - 1;
@@ -56,7 +55,6 @@ const safeParseDate = (dateString: string): Date | null => {
       if (!isNaN(date.getTime())) return date;
     }
   }
-
 
   const date = new Date(dateString);
   return isNaN(date.getTime()) ? null : date;
@@ -74,7 +72,7 @@ const formatToApiDate = (date: Date | null): string | null => {
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
 
-export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, onUpdateAbstractSuccess, onToggleFavorite, isEditor, t, lang }) => {
+export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, onUpdateAbstractSuccess, onToggleFavorite, isEditor, t, lang, theme }) => {
   const [isEditingDate, setIsEditingDate] = useState(false);
   const [documentDate, setDocumentDate] = useState<Date | null>(safeParseDate(doc.date));
   const [initialDate, setInitialDate] = useState<Date | null>(safeParseDate(doc.date));
@@ -83,83 +81,73 @@ export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, on
   const [abstract, setAbstract] = useState(doc.title || '');
   const [initialAbstract, setInitialAbstract] = useState(doc.title || '');
 
-  const [isFavorite, setIsFavorite] = useState(doc.is_favorite); // State for favorite status
-  const [selectedEvent, setSelectedEvent] = useState<EventOption | null>(null); // State for selected event
+  const [isFavorite, setIsFavorite] = useState(doc.is_favorite);
+  const [selectedEvent, setSelectedEvent] = useState<EventOption | null>(null);
 
-  // Fetch initial event for the document
   useEffect(() => {
       const fetchDocumentEvent = async () => {
-          // console.log(`Attempting to fetch event for doc ${doc.doc_id}`); // Debug log
           try {
-            const response = await fetch(`${apiURL}/document/${doc.doc_id}/event`); // Use the new GET endpoint
+            const response = await fetch(`${apiURL}/document/${doc.doc_id}/event`);
             if (response.ok) {
               const eventData = await response.json();
               if (eventData && eventData.event_id && eventData.event_name) {
-                 // console.log(`Event found: ID=${eventData.event_id}, Name=${eventData.event_name}`); // Debug log
                 setSelectedEvent({ value: eventData.event_id, label: eventData.event_name });
               } else {
-                 // console.log(`No event associated with doc ${doc.doc_id}.`); // Debug log
                  setSelectedEvent(null);
               }
-            } else if (response.status !== 404) { // Ignore 404 (no event linked)
-                 console.error(`Failed to fetch document event (${response.status}):`, await response.text()); // Log other errors
+            } else if (response.status !== 404) {
+                 console.error(`Failed to fetch document event (${response.status}):`, await response.text());
             } else {
-                 // console.log(`No event association found (404) for doc ${doc.doc_id}.`); // Debug log for 404
                  setSelectedEvent(null);
             }
           } catch (err) {
             console.error("Network or parsing error fetching document event:", err);
-            setSelectedEvent(null); // Ensure state is null on error
+            setSelectedEvent(null);
           }
       };
-       // Reset selectedEvent when doc changes, then fetch new one
       setSelectedEvent(null);
       fetchDocumentEvent();
-  }, [doc.doc_id, apiURL]); // Dependencies
+  }, [doc.doc_id, apiURL]); 
 
-  // Update local favorite state if prop changes
   useEffect(() => {
     setIsFavorite(doc.is_favorite);
   }, [doc.is_favorite]);
 
-    // Update local abstract and date state if doc prop changes
   useEffect(() => {
     setAbstract(doc.title || '');
     setInitialAbstract(doc.title || '');
     const newDate = safeParseDate(doc.date);
     setDocumentDate(newDate);
     setInitialDate(newDate);
-    // Reset editing states if the document changes
     setIsEditingAbstract(false);
     setIsEditingDate(false);
-  }, [doc.title, doc.date]); // Added doc.date
+  }, [doc.title, doc.date]);
 
   const handleDateChange = (date: Date | null) => {
     setDocumentDate(date);
   };
 
   const handleEditDate = () => {
-    setInitialDate(documentDate); // Store current date before editing
+    setInitialDate(documentDate);
     setIsEditingDate(true);
   };
 
   const handleCancelEditDate = () => {
-    setDocumentDate(initialDate); // Restore initial date
+    setDocumentDate(initialDate);
     setIsEditingDate(false);
   };
 
   const handleEditAbstract = () => {
-    setInitialAbstract(abstract); // Store current abstract before editing
+    setInitialAbstract(abstract);
     setIsEditingAbstract(true);
   };
 
   const handleCancelEditAbstract = () => {
-    setAbstract(initialAbstract); // Restore initial abstract
+    setAbstract(initialAbstract);
     setIsEditingAbstract(false);
   };
 
  const handleUpdateMetadata = async () => {
-    // Only include fields that have actually changed or are being edited
     const payload: { doc_id: number; abstract?: string; date_taken?: string | null } = {
       doc_id: doc.doc_id,
     };
@@ -172,9 +160,8 @@ export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, on
     if (isEditingDate) {
         const formattedNewDate = formatToApiDate(documentDate);
         const formattedInitialDate = formatToApiDate(initialDate);
-         // Check if dates are different (handles null correctly)
         if (formattedNewDate !== formattedInitialDate) {
-            payload.date_taken = formattedNewDate; // Send null if documentDate is null
+            payload.date_taken = formattedNewDate;
             needsUpdate = true;
         }
     }
@@ -183,11 +170,8 @@ export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, on
     if (!needsUpdate) {
         setIsEditingDate(false);
         setIsEditingAbstract(false);
-        return; // No changes to save
+        return;
     }
-
-
-    //console.log("Payload for metadata update:", payload); // Debug log
 
     try {
       const response = await fetch(`${apiURL}/update_metadata`, {
@@ -196,85 +180,86 @@ export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, on
         body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error((await response.json()).error || 'Failed to update metadata');
-      const resultMessage = await response.json();
-      //alert(resultMessage.message || 'Metadata updated successfully');
-
-      // Update initial states after successful save
+      
       if (payload.abstract !== undefined) setInitialAbstract(payload.abstract);
-      if (payload.date_taken !== undefined) setInitialDate(documentDate); // Use the state date
+      if (payload.date_taken !== undefined) setInitialDate(documentDate);
 
       setIsEditingDate(false);
       setIsEditingAbstract(false);
-      onUpdateAbstractSuccess(); // Call prop to refresh list
+      onUpdateAbstractSuccess();
     } catch (err: any) {
-      //alert(`Error updating metadata: ${err.message}`);
-       // Don't reset editing state on error, allow user to retry or cancel
+       console.error("Error updating metadata", err);
     }
   };
 
-
-  // Handler for Favorite button toggle
   const handleToggleFavorite = () => {
     const newFavoriteStatus = !isFavorite;
-    setIsFavorite(newFavoriteStatus); // Optimistic UI update
-    onToggleFavorite(doc.doc_id, newFavoriteStatus); // Call parent handler
+    setIsFavorite(newFavoriteStatus);
+    onToggleFavorite(doc.doc_id, newFavoriteStatus); 
   };
 
-  // Handler for Event changes in the modal (IMPLEMENTED)
   const handleEventChangeInModal = async (docIdParam: number, eventId: number | null): Promise<boolean> => {
-      //console.log(`Updating event association for doc ${docIdParam} to eventId ${eventId}`);
       try {
-          const response = await fetch(`${apiURL}/document/${docIdParam}/event`, { // Use the new PUT endpoint
+          const response = await fetch(`${apiURL}/document/${docIdParam}/event`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ event_id: eventId }), // Send event_id (can be null)
+              body: JSON.stringify({ event_id: eventId }),
           });
           if (!response.ok) {
               const errorData = await response.json();
               throw new Error(errorData.error || 'Failed to update event association');
           }
-          //console.log("Backend event association updated successfully.");
-          return true; // Indicate success
+          return true;
       } catch (error: any) {
           console.error('Failed to update event association:', error);
-          //alert(`Error updating event: ${error.message}`);
-          return false; // Indicate failure
+          return false; 
       }
   };
 
+  const modalBg = theme === 'dark' ? 'bg-[#282828]' : 'bg-white';
+  const textPrimary = theme === 'dark' ? 'text-gray-200' : 'text-gray-900';
+  const textSecondary = theme === 'dark' ? 'text-gray-300' : 'text-gray-700';
+  const textMuted = theme === 'dark' ? 'text-gray-400' : 'text-gray-600';
+  const textHeader = theme === 'dark' ? 'text-white' : 'text-gray-900';
+  const inputBg = theme === 'dark' ? 'bg-[#121212]' : 'bg-white';
+  const borderSecondary = theme === 'dark' ? 'border-gray-600' : 'border-gray-300';
+  const buttonBg = theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200';
+  const buttonHoverBg = theme === 'dark' ? 'hover:bg-gray-600' : 'hover:bg-gray-300';
+  const buttonText = theme === 'dark' ? 'text-white' : 'text-gray-900';
+  const closeButtonColor = theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-400 hover:text-gray-900';
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-[#282828] text-gray-200 rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div className={`${modalBg} ${textPrimary} rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto`} onClick={e => e.stopPropagation()}>
         <div className="p-6 relative">
-          <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white text-3xl z-10">&times;</button>
+          <button onClick={onClose} className={`absolute top-4 right-4 ${closeButtonColor} text-3xl z-10`}>&times;</button>
           {/* Favorite Button */}
            <button
              onClick={handleToggleFavorite}
-             className="absolute top-4 left-4 text-white hover:text-yellow-400 z-10 p-2 bg-black bg-opacity-30 rounded-full"
+             className={`absolute top-4 left-4 ${textMuted} hover:text-yellow-400 z-10 p-2 bg-black bg-opacity-30 rounded-full`}
              title={isFavorite ? "Remove from favorites" : "Add to favorites"}
            >
              <svg className={`w-6 h-6 ${isFavorite ? 'text-yellow-400' : 'text-gray-300'}`} fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isFavorite ? 1 : 2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.539 1.118l-3.976-2.888a1 1 0 00-1.175 0l-3.976 2.888c-.784.57-1.838-.196-1.539-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588 1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
              </svg>
            </button>
-          <h2 className="text-xl font-bold text-white mb-4 pl-12">{doc.docname}</h2>
+          <h2 className={`text-xl font-bold ${textHeader} mb-4 pl-12`}>{doc.docname}</h2>
           <video controls autoPlay className="w-full max-h-[70vh] rounded-lg bg-black">
             <source src={`${apiURL}/video/${doc.doc_id}`} type="video/mp4" />
             Your browser does not support the video tag.
           </video>
           <div className="mt-4 mb-6">
-            <CollapsibleSection title="Details">
+            <CollapsibleSection title={t('details')} theme={theme}>
                 {/* Abstract Section */}
                 <div className="mb-4">
-                  <h3 className="font-semibold text-gray-300 mb-1">Abstract</h3>
+                  <h3 className={`font-semibold ${textSecondary} mb-1`}>{t('abstract')}</h3>
                   {isEditor ? (
                     isEditingAbstract ? (
                       <div className="flex flex-col gap-2">
                         <textarea
                           value={abstract}
                           onChange={(e) => setAbstract(e.target.value)}
-                          className="w-full h-24 px-3 py-2 bg-[#121212] text-gray-200 border border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
+                          className={`w-full h-24 px-3 py-2 ${inputBg} ${textPrimary} border ${borderSecondary} rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none`}
                         />
                         <div className="flex justify-end gap-2">
                           <button onClick={handleUpdateMetadata} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">{t('save')}</button>
@@ -283,18 +268,18 @@ export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, on
                       </div>
                     ) : (
                       <div className="flex items-start justify-between">
-                        <p className="text-sm text-gray-400 mt-1 pr-4">{abstract || 'No abstract available.'}</p>
-                        <button onClick={handleEditAbstract} className="px-4 py-1 bg-gray-700 text-white text-xs rounded-md hover:bg-gray-600 flex-shrink-0">{t('edit')}</button>
+                        <p className={`text-sm ${textMuted} mt-1 pr-4 whitespace-pre-wrap`}>{abstract || t('noAbstract')}</p>
+                        <button onClick={handleEditAbstract} className={`px-4 py-1 ${buttonBg} ${buttonText} text-xs rounded-md ${buttonHoverBg} flex-shrink-0`}>{t('edit')}</button>
                       </div>
                     )
                   ) : (
-                    <p className="text-sm text-gray-400 mt-1 pr-4">{abstract || 'No abstract available.'}</p>
+                    <p className={`text-sm ${textMuted} mt-1 pr-4 whitespace-pre-wrap`}>{abstract || t('noAbstract')}</p>
                   )}
                 </div>
 
                 {/* Date Taken Section */}
                 <div className="mb-4">
-                  <h3 className="font-semibold text-gray-300 mb-1">{t('dateTaken')}</h3>
+                  <h3 className={`font-semibold ${textSecondary} mb-1`}>{t('dateTaken')}</h3>
                   {isEditor ? (
                     isEditingDate ? (
                       <div className="flex items-center gap-2">
@@ -304,7 +289,7 @@ export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, on
                           dateFormat="dd/MM/yyyy h:mm aa"
                           showTimeSelect
                           timeInputLabel="Time:"
-                          className="w-full px-3 py-2 bg-[#121212] text-gray-200 border border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
+                          className={`w-full px-3 py-2 ${inputBg} ${textPrimary} border ${borderSecondary} rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none`}
                            wrapperClassName="w-full"
                           isClearable
                           placeholderText="Click to select date and time"
@@ -316,15 +301,15 @@ export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, on
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
-                        <p className="text-sm text-gray-400 p-2 flex-grow">
-                          {documentDate ? documentDate.toLocaleString('en-GB') : 'No date set'}
+                        <p className={`text-sm ${textMuted} p-2 flex-grow`}>
+                          {documentDate ? documentDate.toLocaleString('en-GB') : t('noDateSet')}
                         </p>
-                        <button onClick={handleEditDate} className="px-4 py-1 bg-gray-700 text-white text-xs rounded-md hover:bg-gray-600 flex-shrink-0">{t('edit')}</button>
+                        <button onClick={handleEditDate} className={`px-4 py-1 ${buttonBg} ${buttonText} text-xs rounded-md ${buttonHoverBg} flex-shrink-0`}>{t('edit')}</button>
                       </div>
                     )
                    ) : (
-                    <p className="text-sm text-gray-400 p-2 flex-grow">
-                      {documentDate ? documentDate.toLocaleString('en-GB') : 'No date set'}
+                    <p className={`text-sm ${textMuted} p-2 flex-grow`}>
+                      {documentDate ? documentDate.toLocaleString('en-GB') : t('noDateSet')}
                     </p>
                    )}
                 </div>
@@ -333,14 +318,15 @@ export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, on
                        docId={doc.doc_id}
                        apiURL={apiURL}
                        selectedEvent={selectedEvent}
-                       setSelectedEvent={setSelectedEvent} // Pass state setter
-                       onEventChange={handleEventChangeInModal} // Pass handler for backend update
+                       setSelectedEvent={setSelectedEvent}
+                       onEventChange={handleEventChangeInModal}
+                       theme={theme}
                     />
                  ) : (
                     <ReadOnlyEventDisplay event={selectedEvent} />
                  )}
                  {isEditor ? (
-                    <TagEditor docId={doc.doc_id} apiURL={apiURL} lang= {lang} />
+                    <TagEditor docId={doc.doc_id} apiURL={apiURL} lang= {lang} theme={theme} />
                  ) : (
                     <ReadOnlyTagDisplay docId={doc.doc_id} apiURL={apiURL} lang={lang}/>
                  )}

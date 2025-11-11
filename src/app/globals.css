@@ -12,7 +12,7 @@
   --color-bg-modal: #ffffff;
   --color-bg-input: #f9fafb;
   --color-bg-header: #ffffff;
-  --color-bg-sidebar: #f9fafb;
+  --color-bg-sidebar: #ffffff; /* Changed from #f9fafb */
   --color-text-primary: #1f2937;
   --color-text-secondary: #374151;
   --color-text-muted: #6b7280;
@@ -125,7 +125,7 @@ body {
 .dark .react-datepicker__navigation-icon::before {
     border-color: var(--color-text-primary);
 }
-.dark .react-datepicker-popper[data-placement^=top] .react-datepicker__triangle::before, .dark .react-datepicker-popper[data-placement^=bottom] .react-datepicker__triangle::before {
+.dark .react-datepicker-popper[data-placement^=top] .react-datepicker__triangle::before, .react-datepicker-popper[data-placement^=bottom] .react-datepicker__triangle::before {
     border-bottom-color: var(--color-bg-tertiary);
 }
 .dark .react-datepicker__input-container input {

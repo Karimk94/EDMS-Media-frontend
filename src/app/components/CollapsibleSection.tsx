@@ -3,16 +3,22 @@ import React, { useState } from 'react';
 interface CollapsibleSectionProps {
   title: string;
   children: React.ReactNode;
+  theme: 'light' | 'dark';
 }
 
-export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ title, children }) => {
+export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ title, children, theme }) => {
   const [isOpen, setIsOpen] = useState(true);
 
+  const wrapperBg = theme === 'dark' ? 'bg-[#1f1f1f]' : 'bg-gray-50';
+  const buttonHoverBg = theme === 'dark' ? 'hover:bg-[#2a2a2a]' : 'hover:bg-gray-100';
+  const buttonTextColor = theme === 'dark' ? 'text-gray-300' : 'text-gray-700';
+  const borderColor = theme === 'dark' ? 'border-gray-700' : 'border-gray-200';
+
   return (
-    <div className="bg-[#1f1f1f] rounded-lg">
+    <div className={`${wrapperBg} rounded-lg`}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex justify-between items-center p-4 text-left font-semibold text-gray-300 hover:bg-[#2a2a2a] rounded-t-lg focus:outline-none transition-colors"
+        className={`w-full flex justify-between items-center p-4 text-left font-semibold ${buttonTextColor} ${buttonHoverBg} rounded-t-lg focus:outline-none transition-colors`}
       >
         <span>{title}</span>
         <svg
@@ -25,7 +31,7 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ title, c
         </svg>
       </button>
       <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-screen' : 'max-h-0'}`}>
-        <div className="p-4 border-t border-gray-700">
+        <div className={`p-4 border-t ${borderColor}`}>
           {children}
         </div>
       </div>
