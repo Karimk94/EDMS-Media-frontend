@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Document } from './DocumentItem';
+import { Loader } from './Loader';
+import { AnalysisView } from './AnalysisView';
 import { TagEditor } from './TagEditor';
 import { EventEditor } from './EventEditor';
 import { CollapsibleSection } from './CollapsibleSection';
 import DatePicker from 'react-datepicker';
 import { ReadOnlyTagDisplay } from './ReadOnlyTagDisplay';
 import { ReadOnlyEventDisplay } from './ReadOnlyEventDisplay';
-import { AnalysisView } from './AnalysisView';
-import { Loader } from './Loader';
 
 interface EventOption {
   value: number;
@@ -28,7 +28,6 @@ interface ImageModalProps {
 
 const safeParseDate = (dateString: string): Date | null => {
   if (!dateString || dateString === "N/A") return null;
-   // Try parsing YYYY-MM-DD HH:MM:SS first
   const dateTimeParts = dateString.split(' ');
   if (dateTimeParts.length === 2) {
     const dateParts = dateTimeParts[0].split('-');
@@ -50,6 +49,7 @@ const safeParseDate = (dateString: string): Date | null => {
   return isNaN(date.getTime()) ? null : date;
 };
 
+
 const formatToApiDate = (date: Date | null): string | null => {
     if (!date) return null;
     const pad = (num: number) => num.toString().padStart(2, '0');
@@ -63,6 +63,14 @@ const formatToApiDate = (date: Date | null): string | null => {
 };
 
 export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, onUpdateAbstractSuccess, onToggleFavorite, isEditor, t, lang, theme }) => {
+  const [view, setView] = useState<'image' | 'analysis'>('image');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const originalImageBlob = useRef<Blob | null>(null);
+
   const [isEditingDate, setIsEditingDate] = useState(false);
   const [documentDate, setDocumentDate] = useState<Date | null>(safeParseDate(doc.date));
   const [initialDate, setInitialDate] = useState<Date | null>(safeParseDate(doc.date));
@@ -73,10 +81,6 @@ export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, on
 
   const [isFavorite, setIsFavorite] = useState(doc.is_favorite);
   const [selectedEvent, setSelectedEvent] = useState<EventOption | null>(null);
-
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState(null);
-  const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   useEffect(() => {
       const fetchDocumentEvent = async () => {
@@ -103,6 +107,39 @@ export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, on
       fetchDocumentEvent();
   }, [doc.doc_id, apiURL]);
 
+
+  useEffect(() => {
+    const fetchImage = async () => {
+      setIsLoading(true);
+      setError(null);
+      setView('image');
+      setAnalysisResult(null);
+      originalImageBlob.current = null;
+      if (imageSrc) {
+        URL.revokeObjectURL(imageSrc);
+        setImageSrc(null);
+      }
+      try {
+        const response = await fetch(`${apiURL}/image/${doc.doc_id}`);
+        if (!response.ok) throw new Error('Image not found in EDMS.');
+        const blob = await response.blob();
+        originalImageBlob.current = blob;
+        setImageSrc(URL.createObjectURL(blob));
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchImage();
+
+    return () => {
+      if (imageSrc) {
+        URL.revokeObjectURL(imageSrc);
+      }
+    };
+  }, [doc.doc_id, apiURL]);
+
   useEffect(() => {
     setIsFavorite(doc.is_favorite);
   }, [doc.is_favorite]);
@@ -115,10 +152,28 @@ export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, on
     setInitialDate(newDate);
     setIsEditingAbstract(false);
     setIsEditingDate(false);
-    setIsAnalyzing(false);
-    setAnalysisResult(null);
-    setAnalysisError(null);
-  }, [doc.doc_id, doc.title, doc.date]);
+  }, [doc.title, doc.date]);
+
+
+  const handleAnalyze = async () => {
+    if (!originalImageBlob.current) return;
+    setIsAnalyzing(true);
+    setError(null);
+    const formData = new FormData();
+    formData.append('image_file', originalImageBlob.current, `${doc.doc_id}.jpg`);
+
+    try {
+      const response = await fetch(`${apiURL}/analyze_image`, { method: 'POST', body: formData });
+      if (!response.ok) throw new Error((await response.json()).error || 'Analysis failed.');
+      setAnalysisResult(await response.json());
+      setView('analysis');
+    } catch (err: any) {
+      setError(`Face Service Error: ${err.message}`);
+      setView('image');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   const handleDateChange = (date: Date | null) => {
     setDocumentDate(date);
@@ -135,7 +190,7 @@ export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, on
   };
 
   const handleEditAbstract = () => {
-    setInitialAbstract(abstract);
+    setInitialAbstract(abstract); 
     setIsEditingAbstract(true);
   };
 
@@ -144,7 +199,7 @@ export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, on
     setIsEditingAbstract(false);
   };
 
- const handleUpdateMetadata = async () => {
+  const handleUpdateMetadata = async () => {
     const payload: { doc_id: number; abstract?: string; date_taken?: string | null } = {
       doc_id: doc.doc_id,
     };
@@ -176,6 +231,7 @@ export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, on
         body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error((await response.json()).error || 'Failed to update metadata');
+      const resultMessage = await response.json();
 
       if (payload.abstract !== undefined) setInitialAbstract(payload.abstract);
       if (payload.date_taken !== undefined) setInitialDate(documentDate);
@@ -184,7 +240,6 @@ export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, on
       setIsEditingAbstract(false);
       onUpdateAbstractSuccess();
     } catch (err: any) {
-        console.error("Error updating metadata", err);
     }
   };
 
@@ -212,42 +267,12 @@ export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, on
       }
   };
 
-  const handleAnalyze = async () => {
-    setIsAnalyzing(true);
-    setAnalysisResult(null);
-    setAnalysisError(null);
-    try {
-      const response = await fetch(`${apiURL}/analyze_image`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ doc_id: doc.doc_id }),
-      });
-      if (!response.ok) {
-         const errorData = await response.json();
-         throw new Error(errorData.error || 'Analysis failed');
-      }
-      const data = await response.json();
-      setAnalysisResult(data);
-    } catch (err: any) {
-      setAnalysisError(err.message);
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-  
-  const handleAnalysisSuccess = () => {
-    setAnalysisResult(null);
-    onUpdateAbstractSuccess();
-  };
-
-  const imageUrl = `${apiURL}/image/${doc.doc_id}`;
   const modalBg = theme === 'dark' ? 'bg-[#282828]' : 'bg-white';
   const textPrimary = theme === 'dark' ? 'text-gray-200' : 'text-gray-900';
   const textSecondary = theme === 'dark' ? 'text-gray-300' : 'text-gray-700';
   const textMuted = theme === 'dark' ? 'text-gray-400' : 'text-gray-600';
   const textHeader = theme === 'dark' ? 'text-white' : 'text-gray-900';
   const inputBg = theme === 'dark' ? 'bg-[#121212]' : 'bg-white';
-  const borderPrimary = theme === 'dark' ? 'border-gray-700' : 'border-gray-200';
   const borderSecondary = theme === 'dark' ? 'border-gray-600' : 'border-gray-300';
   const buttonBg = theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200';
   const buttonHoverBg = theme === 'dark' ? 'hover:bg-gray-600' : 'hover:bg-gray-300';
@@ -261,146 +286,147 @@ export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, on
       <div className={`${modalBg} ${textPrimary} rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto`} onClick={e => e.stopPropagation()}>
         <div className="p-6 relative">
           <button onClick={onClose} className={`absolute top-4 right-4 ${closeButtonColor} text-3xl z-10`}>&times;</button>
-          {/* Favorite Button */}
-           <button
-             onClick={handleToggleFavorite}
-             className={`absolute top-4 left-4 ${textMuted} hover:text-yellow-400 z-10 p-2 bg-black bg-opacity-30 rounded-full`}
-             title={isFavorite ? "Remove from favorites" : "Add to favorites"}
-           >
-             <svg className={`w-6 h-6 ${isFavorite ? 'text-yellow-400' : 'text-gray-300'}`} fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isFavorite ? 1 : 2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.539 1.118l-3.976-2.888a1 1 0 00-1.175 0l-3.976 2.888c-.784.57-1.838-.196-1.539-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588 1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-             </svg>
-           </button>
+            {/* Favorite Button */}
+            <button
+              onClick={handleToggleFavorite}
+              className={`absolute top-4 left-4 z-10 p-2 bg-black bg-opacity-30 rounded-full`}
+              title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+            >
+              <svg className={`w-6 h-6 ${isFavorite ? 'text-yellow-400' : 'text-gray-300'}`} fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isFavorite ? 1 : 2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.539 1.118l-3.976-2.888a1 1 0 00-1.175 0l-3.976 2.888c-.784.57-1.838-.196-1.539-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588 1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+              </svg>
+            </button>
           <h2 className={`text-xl font-bold ${textHeader} mb-4 pl-12`}>{doc.docname}</h2>
-          
-          <div className={`w-full max-h-[70vh] rounded-lg ${imageContainerBg} flex items-center justify-center`}>
-            <img
-                src={imageUrl}
-                alt={doc.docname}
-                className="max-w-full max-h-[70vh] object-contain rounded-lg"
-            />
-          </div>
 
-          <div className="mt-4 mb-6">
-            <CollapsibleSection title={t('details')} theme={theme}>
-              {isAnalyzing ? (
-                <div className="flex justify-center items-center h-40">
-                  <Loader />
-                </div>
-              ) : analysisError ? (
-                <div className="p-4 text-red-500">
-                  <p><strong>Error:</strong> {analysisError}</p>
-                  <button onClick={() => setAnalysisError(null)} className="mt-2 px-3 py-1 bg-gray-600 text-white text-xs rounded-md">Back</button>
-                </div>
-              ) : analysisResult ? (
-                <AnalysisView
-                  result={analysisResult}
-                  docId={doc.doc_id}
-                  apiURL={apiURL}
-                  onUpdateAbstractSuccess={handleAnalysisSuccess}
-                  lang={lang}
-                  theme={theme}
-                />
-              ) : (
-                <>
-                  {isEditor && (
+          {isLoading && <div className="flex justify-center items-center h-64"><Loader /></div>}
+          {error && <p className="text-center p-10 text-red-400">{error}</p>}
+
+          {view === 'image' && imageSrc && !error && (
+            <div>
+              <div className={`text-center ${imageContainerBg} rounded-lg flex items-center justify-center min-h-[40vh]`}>
+                <img src={imageSrc} alt={doc.docname} className="max-w-full max-h-[60vh] mx-auto rounded-lg object-contain" />
+              </div>
+              <div className="mt-4">
+                  <CollapsibleSection title={t('details')} theme={theme}>
+                    {/* Abstract Section */}
                     <div className="mb-4">
-                      <button
-                        onClick={handleAnalyze}
-                        disabled={isAnalyzing}
-                        className="w-full px-4 py-2 bg-yellow-500 text-black font-semibold rounded-md hover:bg-yellow-600 transition disabled:bg-gray-600"
-                      >
-                        {isAnalyzing ? t('processing') : t('analyzeForFaces')}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Abstract Section */}
-                  <div className="mb-4">
-                    <h3 className={`font-semibold ${textSecondary} mb-1`}>{t('abstract')}</h3>
-                    {isEditor ? (
-                      isEditingAbstract ? (
-                        <div className="flex flex-col gap-2">
-                          <textarea
-                            value={abstract}
-                            onChange={(e) => setAbstract(e.target.value)}
-                            className={`w-full h-24 px-3 py-2 ${inputBg} ${textPrimary} border ${borderSecondary} rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none`}
-                          />
-                          <div className="flex justify-end gap-2">
-                            <button onClick={handleUpdateMetadata} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">{t('save')}</button>
-                            <button onClick={handleCancelEditAbstract} className="px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700">{t('cancel')}</button>
+                      <h3 className={`font-semibold ${textSecondary} mb-1`}>{t('abstract')}</h3>
+                      {isEditor ? (
+                        isEditingAbstract ? (
+                          <div className="flex flex-col gap-2">
+                            <textarea
+                              value={abstract}
+                              onChange={(e) => setAbstract(e.target.value)}
+                              className={`w-full h-24 px-3 py-2 ${inputBg} ${textPrimary} border ${borderSecondary} rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none`}
+                            />
+                            <div className="flex justify-end gap-2">
+                              <button onClick={handleUpdateMetadata} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">{t('save')}</button>
+                              <button onClick={handleCancelEditAbstract} className="px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700">{t('cancel')}</button>
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="flex items-start justify-between">
+                            <p className={`text-sm ${textMuted} mt-1 pr-4`}>{abstract || t('noAbstract')}</p>
+                            <button onClick={handleEditAbstract} className={`px-4 py-1 ${buttonBg} ${buttonText} text-xs rounded-md ${buttonHoverBg} flex-shrink-0`}>{t('edit')}</button>
+                          </div>
+                        )
                       ) : (
-                        <div className="flex items-start justify-between">
-                          <p className={`text-sm ${textMuted} mt-1 pr-4 whitespace-pre-wrap`}>{abstract || t('noAbstract')}</p>
-                          <button onClick={handleEditAbstract} className={`px-4 py-1 ${buttonBg} ${buttonText} text-xs rounded-md ${buttonHoverBg} flex-shrink-0`}>{t('edit')}</button>
-                        </div>
-                      )
-                    ) : (
-                      <p className={`text-sm ${textMuted} mt-1 pr-4 whitespace-pre-wrap`}>{abstract || t('noAbstract')}</p>
-                    )}
-                  </div>
+                        <p className={`text-sm ${textMuted} mt-1 pr-4`}>{abstract || t('noAbstract')}</p>
+                      )}
+                    </div>
 
-                  {/* Date Taken Section */}
-                  <div className="mb-4">
-                    <h3 className={`font-semibold ${textSecondary} mb-1`}>{t('dateTaken')}</h3>
+                    {/* Date Taken Section */}
+                    <div className="mb-4">
+                      <h3 className={`font-semibold ${textSecondary} mb-1`}>{t('dateTaken')}</h3>
+                      {isEditor ? (
+                        isEditingDate ? (
+                          <div className="flex items-center gap-2">
+                            <DatePicker
+                              selected={documentDate}
+                              onChange={handleDateChange}
+                              dateFormat="dd/MM/yyyy h:mm aa" 
+                              showTimeSelect
+                              timeInputLabel="Time:"
+                              className={`w-full px-3 py-2 ${inputBg} ${textPrimary} border ${borderSecondary} rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none`}
+                              wrapperClassName="w-full"
+                              isClearable
+                              placeholderText="Click to select date and time"
+                              autoComplete='off'
+                              locale="en-GB"
+                            />
+                            <button onClick={handleUpdateMetadata} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 flex-shrink-0">{t('save')}</button>
+                            <button onClick={handleCancelEditDate} className="px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700 flex-shrink-0">{t('cancel')}</button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <p className={`text-sm ${textMuted} p-2 flex-grow`}>
+                              {documentDate ? documentDate.toLocaleString('en-GB') : t('noDateSet')}
+                            </p>
+                            <button onClick={handleEditDate} className={`px-4 py-1 ${buttonBg} ${buttonText} text-xs rounded-md ${buttonHoverBg} flex-shrink-0`}>{t('edit')}</button>
+                          </div>
+                        )
+                      ) : (
+                        <p className={`text-sm ${textMuted} p-2 flex-grow`}>
+                          {documentDate ? documentDate.toLocaleString('en-GB') : t('noDateSet')}
+                        </p>
+                      )}
+                    </div>
+
                     {isEditor ? (
-                      isEditingDate ? (
-                        <div className="flex items-center gap-2">
-                          <DatePicker
-                            selected={documentDate}
-                            onChange={handleDateChange}
-                            dateFormat="dd/MM/yyyy h:mm aa"
-                            showTimeSelect
-                            timeInputLabel="Time:"
-                            className={`w-full px-3 py-2 ${inputBg} ${textPrimary} border ${borderSecondary} rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none`}
-                            wrapperClassName="w-full"
-                            isClearable
-                            placeholderText="Click to select date and time"
-                            autoComplete='off'
-                            locale="en-GB"
-                          />
-                          <button onClick={handleUpdateMetadata} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 flex-shrink-0">{t('save')}</button>
-                          <button onClick={handleCancelEditDate} className="px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700 flex-shrink-0">{t('cancel')}</button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <p className={`text-sm ${textMuted} p-2 flex-grow`}>
-                            {documentDate ? documentDate.toLocaleString('en-GB') : t('noDateSet')}
-                          </p>
-                          <button onClick={handleEditDate} className={`px-4 py-1 ${buttonBg} ${buttonText} text-xs rounded-md ${buttonHoverBg} flex-shrink-0`}>{t('edit')}</button>
-                        </div>
-                      )
-                    ) : (
-                      <p className={`text-sm ${textMuted} p-2 flex-grow`}>
-                        {documentDate ? documentDate.toLocaleString('en-GB') : t('noDateSet')}
-                      </p>
-                    )}
-                  </div>
-
-                  {isEditor ? (
-                    <EventEditor
+                      <EventEditor
                         docId={doc.doc_id}
                         apiURL={apiURL}
                         selectedEvent={selectedEvent}
                         setSelectedEvent={setSelectedEvent}
                         onEventChange={handleEventChangeInModal}
                         theme={theme}
-                    />
-                  ) : (
-                    <ReadOnlyEventDisplay event={selectedEvent} />
-                  )}
-
-                  {isEditor ? (
-                      <TagEditor docId={doc.doc_id} apiURL={apiURL} lang={lang} theme={theme} />
-                  ) : (
-                      <ReadOnlyTagDisplay docId={doc.doc_id} apiURL={apiURL} lang={lang}/>
-                  )}
-                </>
+                      />
+                    ) : (
+                       <ReadOnlyEventDisplay event={selectedEvent} />
+                    )}
+                    {isEditor ? (
+                        <TagEditor docId={doc.doc_id} apiURL={apiURL} lang={lang} theme={theme} />
+                    ) : (
+                        <ReadOnlyTagDisplay docId={doc.doc_id} apiURL={apiURL} lang={lang} />
+                    )}
+                  </CollapsibleSection>
+              </div>
+              {doc.media_type === 'image' && isEditor && (
+                <div className="text-center">
+                  <button
+                    onClick={handleAnalyze}
+                    disabled={isAnalyzing}
+                    className="mt-6 px-8 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition w-64 h-14 flex items-center justify-center mx-auto disabled:bg-red-800 disabled:cursor-not-allowed"
+                  >
+                    {isAnalyzing ? (
+                      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : (
+                      t('analyzeForFaces')
+                    )}
+                  </button>
+                </div>
               )}
-            </CollapsibleSection>
-          </div>
+            </div>
+          )}
+
+          {view === 'analysis' && analysisResult && !error && isEditor && (
+            <AnalysisView
+              result={analysisResult}
+              docId={doc.doc_id}
+              apiURL={apiURL}
+              onUpdateAbstractSuccess={() => {
+                  onUpdateAbstractSuccess();
+                  setView('image');
+                  setAnalysisResult(null);
+                  setError(null);
+              }}
+              lang={lang}
+              theme={theme}
+            />
+          )}
         </div>
       </div>
     </div>
