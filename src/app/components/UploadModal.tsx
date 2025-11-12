@@ -59,6 +59,10 @@ const parseDateFromFilename = (filename: string): { date: Date | null, source: '
   return { date: null, source: null };
 };
 
+const removeExtension = (filename: string) => {
+  return filename.replace(/\.[^/.]+$/, "");
+};
+
 
 export interface UploadModalProps {
   onClose: () => void;
@@ -130,7 +134,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, onAna
             file,
             status: 'pending',
             progress: 0,
-            editedFileName: file.name,
+            editedFileName: removeExtension(file.name), // MODIFIED: Remove extension here
             editedDateTaken: finalDate,
             dateSource: dateSource
         } as UploadableFile;
@@ -188,7 +192,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, onAna
 
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('docname', (editedFileName && editedFileName.trim()) ? editedFileName.trim() : file.name);
+        formData.append('docname', (editedFileName && editedFileName.trim()) ? editedFileName.trim() : removeExtension(file.name)); // MODIFIED: Use removeExtension as fallback
         formData.append('abstract', ``); 
 
         if (selectedEvent) {

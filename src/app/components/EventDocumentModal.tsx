@@ -77,10 +77,11 @@ export const EventDocumentModal: React.FC<EventDocumentModalProps> = ({
     if (!currentDoc) return <p className="text-gray-400">No document selected.</p>;
 
     const mediaUrl = `${apiURL}/${currentDoc.media_type}/${currentDoc.doc_id}`;
+    const cleanDocName = currentDoc.docname ? currentDoc.docname.replace(/\.[^/.]+$/, "") : "Document";
 
     switch (currentDoc.media_type) {
       case 'image':
-        return <img src={mediaUrl} alt={currentDoc.docname} className="max-w-full max-h-[70vh] mx-auto rounded-lg object-contain" />;
+        return <img src={mediaUrl} alt={cleanDocName} className="max-w-full max-h-[70vh] mx-auto rounded-lg object-contain" />;
       case 'video':
         return (
           <video controls autoPlay className="w-full max-h-[70vh] rounded-lg bg-black">
@@ -89,7 +90,7 @@ export const EventDocumentModal: React.FC<EventDocumentModalProps> = ({
           </video>
         );
       case 'pdf':
-        return <iframe src={mediaUrl} className="w-full h-[70vh] border-0 rounded-lg bg-white" title={currentDoc.docname} />;
+        return <iframe src={mediaUrl} className="w-full h-[70vh] border-0 rounded-lg bg-white" title={cleanDocName} />;
       default:
         return <p className="text-gray-400">Unsupported media type.</p>;
     }
@@ -163,7 +164,7 @@ export const EventDocumentModal: React.FC<EventDocumentModalProps> = ({
 
         {/* Footer */}
         <div className={`p-3 flex-shrink-0 flex justify-between items-center border-t ${borderColor} text-sm ${footerTextColor}`}>
-            <span>{currentDoc?.docname || '...'}</span>
+            <span>{currentDoc?.docname ? currentDoc.docname.replace(/\.[^/.]+$/, "") : '...'}</span>
             <span>{currentPage} / {totalPages}</span>
         </div>
       </div>

@@ -133,6 +133,8 @@ const formatDateOnly = (dateTimeString: string): string => {
 const displayDate = formatDateOnly(doc.date);
 
   const thumbnailUrl = `${apiURL}/${doc.thumbnail_url.startsWith('cache') ? '' : 'api/'}${doc.thumbnail_url}`;
+  
+  const cleanDocName = doc.docname ? doc.docname.replace(/\.[^/.]+$/, "") : "";
 
   return (
     <div 
@@ -172,7 +174,7 @@ const displayDate = formatDateOnly(doc.date);
       </div>
 
       <div className="flex flex-col flex-grow">
-        <h3 className="font-bold text-base text-gray-900 dark:text-white truncate group-hover:text-gray-600 dark:group-hover:text-gray-400 transition">{doc.docname || "No title available."}</h3>
+        <h3 className="font-bold text-base text-gray-900 dark:text-white truncate group-hover:text-gray-600 dark:group-hover:text-gray-400 transition" title={cleanDocName}>{cleanDocName || "No title available."}</h3>
         <p className="text-xs text-gray-500 dark:text-gray-400">{displayDate}</p>
         <div className="relative mt-auto pt-1 mb-1 h-5">
           {isLoadingTags ? (

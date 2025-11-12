@@ -244,7 +244,7 @@ export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpda
                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isFavorite ? 1 : 2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.539 1.118l-3.976-2.888a1 1 0 00-1.175 0l-3.976 2.888c-.784.57-1.838-.196-1.539-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588 1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                </svg>
              </button>
-             <h2 className="text-xl font-bold text-gray-900 dark:text-white">{doc.docname}</h2>
+             <h2 className="text-xl font-bold text-gray-900 dark:text-white">{doc.docname.replace(/\.[^/.]+$/, "")}</h2>
           </div>
           <div className="flex items-center gap-4">
              {/* Details Toggle Button */}
@@ -269,7 +269,7 @@ export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpda
             <iframe
                 src={`${apiURL}/pdf/${doc.doc_id}`}
                 className="w-full h-full border-0 rounded-lg bg-white"
-                title={doc.docname}
+                title={doc.docname.replace(/\.[^/.]+$/, "")}
             />
           </div>
 

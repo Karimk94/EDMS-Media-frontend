@@ -1,6 +1,5 @@
 import React from 'react';
 import { SearchBar } from './SearchBar';
-import Link from 'next/link';
 
 interface PersonOption {
   value: number;
@@ -54,7 +53,6 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  // Determine flex-row-reverse for RTL
   const rtlClass = lang === 'ar' ? 'flex-row-reverse' : '';
   const searchBarMargin = lang === 'ar' ? 'mr-auto' : 'ml-auto';
   const logoMargin = lang === 'ar' ? 'mr-4' : 'ml-4';
@@ -64,7 +62,6 @@ export const Header: React.FC<HeaderProps> = ({
       className={`sticky top-0 z-40 bg-[var(--color-bg-header)] border-b border-[var(--color-border-primary)] px-4 sm:px-6 lg:px-8 ${rtlClass}`}
     >
       <div className={`flex items-center justify-between h-16 ${rtlClass}`}>
-        {/* Left Side: Toggle, Logo, Lang, Theme */}
         <div className={`flex-shrink-0 flex items-center ${rtlClass}`}>
           <button
             onClick={toggleSidebar}
@@ -86,13 +83,13 @@ export const Header: React.FC<HeaderProps> = ({
               ></path>
             </svg>
           </button>
-          <Link href="/">
+          <a href="/">
             <h1
               className={`text-xl font-bold text-gray-900 dark:text-white ${logoMargin} cursor-pointer`}
             >
               <span className="text-red-500">EDMS</span> Media
             </h1>
-          </Link>
+          </a>
           <button
             onClick={handleLanguageChange}
             className={`px-3 py-1.5 bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-white text-sm font-medium rounded-md hover:bg-gray-300 dark:hover:bg-gray-700 ${logoMargin}`}
