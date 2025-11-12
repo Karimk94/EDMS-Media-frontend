@@ -73,5 +73,6 @@
   "filterByTags": "Filter by Tags",
   "clearAllTags": "Clear All Tags",
   "searchTags": "Search Tags",
-  "LoadingTags": "Loading tags"
+  "LoadingTags": "Loading tags",
+  "of": "of"
 }
