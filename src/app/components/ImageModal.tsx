@@ -310,7 +310,7 @@ export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, on
                   <CollapsibleSection title={t('details')} theme={theme}>
                     {/* Abstract Section */}
                     <div className="mb-4">
-                      <h3 className={`font-semibold ${textSecondary} mb-1`}>{t('abstract')}</h3>
+                      <h3 className={`font-semibold ${textSecondary} mb-1`}>{t('aiDescription')}</h3>
                       {isEditor ? (
                         isEditingAbstract ? (
                           <div className="flex flex-col gap-2">
