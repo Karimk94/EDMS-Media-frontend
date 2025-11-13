@@ -49,8 +49,7 @@ const NavLink: React.FC<{
                      bg-white text-gray-900 border border-gray-200 shadow-lg dark:bg-gray-900 dark:text-white dark:border-gray-700 
                      px-3 py-1 rounded-md text-sm font-medium
                      opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100
-                     transition-all duration-150 pointer-events-none whitespace-nowrap
-                     ${lang === 'ar' ? 'right-full mr-4' : 'left-full ml-4'}
+                     transition-all duration-150 pointer-events-none whitespace-nowrap left-full ml-4
                     `}
         >
           {label}
