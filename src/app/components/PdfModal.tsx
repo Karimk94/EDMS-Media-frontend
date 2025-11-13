@@ -20,12 +20,11 @@ interface PdfModalProps {
   isEditor: boolean;
   t: Function;
   lang: 'en' | 'ar';
-  theme: 'light' | 'dark'; // Add theme prop
+  theme: 'light' | 'dark';
 }
 
 const safeParseDate = (dateString: string): Date | null => {
   if (!dateString || dateString === "N/A") return null;
-   // Try parsing YYYY-MM-DD HH:MM:SS first
   const dateTimeParts = dateString.split(' ');
   if (dateTimeParts.length === 2) {
     const dateParts = dateTimeParts[0].split('-');
@@ -43,7 +42,6 @@ const safeParseDate = (dateString: string): Date | null => {
       }
     }
   }
-  // Fallback for other potential formats or just date
   const date = new Date(dateString);
   return isNaN(date.getTime()) ? null : date;
 };
@@ -71,83 +69,73 @@ export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpda
   const [abstract, setAbstract] = useState(doc.title || '');
   const [initialAbstract, setInitialAbstract] = useState(doc.title || '');
 
-  const [isFavorite, setIsFavorite] = useState(doc.is_favorite); // State for favorite status
-  const [selectedEvent, setSelectedEvent] = useState<EventOption | null>(null); // State for selected event
+  const [isFavorite, setIsFavorite] = useState(doc.is_favorite);
+  const [selectedEvent, setSelectedEvent] = useState<EventOption | null>(null);
 
-  // Fetch initial event for the document
   useEffect(() => {
       const fetchDocumentEvent = async () => {
-          // console.log(`Attempting to fetch event for doc ${doc.doc_id}`); // Debug log
           try {
-            const response = await fetch(`${apiURL}/document/${doc.doc_id}/event`); // Use the new GET endpoint
+            const response = await fetch(`${apiURL}/document/${doc.doc_id}/event`);
             if (response.ok) {
               const eventData = await response.json();
               if (eventData && eventData.event_id && eventData.event_name) {
-                 // console.log(`Event found: ID=${eventData.event_id}, Name=${eventData.event_name}`); // Debug log
                 setSelectedEvent({ value: eventData.event_id, label: eventData.event_name });
               } else {
-                 // console.log(`No event associated with doc ${doc.doc_id}.`); // Debug log
                  setSelectedEvent(null);
               }
-            } else if (response.status !== 404) { // Ignore 404 (no event linked)
-                 console.error(`Failed to fetch document event (${response.status}):`, await response.text()); // Log other errors
+            } else if (response.status !== 404) { 
+                 console.error(`Failed to fetch document event (${response.status}):`, await response.text());
             } else {
-                 // console.log(`No event association found (404) for doc ${doc.doc_id}.`); // Debug log for 404
                  setSelectedEvent(null);
             }
           } catch (err) {
             console.error("Network or parsing error fetching document event:", err);
-            setSelectedEvent(null); // Ensure state is null on error
+            setSelectedEvent(null);
           }
       };
-      // Reset selectedEvent when doc changes, then fetch new one
       setSelectedEvent(null);
       fetchDocumentEvent();
-  }, [doc.doc_id, apiURL]); // Dependencies
+  }, [doc.doc_id, apiURL]);
 
-   // Update local favorite state if prop changes
   useEffect(() => {
     setIsFavorite(doc.is_favorite);
   }, [doc.is_favorite]);
 
-    // Update local abstract and date state if doc prop changes
   useEffect(() => {
     setAbstract(doc.title || '');
     setInitialAbstract(doc.title || '');
     const newDate = safeParseDate(doc.date);
     setDocumentDate(newDate);
     setInitialDate(newDate);
-    // Reset editing states if the document changes
     setIsEditingAbstract(false);
     setIsEditingDate(false);
-  }, [doc.title, doc.date]); // Added doc.date
+  }, [doc.title, doc.date]);
 
   const handleDateChange = (date: Date | null) => {
     setDocumentDate(date);
   };
 
   const handleEditDate = () => {
-    setInitialDate(documentDate); // Store current date before editing
+    setInitialDate(documentDate);
     setIsEditingDate(true);
   };
 
   const handleCancelEditDate = () => {
-    setDocumentDate(initialDate); // Restore initial date
+    setDocumentDate(initialDate);
     setIsEditingDate(false);
   };
 
   const handleEditAbstract = () => {
-    setInitialAbstract(abstract); // Store current abstract before editing
+    setInitialAbstract(abstract);
     setIsEditingAbstract(true);
   };
 
   const handleCancelEditAbstract = () => {
-    setAbstract(initialAbstract); // Restore initial abstract
+    setAbstract(initialAbstract);
     setIsEditingAbstract(false);
   };
 
  const handleUpdateMetadata = async () => {
-    // Only include fields that have actually changed or are being edited
     const payload: { doc_id: number; abstract?: string; date_taken?: string | null } = {
       doc_id: doc.doc_id,
     };
@@ -160,9 +148,8 @@ export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpda
     if (isEditingDate) {
         const formattedNewDate = formatToApiDate(documentDate);
         const formattedInitialDate = formatToApiDate(initialDate);
-         // Check if dates are different (handles null correctly)
         if (formattedNewDate !== formattedInitialDate) {
-            payload.date_taken = formattedNewDate; // Send null if documentDate is null
+            payload.date_taken = formattedNewDate;
             needsUpdate = true;
         }
     }
@@ -170,10 +157,8 @@ export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpda
     if (!needsUpdate) {
         setIsEditingDate(false);
         setIsEditingAbstract(false);
-        return; // No changes to save
+        return;
     }
-
-    //console.log("Payload for metadata update:", payload); // Debug log
 
     try {
       const response = await fetch(`${apiURL}/update_metadata`, {
@@ -183,48 +168,39 @@ export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpda
       });
       if (!response.ok) throw new Error((await response.json()).error || 'Failed to update metadata');
       const resultMessage = await response.json();
-      //alert(resultMessage.message || 'Metadata updated successfully');
 
-      // Update initial states after successful save
       if (payload.abstract !== undefined) setInitialAbstract(payload.abstract);
-      if (payload.date_taken !== undefined) setInitialDate(documentDate); // Use the state date
+      if (payload.date_taken !== undefined) setInitialDate(documentDate);
 
       setIsEditingDate(false);
       setIsEditingAbstract(false);
-      onUpdateAbstractSuccess(); // Call prop to refresh list
+      onUpdateAbstractSuccess();
     } catch (err: any) {
-      //alert(`Error updating metadata: ${err.message}`);
-       // Don't reset editing state on error, allow user to retry or cancel
     }
   };
 
-   // Handler for Favorite button toggle
   const handleToggleFavorite = (e: React.MouseEvent) => {
-     e.stopPropagation(); // Prevent interfering with details toggle
+     e.stopPropagation();
     const newFavoriteStatus = !isFavorite;
-    setIsFavorite(newFavoriteStatus); // Optimistic UI update
-    onToggleFavorite(doc.doc_id, newFavoriteStatus); // Call parent handler
+    setIsFavorite(newFavoriteStatus);
+    onToggleFavorite(doc.doc_id, newFavoriteStatus);
   };
 
-   // Handler for Event changes in the modal (IMPLEMENTED)
   const handleEventChangeInModal = async (docIdParam: number, eventId: number | null): Promise<boolean> => {
-      //console.log(`Updating event association for doc ${docIdParam} to eventId ${eventId}`);
       try {
-          const response = await fetch(`${apiURL}/document/${docIdParam}/event`, { // Use the new PUT endpoint
+          const response = await fetch(`${apiURL}/document/${docIdParam}/event`, { 
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ event_id: eventId }), // Send event_id (can be null)
+              body: JSON.stringify({ event_id: eventId }),
           });
           if (!response.ok) {
               const errorData = await response.json();
               throw new Error(errorData.error || 'Failed to update event association');
           }
-          //console.log("Backend event association updated successfully.");
-          return true; // Indicate success
+          return true;
       } catch (error: any) {
           console.error('Failed to update event association:', error);
-          //alert(`Error updating event: ${error.message}`);
-          return false; // Indicate failure
+          return false;
       }
   };
 
@@ -348,12 +324,12 @@ export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpda
                       theme={theme}
                   />
                 ) : (
-                   <ReadOnlyEventDisplay event={selectedEvent} />
+                   <ReadOnlyEventDisplay event={selectedEvent} t={t}/>
                 )}
                {isEditor ? (
-                   <TagEditor docId={doc.doc_id} apiURL={apiURL} lang={lang} theme={theme} />
+                   <TagEditor docId={doc.doc_id} apiURL={apiURL} lang={lang} theme={theme} t={t}/>
                ) : (
-                   <ReadOnlyTagDisplay docId={doc.doc_id} apiURL={apiURL} lang={lang}/>
+                   <ReadOnlyTagDisplay docId={doc.doc_id} apiURL={apiURL} lang={lang} t={t}/>
                )}
           </div>
         </div>

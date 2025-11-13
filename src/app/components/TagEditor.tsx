@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 const getSelectStyles = (theme: 'light' | 'dark') => ({
   control: (base: any) => ({ 
     ...base, 
-    backgroundColor: theme === 'dark' ? 'var(--color-bg-input)' : 'var(--color-bg-input)',
+    backgroundColor: theme === 'dark' ? 'var(--color-bg-input)' : 'white',
     borderColor: theme === 'dark' ? 'var(--color-border-secondary)' : 'var(--color-border-secondary)',
     boxShadow: 'none',
     '&:hover': {
@@ -35,9 +35,10 @@ interface TagEditorProps {
   apiURL: string;
   lang: 'en' | 'ar';
   theme: 'light' | 'dark';
+  t: Function;
 }
 
-export const TagEditor: React.FC<TagEditorProps> = ({ docId, apiURL, lang, theme }) => {
+export const TagEditor: React.FC<TagEditorProps> = ({ docId, apiURL, lang, theme, t }) => {
   const [tags, setTags] = useState<TagObject[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -206,8 +207,8 @@ export const TagEditor: React.FC<TagEditorProps> = ({ docId, apiURL, lang, theme
 
   return (
     <div className="mt-4" ref={wrapperRef}>
-      <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Tags</h4>
-      {isLoading ? <p className="text-sm text-gray-500">Loading tags...</p> : (
+      <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">{t('tags')}</h4>
+      {isLoading ? <p className="text-sm text-gray-500">{t('LoadingTags')}...</p> : (
         <>
             <div className="flex flex-wrap gap-2 mb-3 bg-gray-100 dark:bg-[#121212] p-2 rounded-md min-h-[40px]">
                 {tags.length > 0 ? tags.map((tag, index) => (
@@ -237,7 +238,7 @@ export const TagEditor: React.FC<TagEditorProps> = ({ docId, apiURL, lang, theme
                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"> <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /> </svg>
                         </button>
                     </div>
-                )) : <span className="text-sm text-gray-500 italic px-1">No tags yet.</span>}
+                )) : <span className="text-sm text-gray-500 italic px-1">{t('noTagsAssigned')}.</span>}
             </div>
 
             {/* Input Wrapper */}

@@ -22,7 +22,7 @@ interface EventEditorProps {
 const getSelectStyles = (theme: 'light' | 'dark') => ({
   control: (base: any) => ({ 
     ...base, 
-    backgroundColor: theme === 'dark' ? 'var(--color-bg-input)' : 'var(--color-bg-input)',
+    backgroundColor: theme === 'dark' ? 'var(--color-bg-input)' : 'white',
     borderColor: theme === 'dark' ? 'var(--color-border-secondary)' : 'var(--color-border-secondary)',
     minHeight: '38px', 
     height: '38px',

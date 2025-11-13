@@ -325,12 +325,12 @@ export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, on
                        theme={theme}
                     />
                  ) : (
-                    <ReadOnlyEventDisplay event={selectedEvent} />
+                    <ReadOnlyEventDisplay event={selectedEvent} t={t}/>
                  )}
                  {isEditor ? (
-                    <TagEditor docId={doc.doc_id} apiURL={apiURL} lang= {lang} theme={theme} />
+                    <TagEditor docId={doc.doc_id} apiURL={apiURL} lang= {lang} theme={theme} t={t}/>
                  ) : (
-                    <ReadOnlyTagDisplay docId={doc.doc_id} apiURL={apiURL} lang={lang}/>
+                    <ReadOnlyTagDisplay docId={doc.doc_id} apiURL={apiURL} lang={lang} t={t}/>
                  )}
             </CollapsibleSection>
           </div>
