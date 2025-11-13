@@ -276,31 +276,33 @@ export const PdfModal: React.FC<PdfModalProps> = ({ doc, onClose, apiURL, onUpda
           {/* Details Panel */}
           <div className={`transition-all duration-300 ${isDetailsVisible ? 'md:col-span-1 opacity-100' : 'hidden opacity-0'} p-4 bg-gray-50 dark:bg-[#1f1f1f] rounded-lg overflow-y-auto`}>
                {/* Abstract Section */}
-               <div className="mb-4">
-                  <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-1">Abstract</h3>
-                  {isEditor ? (
-                    isEditingAbstract ? (
-                      <div className="flex flex-col gap-2">
-                        <textarea
-                          value={abstract}
-                          onChange={(e) => setAbstract(e.target.value)}
-                          className="w-full h-24 px-3 py-2 bg-white dark:bg-[#121212] text-gray-900 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
-                        />
-                        <div className="flex justify-end gap-2">
-                          <button onClick={handleUpdateMetadata} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">{t('save')}</button>
-                          <button onClick={handleCancelEditAbstract} className="px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700">{t('cancel')}</button>
+               {(isEditor || abstract) && (
+                   <div className="mb-4">
+                    <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-1">{t('aiDescription')}</h3>
+                    {isEditor ? (
+                        isEditingAbstract ? (
+                        <div className="flex flex-col gap-2">
+                            <textarea
+                            value={abstract}
+                            onChange={(e) => setAbstract(e.target.value)}
+                            className="w-full h-24 px-3 py-2 bg-white dark:bg-[#121212] text-gray-900 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
+                            />
+                            <div className="flex justify-end gap-2">
+                            <button onClick={handleUpdateMetadata} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">{t('save')}</button>
+                            <button onClick={handleCancelEditAbstract} className="px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700">{t('cancel')}</button>
+                            </div>
                         </div>
-                      </div>
+                        ) : (
+                        <div className="flex items-start justify-between">
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 pr-4">{abstract || 'No abstract available.'}</p>
+                            <button onClick={handleEditAbstract} className="px-4 py-1 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white text-xs rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 flex-shrink-0">{t('edit')}</button>
+                        </div>
+                        )
                     ) : (
-                      <div className="flex items-start justify-between">
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 pr-4">{abstract || 'No abstract available.'}</p>
-                        <button onClick={handleEditAbstract} className="px-4 py-1 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white text-xs rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 flex-shrink-0">{t('edit')}</button>
-                      </div>
-                    )
-                  ) : (
-                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 pr-4">{abstract || 'No abstract available.'}</p>
-                  )}
-                </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 pr-4">{abstract}</p>
+                    )}
+                    </div>
+               )}
                <div className="mb-4">
                   <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-1">{t('dateTaken')}</h3>
                   {isEditor ? (

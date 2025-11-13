@@ -6,8 +6,14 @@ interface ReadOnlyTagDisplayProps {
   lang: 'en' | 'ar';
 }
 
+interface TagObject {
+  text: string;
+  shortlisted: number;
+  type: 'keyword' | 'person';
+}
+
 export const ReadOnlyTagDisplay: React.FC<ReadOnlyTagDisplayProps> = ({ docId, apiURL, lang }) => {
-  const [tags, setTags] = useState<string[]>([]);
+  const [tags, setTags] = useState<TagObject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -17,7 +23,7 @@ export const ReadOnlyTagDisplay: React.FC<ReadOnlyTagDisplayProps> = ({ docId, a
         const response = await fetch(`${apiURL}/tags/${docId}?lang=${lang}`);
         if (response.ok) {
           const data = await response.json();
-          setTags((data.tags || []).sort((a: string, b: string) => a.localeCompare(b)));
+          setTags((data.tags || []).sort((a: TagObject, b: TagObject) => a.text.localeCompare(b.text)));
         } else {
           setTags([]);
         }
@@ -38,7 +44,7 @@ export const ReadOnlyTagDisplay: React.FC<ReadOnlyTagDisplayProps> = ({ docId, a
         <div className="flex flex-wrap gap-2 mb-3 bg-[#121212] p-2 rounded-md min-h-[40px]">
           {tags.length > 0 ? tags.map((tag, index) => (
             <div key={index} className="flex items-center bg-gray-600 text-gray-200 text-xs font-medium px-2.5 py-1 rounded-md">
-              <span>{tag}</span>
+              <span>{tag.text}</span>
             </div>
           )) : <span className="text-sm text-gray-500 italic px-1">No tags assigned.</span>}
         </div>

@@ -309,31 +309,33 @@ export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, on
               <div className="mt-4">
                   <CollapsibleSection title={t('details')} theme={theme}>
                     {/* Abstract Section */}
-                    <div className="mb-4">
-                      <h3 className={`font-semibold ${textSecondary} mb-1`}>{t('aiDescription')}</h3>
-                      {isEditor ? (
-                        isEditingAbstract ? (
-                          <div className="flex flex-col gap-2">
-                            <textarea
-                              value={abstract}
-                              onChange={(e) => setAbstract(e.target.value)}
-                              className={`w-full h-24 px-3 py-2 ${inputBg} ${textPrimary} border ${borderSecondary} rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none`}
-                            />
-                            <div className="flex justify-end gap-2">
-                              <button onClick={handleUpdateMetadata} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">{t('save')}</button>
-                              <button onClick={handleCancelEditAbstract} className="px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700">{t('cancel')}</button>
+                    {(isEditor || abstract) && (
+                        <div className="mb-4">
+                        <h3 className={`font-semibold ${textSecondary} mb-1`}>{t('aiDescription')}</h3>
+                        {isEditor ? (
+                            isEditingAbstract ? (
+                            <div className="flex flex-col gap-2">
+                                <textarea
+                                value={abstract}
+                                onChange={(e) => setAbstract(e.target.value)}
+                                className={`w-full h-24 px-3 py-2 ${inputBg} ${textPrimary} border ${borderSecondary} rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none`}
+                                />
+                                <div className="flex justify-end gap-2">
+                                <button onClick={handleUpdateMetadata} className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">{t('save')}</button>
+                                <button onClick={handleCancelEditAbstract} className="px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700">{t('cancel')}</button>
+                                </div>
                             </div>
-                          </div>
+                            ) : (
+                            <div className="flex items-start justify-between">
+                                <p className={`text-sm ${textMuted} mt-1 pr-4`}>{abstract || t('noAbstract')}</p>
+                                <button onClick={handleEditAbstract} className={`px-4 py-1 ${buttonBg} ${buttonText} text-xs rounded-md ${buttonHoverBg} flex-shrink-0`}>{t('edit')}</button>
+                            </div>
+                            )
                         ) : (
-                          <div className="flex items-start justify-between">
-                            <p className={`text-sm ${textMuted} mt-1 pr-4`}>{abstract || t('noAbstract')}</p>
-                            <button onClick={handleEditAbstract} className={`px-4 py-1 ${buttonBg} ${buttonText} text-xs rounded-md ${buttonHoverBg} flex-shrink-0`}>{t('edit')}</button>
-                          </div>
-                        )
-                      ) : (
-                        <p className={`text-sm ${textMuted} mt-1 pr-4`}>{abstract || t('noAbstract')}</p>
-                      )}
-                    </div>
+                            <p className={`text-sm ${textMuted} mt-1 pr-4`}>{abstract}</p>
+                        )}
+                        </div>
+                    )}
 
                     {/* Date Taken Section */}
                     <div className="mb-4">
