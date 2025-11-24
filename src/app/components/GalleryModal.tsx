@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Loader } from './Loader';
 
 interface GalleryModalProps {
   title: string;
@@ -12,15 +11,13 @@ export const GalleryModal: React.FC<GalleryModalProps> = ({ title, images, start
   const [currentIndex, setCurrentIndex] = useState(startIndex);
   const [isImageLoading, setIsImageLoading] = useState(true);
 
-  // Effect to reset the loading state whenever the current image changes
   useEffect(() => {
     setIsImageLoading(true);
   }, [currentIndex]);
 
-  // Effect for preloading subsequent images
   useEffect(() => {
     if (!isImageLoading) {
-      const preloadCount = 3; // The number of upcoming images to preload
+      const preloadCount = 3;
       const uniqueIndexesToPreload = new Set();
 
       for (let i = 1; i <= preloadCount; i++) {
@@ -61,8 +58,8 @@ export const GalleryModal: React.FC<GalleryModalProps> = ({ title, images, start
         {/* Main Content (Image Viewer) */}
         <div className="flex-grow flex items-center justify-center relative bg-gray-900/50 min-h-0">
           {isImageLoading && (
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
-              <Loader />
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-4">
+              <div className="w-full h-full skeleton-loader rounded-lg"></div>
             </div>
           )}
           <img
@@ -70,7 +67,7 @@ export const GalleryModal: React.FC<GalleryModalProps> = ({ title, images, start
             alt={`${title} gallery image ${currentIndex + 1}`}
             className={`max-h-full max-w-full object-contain transition-opacity duration-300 ${isImageLoading ? 'opacity-0' : 'opacity-100'}`}
             onLoad={() => setIsImageLoading(false)}
-            onError={() => setIsImageLoading(false)} // Also stop loading on error
+            onError={() => setIsImageLoading(false)}
           />
           {/* Navigation Arrows */}
           <div className="absolute top-1/2 left-5 transform -translate-y-1/2 text-white text-3xl cursor-pointer bg-black/30 rounded-full p-2 hover:bg-black/50" onClick={goToPrevious}>&#10094;</div>

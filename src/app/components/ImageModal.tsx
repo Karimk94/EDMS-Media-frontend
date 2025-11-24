@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Document } from './DocumentItem';
-import { Loader } from './Loader';
 import { AnalysisView } from './AnalysisView';
 import { TagEditor } from './TagEditor';
 import { EventEditor } from './EventEditor';
@@ -302,7 +301,13 @@ export const ImageModal: React.FC<ImageModalProps> = ({ doc, onClose, apiURL, on
           </button>
           <h2 className={`text-xl font-bold ${textHeader} mb-4 pl-12`}>{doc.docname.replace(/\.[^/.]+$/, "")}</h2>
 
-          {isLoading && <div className="flex justify-center items-center h-64"><Loader /></div>}
+          {isLoading && (
+            <div className="flex flex-col justify-center items-center h-64 gap-4">
+              <div className="w-full h-48 skeleton-loader rounded-lg"></div>
+              <div className="w-3/4 h-6 skeleton-loader rounded"></div>
+              <div className="w-1/2 h-4 skeleton-loader rounded"></div>
+            </div>
+          )}
           {error && <p className="text-center p-10 text-red-400">{error}</p>}
 
           {view === 'image' && imageSrc && !error && (

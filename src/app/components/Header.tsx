@@ -105,7 +105,7 @@ export const Header: React.FC<HeaderProps> = ({
             {theme === 'light' ? (
               <img src="/moon.svg" alt="Dark Mode" className="w-5 h-5" />
             ) : (
-              <img src="/sun.svg" alt="Light Mode" className="w-5 h-5" />
+              <img src="/sun.svg" alt="Light Mode" className="w-5 h-5 invert" />
             )}
           </button>
         </div>

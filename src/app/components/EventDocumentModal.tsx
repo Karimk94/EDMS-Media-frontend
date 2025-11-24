@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Document } from './DocumentItem'; // Assuming Document type is shared
-import { Loader } from './Loader';
+import { Document } from './DocumentItem';
 
 interface EventDocumentModalProps {
   isOpen: boolean;
@@ -119,42 +118,42 @@ export const EventDocumentModal: React.FC<EventDocumentModalProps> = ({
         {/* Body */}
         <div className="flex-grow p-4 relative flex items-center justify-center min-h-[300px]">
           {isLoading ? (
-            <Loader />
+            <div className="w-full h-full min-h-[300px] skeleton-loader rounded-lg"></div>
           ) : error ? (
             <p className="text-red-400">{error}</p>
           ) : currentDoc ? (
             <>
-               {/* Previous Button */}
-               {currentPage > 1 && (
-                 <button
-                    onClick={handlePrev}
-                    disabled={isLoading}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-40 text-white p-2 rounded-full hover:bg-opacity-60 transition disabled:opacity-50 z-10"
-                    aria-label="Previous Document"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                    </svg>
-                 </button>
-               )}
+              {/* Previous Button */}
+              {currentPage > 1 && (
+                <button
+                  onClick={handlePrev}
+                  disabled={isLoading}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-40 text-white p-2 rounded-full hover:bg-opacity-60 transition disabled:opacity-50 z-10"
+                  aria-label="Previous Document"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              )}
 
-               {/* Media Display */}
-               <div className="w-full h-full flex items-center justify-center">
-                   {renderMedia()}
-               </div>
+              {/* Media Display */}
+              <div className="w-full h-full flex items-center justify-center">
+                {renderMedia()}
+              </div>
 
               {/* Next Button */}
               {currentPage < totalPages && (
-                 <button
-                    onClick={handleNext}
-                    disabled={isLoading}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-40 text-white p-2 rounded-full hover:bg-opacity-60 transition disabled:opacity-50 z-10"
-                    aria-label="Next Document"
-                 >
-                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                 </button>
+                <button
+                  onClick={handleNext}
+                  disabled={isLoading}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-40 text-white p-2 rounded-full hover:bg-opacity-60 transition disabled:opacity-50 z-10"
+                  aria-label="Next Document"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
               )}
             </>
           ) : (
@@ -164,8 +163,8 @@ export const EventDocumentModal: React.FC<EventDocumentModalProps> = ({
 
         {/* Footer */}
         <div className={`p-3 flex-shrink-0 flex justify-between items-center border-t ${borderColor} text-sm ${footerTextColor}`}>
-            <span>{currentDoc?.docname ? currentDoc.docname.replace(/\.[^/.]+$/, "") : '...'}</span>
-            <span>{currentPage} / {totalPages}</span>
+          <span>{currentDoc?.docname ? currentDoc.docname.replace(/\.[^/.]+$/, "") : '...'}</span>
+          <span>{currentPage} / {totalPages}</span>
         </div>
       </div>
     </div>

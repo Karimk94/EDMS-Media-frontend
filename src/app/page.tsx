@@ -23,7 +23,7 @@ import { Sidebar } from './components/Sidebar';
 import { TagFilter } from './components/TagFilter';
 import { YearFilter } from './components/YearFilter';
 import { AdvancedFilters } from './components/AdvancedFilters';
-import { registerLocale } from 'react-datepicker'; 
+import { registerLocale } from 'react-datepicker';
 import { enGB } from 'date-fns/locale/en-GB';
 
 type ActiveSection = 'recent' | 'favorites' | 'events' | 'memories' | 'journey';
@@ -92,7 +92,7 @@ export default function HomePage() {
   const [selectedEventNameForModal, setSelectedEventNameForModal] = useState<string>('');
 
   const [lang, setLang] = useState<'en' | 'ar'>('en');
-  const [theme, setTheme] = useState<'light' | 'dark'>('light'); // Add theme state
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const t = useTranslations(lang);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -108,7 +108,7 @@ export default function HomePage() {
           const data = await response.json();
           setUser(data.user);
           setLang(data.user.lang || 'en');
-          setTheme(data.user.theme || 'light'); // Set theme from user data
+          setTheme(data.user.theme || 'light');
         } else {
           router.push('/login');
         }
@@ -119,27 +119,19 @@ export default function HomePage() {
     checkUser();
   }, [router]);
 
-  // Handle theme change and persist to backend
   const handleThemeChange = async (newTheme: 'light' | 'dark') => {
     if (!user) return;
     try {
-      // Optimistically update UI
       setTheme(newTheme);
-      
-      // Update backend
       await fetch('/api/user/theme', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ theme: newTheme }),
       });
-      
-      // Update user state
       setUser(prevUser => prevUser ? ({ ...prevUser, theme: newTheme }) : null);
-
     } catch (error) {
       console.error('Failed to update theme', error);
-      // Revert on failure (optional)
-      setTheme(newTheme === 'light' ? 'dark' : 'light'); 
+      setTheme(newTheme === 'light' ? 'dark' : 'light');
     }
   };
 
@@ -190,8 +182,7 @@ export default function HomePage() {
 
       try {
         let endpoint = '';
-        let dataSetter: React.Dispatch<React.SetStateAction<any[]>> =
-          setDocuments;
+        let dataSetter: React.Dispatch<React.SetStateAction<any[]>> = setDocuments;
         let dataKey = 'documents';
         let totalPagesKey = 'total_pages';
 
@@ -234,10 +225,7 @@ export default function HomePage() {
 
           const response = await fetch(url);
           if (!response.ok)
-            throw new Error(
-              `Failed to fetch ${isMemoryFetch ? 'memories' : activeSection
-              }. Status: ${response.status}`
-            );
+            throw new Error(`Failed to fetch. Status: ${response.status}`);
           const data = await response.json();
 
           dataSetter(data[dataKey] || []);
@@ -248,14 +236,8 @@ export default function HomePage() {
           setTotalPages(1);
         }
       } catch (err: any) {
-        console.error(
-          `Error fetching ${isMemoryFetch ? 'memories detail' : activeSection}:`,
-          err
-        );
-        setError(
-          `Failed to fetch ${isMemoryFetch ? 'memories' : activeSection
-          }. Is the API ready? ${err.message}`
-        );
+        console.error(`Error fetching:`, err);
+        setError(`Failed to fetch. ${err.message}`);
         setDocuments([]);
         setEvents([]);
         setTotalPages(1);
@@ -283,7 +265,6 @@ export default function HomePage() {
     ]
   );
 
-  // --- fetchMemoryStack ---
   const fetchMemoryStack = async () => {
     setIsLoadingMemoryStack(true);
     try {
@@ -314,13 +295,13 @@ export default function HomePage() {
         fetchSectionData(false);
       }
     }
-  }, [fetchSectionData, isShowingFullMemories, currentPage, user, lang]);
+  }, [fetchSectionData, isShowingFullMemories, currentPage, user?.username, lang]);
 
   useEffect(() => {
     if (user) {
       fetchMemoryStack();
     }
-  }, [user]);
+  }, [user?.username]);
 
   useEffect(() => {
     if (user) {
@@ -338,7 +319,7 @@ export default function HomePage() {
         }
       }
     }
-  }, [user]);
+  }, [user?.username]);
 
   useEffect(() => {
     if (user) {
@@ -355,10 +336,6 @@ export default function HomePage() {
             body: JSON.stringify({ docnumbers: processingDocs }),
           });
           if (!response.ok) {
-            console.error(
-              'Processing status check failed:',
-              response.statusText
-            );
             return;
           }
           const data = await response.json();
@@ -390,7 +367,7 @@ export default function HomePage() {
     fetchSectionData,
     activeSection,
     isShowingFullMemories,
-    user,
+    user?.username,
   ]);
 
   const handleSearch = (newSearchTerm: string) => {
@@ -576,7 +553,6 @@ export default function HomePage() {
       );
     }
 
-    // --- Full Memories View ---
     if (isShowingFullMemories) {
       if (documents.length === 0) {
         return (
@@ -604,7 +580,6 @@ export default function HomePage() {
       );
     }
 
-    // --- Events View ---
     if (activeSection === 'events') {
       if (events.length === 0) {
         return (
@@ -779,7 +754,7 @@ export default function HomePage() {
                   {t('memoriesFromPast')}
                 </h2>
                 {isLoadingMemoryStack ? (
-                  <div className="h-40 w-full max-w-xs bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
+                  <div className="h-40 w-full max-w-xs rounded-lg skeleton-loader"></div>
                 ) : memoryStackItems.length > 0 ? (
                   <div className="max-w-xs">
                     <MemoriesStack
