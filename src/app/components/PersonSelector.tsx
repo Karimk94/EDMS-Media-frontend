@@ -2,13 +2,9 @@ import React from 'react';
 import { AsyncPaginate } from 'react-select-async-paginate';
 import Creatable from 'react-select/creatable';
 import { GroupBase, OptionsOrGroups } from 'react-select';
+import { PersonOption } from '../../models/PersonOption';
 
 const AnyAsyncPaginate: any = AsyncPaginate;
-
-interface PersonOption {
-  value: string;
-  label: string;
-}
 
 interface PersonSelectorProps {
   apiURL: string;
@@ -19,11 +15,11 @@ interface PersonSelectorProps {
 }
 
 const getSelectStyles = (theme: 'light' | 'dark') => ({
-  control: (base: any) => ({ 
-    ...base, 
+  control: (base: any) => ({
+    ...base,
     backgroundColor: theme === 'dark' ? 'var(--color-bg-input)' : 'white',
     borderColor: theme === 'dark' ? 'var(--color-border-secondary)' : 'var(--color-border-secondary)',
-    minHeight: '38px', 
+    minHeight: '38px',
     height: '38px',
     boxShadow: 'none',
     '&:hover': {
@@ -31,23 +27,23 @@ const getSelectStyles = (theme: 'light' | 'dark') => ({
     }
   }),
   menuPortal: (base: any) => ({ ...base, zIndex: 99999 }),
-  menu: (base: any) => ({ 
-    ...base, 
-    backgroundColor: theme === 'dark' ? 'var(--color-bg-tertiary)' : 'var(--color-bg-modal)' 
+  menu: (base: any) => ({
+    ...base,
+    backgroundColor: theme === 'dark' ? 'var(--color-bg-tertiary)' : 'var(--color-bg-modal)'
   }),
-  option: (base: any, { isFocused }: any) => ({ 
-    ...base, 
+  option: (base: any, { isFocused }: any) => ({
+    ...base,
     backgroundColor: isFocused ? (theme === 'dark' ? 'var(--color-border-secondary)' : 'var(--color-bg-secondary)') : (theme === 'dark' ? 'var(--color-bg-tertiary)' : 'var(--color-bg-modal)'),
-    color: 'var(--color-text-primary)', 
-    padding: '8px 12px' 
+    color: 'var(--color-text-primary)',
+    padding: '8px 12px'
   }),
   singleValue: (base: any) => ({ ...base, color: 'var(--color-text-primary)' }),
   input: (base: any) => ({ ...base, color: 'var(--color-text-primary)', margin: '0px' }),
-  valueContainer: (base: any) => ({...base, padding: '0 6px'}),
-  indicatorSeparator: () => ({ display: 'none'}),
-  dropdownIndicator: (base: any) => ({...base, padding: '4px', color: 'var(--color-text-muted)'}),
-  clearIndicator: (base: any) => ({...base, padding: '4px', color: 'var(--color-text-muted)'}),
-  placeholder: (base: any) => ({...base, color: 'var(--color-text-muted)'}),
+  valueContainer: (base: any) => ({ ...base, padding: '0 6px' }),
+  indicatorSeparator: () => ({ display: 'none' }),
+  dropdownIndicator: (base: any) => ({ ...base, padding: '4px', color: 'var(--color-text-muted)' }),
+  clearIndicator: (base: any) => ({ ...base, padding: '4px', color: 'var(--color-text-muted)' }),
+  placeholder: (base: any) => ({ ...base, color: 'var(--color-text-muted)' }),
 });
 
 export const PersonSelector: React.FC<PersonSelectorProps> = ({ apiURL, value, onChange, lang, theme }) => {
@@ -69,7 +65,7 @@ export const PersonSelector: React.FC<PersonSelectorProps> = ({ apiURL, value, o
         const label = (lang === 'ar' && person.name_arabic)
           ? `${person.name_arabic} - ${person.name_english}`
           : `${person.name_english}${person.name_arabic ? ` - ${person.name_arabic}` : ''}`;
-        
+
         const value = (lang === 'ar' && person.name_arabic) ? person.name_arabic : person.name_english;
 
         return { value: value, label };
@@ -96,7 +92,7 @@ export const PersonSelector: React.FC<PersonSelectorProps> = ({ apiURL, value, o
       onChange(trimmedName);
     }
   };
-  
+
   const currentOption: PersonOption | null = value ? { value: value, label: value } : null;
 
   return (

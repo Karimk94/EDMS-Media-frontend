@@ -1,17 +1,5 @@
 import React from 'react';
-
-// Define the structure for an Event item with thumbnails
-export interface EventItem {
-  id: number;
-  name: string;
-  thumbnail_urls: string[]; // Expecting an array of thumbnail URLs
-}
-
-interface EventStackProps {
-  event: EventItem;
-  apiURL: string;
-  onClick: (eventId: number) => void; // Pass event ID on click
-}
+import { EventStackProps, EventItem } from '../../interfaces';
 
 export const EventStack: React.FC<EventStackProps> = ({ event, apiURL, onClick }) => {
   // Ensure we have a valid event object and thumbnails
@@ -28,14 +16,14 @@ export const EventStack: React.FC<EventStackProps> = ({ event, apiURL, onClick }
 
   // Construct the asset URL through the proxy
   const getThumbnailUrl = (thumbnailPath: string) => {
-      if (!thumbnailPath) {
-          return '/no-image.svg'; // Fallback image
-      }
-      // Ensure the base URL doesn't end with / if thumbnailPath starts with /
-      const baseUrl = apiURL.endsWith('/') ? apiURL.slice(0, -1) : apiURL;
-      const finalPath = thumbnailPath.startsWith('/') ? thumbnailPath.slice(1) : thumbnailPath;
-      // Assume thumbnailPath already includes 'cache/' if applicable
-      return `${baseUrl}/${finalPath}`;
+    if (!thumbnailPath) {
+      return '/no-image.svg'; // Fallback image
+    }
+    // Ensure the base URL doesn't end with / if thumbnailPath starts with /
+    const baseUrl = apiURL.endsWith('/') ? apiURL.slice(0, -1) : apiURL;
+    const finalPath = thumbnailPath.startsWith('/') ? thumbnailPath.slice(1) : thumbnailPath;
+    // Assume thumbnailPath already includes 'cache/' if applicable
+    return `${baseUrl}/${finalPath}`;
   };
 
   return (
@@ -47,11 +35,11 @@ export const EventStack: React.FC<EventStackProps> = ({ event, apiURL, onClick }
       <div className="relative w-full aspect-[16/9]">
         {/* Background/Shadow Element (Optional) */}
         {count > 1 && (
-            <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 rounded-lg transform scale-95 translate-y-2 opacity-50 group-hover:opacity-70 transition-all duration-300"></div>
+          <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 rounded-lg transform scale-95 translate-y-2 opacity-50 group-hover:opacity-70 transition-all duration-300"></div>
         )}
 
         {/* Stacked Images */}
-        {displayThumbnails.map((thumbUrl, index) => {
+        {displayThumbnails.map((thumbUrl: any, index: any) => {
           const zIndex = 10 - index;
           const translateX = index * 4;
           const translateY = index * 4;
@@ -79,7 +67,7 @@ export const EventStack: React.FC<EventStackProps> = ({ event, apiURL, onClick }
           );
         })}
 
-         {/* Count Overlay if more than 4 items */}
+        {/* Count Overlay if more than 4 items */}
         {count > 4 && (
           <div
             className="absolute bottom-1 right-1 bg-black bg-opacity-70 text-white text-xs font-semibold px-1.5 py-0.5 rounded z-20"

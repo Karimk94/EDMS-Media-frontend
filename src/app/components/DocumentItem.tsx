@@ -1,17 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-
-export interface Document {
-  doc_id: number;
-  title: string;
-  abstract?: string;
-  docnumber: string;
-  docname: string;
-  date: string;
-  thumbnail_url: string;
-  media_type: 'image' | 'video' | 'pdf';
-  tags?: string[];
-  is_favorite?: boolean;
-}
+import Image from 'next/image';
+import { Document } from '../../models/Document';
 
 interface DocumentItemProps {
   doc: Document;

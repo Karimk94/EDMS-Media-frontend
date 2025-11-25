@@ -1,10 +1,6 @@
 import React from 'react';
 import { SearchBar } from './SearchBar';
-
-interface PersonOption {
-  value: number;
-  label: string;
-}
+import { PersonOption } from '../../models/PersonOption';
 
 interface HeaderProps {
   onSearch: (searchTerm: string) => void;

@@ -1,5 +1,6 @@
 import React from 'react';
-import { DocumentItem, Document } from './DocumentItem';
+import { DocumentItem } from './DocumentItem';
+import { Document } from '../../models/Document';
 import { DocumentItemSkeleton } from './DocumentItemSkeleton';
 
 interface DocumentListProps {
@@ -27,16 +28,16 @@ export const DocumentList: React.FC<DocumentListProps> = ({
     {isLoading
       ? Array.from({ length: 10 }).map((_, index) => <DocumentItemSkeleton key={index} />)
       : documents.map(doc => (
-          <DocumentItem
-            key={doc.doc_id}
-            doc={doc}
-            onDocumentClick={onDocumentClick}
-            apiURL={apiURL}
-            onTagSelect={onTagSelect}
-            isProcessing={processingDocs.includes(doc.doc_id)}
-            onToggleFavorite={onToggleFavorite}
-            lang={lang}
-          />
-        ))}
+        <DocumentItem
+          key={doc.doc_id}
+          doc={doc}
+          onDocumentClick={onDocumentClick}
+          apiURL={apiURL}
+          onTagSelect={onTagSelect}
+          isProcessing={processingDocs.includes(doc.doc_id)}
+          onToggleFavorite={onToggleFavorite}
+          lang={lang}
+        />
+      ))}
   </div>
 );

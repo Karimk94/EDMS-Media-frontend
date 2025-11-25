@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Document } from './DocumentItem';
+import { Document } from '../../models/Document';
 import { AnalysisView } from './AnalysisView';
 import { TagEditor } from './TagEditor';
 import { EventEditor } from './EventEditor';

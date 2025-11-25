@@ -1,5 +1,5 @@
 import React from 'react';
-import { Document } from './DocumentItem'; // Assuming Document type is suitable
+import { Document } from '../../models/Document';
 
 interface MemoriesStackProps {
   memories: Document[]; // Prop type remains array, but we'll check runtime value
@@ -17,8 +17,8 @@ export const MemoriesStack: React.FC<MemoriesStackProps> = ({ memories, apiURL, 
   // Ensure we have a valid first memory object before proceeding further
   const firstMemory = memories[0];
   if (!firstMemory) {
-      console.warn("MemoriesStack: Returning null because first memory item is invalid.");
-      return null;
+    console.warn("MemoriesStack: Returning null because first memory item is invalid.");
+    return null;
   }
 
   const count = memories.length;
@@ -29,15 +29,15 @@ export const MemoriesStack: React.FC<MemoriesStackProps> = ({ memories, apiURL, 
 
   // Construct the asset URL through the proxy
   const getThumbnailUrl = (doc: Document) => {
-      // Add a check within getThumbnailUrl as well
-      if (!doc || !doc.thumbnail_url) {
-          // console.log(`MemoriesStack: Using fallback image for doc_id ${doc?.doc_id} because thumbnail_url is missing.`);
-          return '/no-image.svg'; // Fallback image if thumbnail_url is missing
-      }
-      // Ensure the base URL doesn't end with / if thumbnail_url starts with /
-      const baseUrl = apiURL.endsWith('/') ? apiURL.slice(0, -1) : apiURL;
-      const thumbnailUrlPath = doc.thumbnail_url.startsWith('/') ? doc.thumbnail_url.slice(1) : doc.thumbnail_url;
-      return `${baseUrl}/${thumbnailUrlPath}`;
+    // Add a check within getThumbnailUrl as well
+    if (!doc || !doc.thumbnail_url) {
+      // console.log(`MemoriesStack: Using fallback image for doc_id ${doc?.doc_id} because thumbnail_url is missing.`);
+      return '/no-image.svg'; // Fallback image if thumbnail_url is missing
+    }
+    // Ensure the base URL doesn't end with / if thumbnail_url starts with /
+    const baseUrl = apiURL.endsWith('/') ? apiURL.slice(0, -1) : apiURL;
+    const thumbnailUrlPath = doc.thumbnail_url.startsWith('/') ? doc.thumbnail_url.slice(1) : doc.thumbnail_url;
+    return `${baseUrl}/${thumbnailUrlPath}`;
   };
 
 
@@ -46,45 +46,45 @@ export const MemoriesStack: React.FC<MemoriesStackProps> = ({ memories, apiURL, 
     // console.log("MemoriesStack: Checking firstMemory.date:", firstMemory.date);
 
     if (!firstMemory.date || typeof firstMemory.date !== 'string' || firstMemory.date === "N/A") {
-        // console.log("MemoriesStack: Date is missing, not a string, or 'N/A'. Returning null.");
-        return null;
+      // console.log("MemoriesStack: Date is missing, not a string, or 'N/A'. Returning null.");
+      return null;
     }
 
-try {
-        let dateObj: Date | null = null;
-        // Attempt to parse DD-MM-YYYY format
-        const parts = firstMemory.date.split(' ')[0].split('-');
-        if (parts.length === 3) {
-            const day = parseInt(parts[0], 10);
-            const month = parseInt(parts[1], 10);
-            const year = parseInt(parts[2], 10);
-            if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-                 dateObj = new Date(year, month - 1, day);
-            }
+    try {
+      let dateObj: Date | null = null;
+      // Attempt to parse DD-MM-YYYY format
+      const parts = firstMemory.date.split(' ')[0].split('-');
+      if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10);
+        const year = parseInt(parts[2], 10);
+        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+          dateObj = new Date(year, month - 1, day);
         }
+      }
 
-        if (!dateObj || isNaN(dateObj.getTime())) {
-            dateObj = new Date(firstMemory.date);
-        }
+      if (!dateObj || isNaN(dateObj.getTime())) {
+        dateObj = new Date(firstMemory.date);
+      }
 
-        // Check if the final date object is valid
-        if (!dateObj || isNaN(dateObj.getTime())) {
-            return null;
-        }
+      // Check if the final date object is valid
+      if (!dateObj || isNaN(dateObj.getTime())) {
+        return null;
+      }
 
-        const year = dateObj.getFullYear();
-        // console.log("MemoriesStack: Extracted year:", year);
+      const year = dateObj.getFullYear();
+      // console.log("MemoriesStack: Extracted year:", year);
 
-        // Final check if getFullYear somehow returns NaN (though unlikely if dateObj is valid)
-        if (isNaN(year)) {
-             //console.log("MemoriesStack: Year is NaN after getFullYear(). Returning null.");
-             return null;
-        }
-        return year;
-     } catch (e) {
-         console.error("MemoriesStack: Error during date parsing:", e); // Log any unexpected errors
-         return null;
-     }
+      // Final check if getFullYear somehow returns NaN (though unlikely if dateObj is valid)
+      if (isNaN(year)) {
+        //console.log("MemoriesStack: Year is NaN after getFullYear(). Returning null.");
+        return null;
+      }
+      return year;
+    } catch (e) {
+      console.error("MemoriesStack: Error during date parsing:", e); // Log any unexpected errors
+      return null;
+    }
   };
 
   const topMemoryYear = getTopMemoryYear();
@@ -104,8 +104,8 @@ try {
       {displayMemories.map((memory, index) => {
         // --- Add validation for each item in the array ---
         if (!memory || typeof memory !== 'object' || !memory.doc_id) {
-            console.warn(`MemoriesStack encountered invalid memory item at index ${index}:`, memory);
-            return null; // Skip rendering this invalid item
+          console.warn(`MemoriesStack encountered invalid memory item at index ${index}:`, memory);
+          return null; // Skip rendering this invalid item
         }
         // --- End validation ---
 
@@ -136,13 +136,13 @@ try {
             />
             {/* Overlay for the top image (optional) */}
             {index === 0 && ( // Index 0 is now the top card after reverse
-               <div className="absolute inset-0 bg-black bg-opacity-10 group-hover:bg-opacity-0 transition-opacity rounded-lg"></div>
+              <div className="absolute inset-0 bg-black bg-opacity-10 group-hover:bg-opacity-0 transition-opacity rounded-lg"></div>
             )}
           </div>
         );
       })}
 
-       {/* Count Overlay if more than 3 items */}
+      {/* Count Overlay if more than 3 items */}
       {count > 3 && (
         <div
           className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs font-semibold px-2 py-1 rounded z-20"
@@ -153,15 +153,15 @@ try {
         </div>
       )}
 
-       {/* Year Label on top card - Conditionally render only if year is valid */}
+      {/* Year Label on top card - Conditionally render only if year is valid */}
       {topMemoryYear !== null && (
-         <div
-           className="absolute top-2 left-2 bg-black bg-opacity-60 text-white text-xs font-bold px-2 py-1 rounded z-20"
-            // Match rotation of the top card (index 0 after reverse)
-            style={{ transform: `rotate(${ (displayMemories.length > 1 ? 0 : 0) * (displayMemories.length % 2 === 0 ? 2 : -1.5) }deg)` }}
-         >
-           {topMemoryYear} {/* Show year of the top memory */}
-         </div>
+        <div
+          className="absolute top-2 left-2 bg-black bg-opacity-60 text-white text-xs font-bold px-2 py-1 rounded z-20"
+          // Match rotation of the top card (index 0 after reverse)
+          style={{ transform: `rotate(${(displayMemories.length > 1 ? 0 : 0) * (displayMemories.length % 2 === 0 ? 2 : -1.5)}deg)` }}
+        >
+          {topMemoryYear} {/* Show year of the top memory */}
+        </div>
       )}
     </div>
   );

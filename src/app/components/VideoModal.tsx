@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Document } from './DocumentItem';
+import { Document } from '../../models/Document';
 import { TagEditor } from './TagEditor';
 import { EventEditor } from './EventEditor';
 import { CollapsibleSection } from './CollapsibleSection';

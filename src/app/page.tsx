@@ -8,12 +8,13 @@ import { Pagination } from './components/Pagination';
 import { ImageModal } from './components/ImageModal';
 import { VideoModal } from './components/VideoModal';
 import { PdfModal } from './components/PdfModal';
-import { Document } from './components/DocumentItem';
+import { Document } from '../models/Document';
 import { UploadModal } from './components/UploadModal';
-import { UploadableFile } from './components/UploadFileItem';
+import { UploadableFile } from '../interfaces';
 import { DocumentItemSkeleton } from './components/DocumentItemSkeleton';
 import { MemoriesStack } from './components/MemoriesStack';
-import { EventStack, EventItem as EventStackItem } from './components/EventStack';
+import { EventStack } from './components/EventStack';
+import { EventItem as EventStackItem } from '../models/EventItem';
 import { EventDocumentModal } from './components/EventDocumentModal';
 import { Journey } from './components/Journey';
 import { useTranslations } from './hooks/useTranslations';
@@ -25,20 +26,10 @@ import { YearFilter } from './components/YearFilter';
 import { AdvancedFilters } from './components/AdvancedFilters';
 import { registerLocale } from 'react-datepicker';
 import { enGB } from 'date-fns/locale/en-GB';
+import { User } from '../models/User';
+import { PersonOption } from '../models/PersonOption';
 
 type ActiveSection = 'recent' | 'favorites' | 'events' | 'memories' | 'journey';
-
-interface User {
-  username: string;
-  security_level: 'Editor' | 'Viewer';
-  lang?: 'en' | 'ar';
-  theme?: 'light' | 'dark';
-}
-
-interface PersonOption {
-  value: number;
-  label: string;
-}
 
 const formatToApiDateTime = (date: Date | null): string => {
   if (!date) return '';
@@ -215,17 +206,17 @@ export default function HomePage() {
               dataKey = 'events';
               break;
             default:
-              throw new Error(`Invalid section: ${activeSection}`);
+              throw new Error(`Invalid section: ${activeSection} `);
           }
         }
 
         if (endpoint) {
-          url = new URL(`${API_PROXY_URL}${endpoint}`, window.location.origin);
+          url = new URL(`${API_PROXY_URL}${endpoint} `, window.location.origin);
           url.search = params.toString();
 
           const response = await fetch(url);
           if (!response.ok)
-            throw new Error(`Failed to fetch. Status: ${response.status}`);
+            throw new Error(`Failed to fetch.Status: ${response.status} `);
           const data = await response.json();
 
           dataSetter(data[dataKey] || []);
@@ -236,8 +227,8 @@ export default function HomePage() {
           setTotalPages(1);
         }
       } catch (err: any) {
-        console.error(`Error fetching:`, err);
-        setError(`Failed to fetch. ${err.message}`);
+        console.error(`Error fetching: `, err);
+        setError(`Failed to fetch.${err.message} `);
         setDocuments([]);
         setEvents([]);
         setTotalPages(1);

@@ -1,26 +1,6 @@
 import React, { useState } from 'react';
 import DatePicker from 'react-datepicker';
-
-export type UploadStatus = 'pending' | 'uploading' | 'processing' | 'success' | 'error';
-
-export interface UploadableFile {
-  id: string;
-  file: File;
-  status: UploadStatus;
-  progress: number;
-  docnumber?: number;
-  error?: string;
-  editedFileName: string;
-  editedDateTaken: Date | null;
-  dateSource?: 'exif' | 'filename_full' | 'filename_partial' | 'file';
-}
-
-interface UploadFileItemProps {
-  uploadableFile: UploadableFile;
-  onRemove: () => void;
-  onUpdateFileName: (id: string, newName: string) => void;
-  onUpdateDateTaken: (id: string, newDate: Date | null) => void;
-}
+import { UploadFileItemProps } from '../../interfaces';
 
 const formatDateForInput = (date: Date | null): string => {
   if (!date) return '';
@@ -74,7 +54,7 @@ export const UploadFileItem: React.FC<UploadFileItemProps> = ({
         return <div className="w-6 h-6 bg-gray-600 rounded-full"></div>;
     }
   };
-  
+
   const getDatePickerTitle = () => {
     switch (dateSource) {
       case 'file':
@@ -122,9 +102,8 @@ export const UploadFileItem: React.FC<UploadFileItemProps> = ({
               dateFormat="dd/MM/yyyy"
               isClearable
               placeholderText="Select date"
-              className={`w-auto text-xs bg-[#121212] text-gray-200 border rounded focus:ring-1 focus:ring-red-500 focus:outline-none py-0.5 px-1 ${
-                isHighlighted ? 'border-yellow-500 border-2' : 'border-gray-600'
-              }`}
+              className={`w-auto text-xs bg-[#121212] text-gray-200 border rounded focus:ring-1 focus:ring-red-500 focus:outline-none py-0.5 px-1 ${isHighlighted ? 'border-yellow-500 border-2' : 'border-gray-600'
+                }`}
               title={getDatePickerTitle()}
               autoComplete='off'
               locale="en-GB"
