@@ -5,11 +5,11 @@ const FACE_RECOG_URL = process.env.NEXT_PUBLIC_FACE_RECOG_URL;
 
 async function proxyHandler(req: NextRequest): Promise<NextResponse> {
   const path = req.nextUrl.pathname.replace('/api', '');
-  
+
   const faceRecogRoutes = ['/analyze_image', '/add_face', '/recognize_faces', '/analyze_image_stream'];
 
   let targetApiBaseUrl;
-  
+
   if (faceRecogRoutes.some(route => path.startsWith(route))) {
     targetApiBaseUrl = FACE_RECOG_URL;
   } else {
@@ -23,17 +23,18 @@ async function proxyHandler(req: NextRequest): Promise<NextResponse> {
   const finalPath = path.startsWith('/cache/') ? path : `/api${path}`;
 
   const targetUrl = `${targetApiBaseUrl}${finalPath}${req.nextUrl.search}`;
-  
-  // Forward all headers from the original request, including the cookie
+
   const headers = new Headers(req.headers);
+
+  headers.set('X-App-Source', 'edms-media');
 
   try {
     const response = await fetch(targetUrl, {
       method: req.method,
-      headers: headers, // Use the forwarded headers
+      headers: headers,
       body: req.method !== 'GET' && req.method !== 'HEAD' ? req.body : undefined,
       // @ts-ignore
-      duplex: 'half', 
+      duplex: 'half',
     });
 
     const newHeaders = new Headers(response.headers);
@@ -57,9 +58,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-    return proxyHandler(req);
+  return proxyHandler(req);
 }
 
 export async function DELETE(req: NextRequest) {
-    return proxyHandler(req);
+  return proxyHandler(req);
 }
