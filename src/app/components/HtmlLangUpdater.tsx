@@ -2,15 +2,17 @@
 
 import { useEffect } from 'react';
 
-interface HtmlLangUpdaterProps {
-  lang: 'en' | 'ar';
-}
+import { HtmlLangUpdaterProps } from '../../interfaces/PropsInterfaces';
 
-const HtmlLangUpdater: React.FC<HtmlLangUpdaterProps> = ({ lang }) => {
+const HtmlLangUpdater: React.FC<HtmlLangUpdaterProps> = ({ lang, forceDir }) => {
   useEffect(() => {
     document.documentElement.lang = lang;
-    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
-  }, [lang]);
+    if (forceDir) {
+      document.documentElement.dir = forceDir;
+    } else {
+      document.documentElement.dir = 'ltr';
+    }
+  }, [lang, forceDir]);
 
   return null; // This component does not render anything
 };

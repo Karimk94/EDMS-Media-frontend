@@ -1,18 +1,14 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import DatePicker from 'react-datepicker';
-import { AsyncPaginate } from 'react-select-async-paginate';
 import { GroupBase, OptionsOrGroups } from 'react-select';
+import { AsyncPaginate } from 'react-select-async-paginate';
+import Image from 'next/image';
+import { fetchPersons } from '../../hooks/usePersons';
 import { PersonOption } from '../../models/PersonOption';
 
-interface DateRangePickerProps {
-  dateFrom: Date | null;
-  setDateFrom: (date: Date | null) => void;
-  dateTo: Date | null;
-  setDateTo: (date: Date | null) => void;
-  t: Function
-}
+import { AdvancedFiltersProps, DateRangePickerProps } from '../../interfaces/PropsInterfaces';
 
 const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateFrom, setDateFrom, dateTo, setDateTo, t }) => {
   const handleClear = () => {
@@ -89,7 +85,6 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ dateFrom, setDateFrom
   );
 };
 
-// Function to generate styles based on theme
 const getSelectStyles = (theme: 'light' | 'dark') => ({
   control: (base: any) => ({
     ...base,
@@ -121,30 +116,18 @@ const getSelectStyles = (theme: 'light' | 'dark') => ({
 });
 
 
-interface AdvancedFiltersProps {
-  dateFrom: Date | null;
-  setDateFrom: (date: Date | null) => void;
-  dateTo: Date | null;
-  setDateTo: (date: Date | null) => void;
-  selectedPerson: PersonOption[] | null;
-  setSelectedPerson: (person: PersonOption[] | null) => void;
-  personCondition: 'any' | 'all';
-  setPersonCondition: (condition: 'any' | 'all') => void;
-  apiURL: string;
-  t: Function;
-  lang: 'en' | 'ar';
-  theme: 'light' | 'dark'; // Add theme prop
-}
+
 
 export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
   dateFrom, setDateFrom, dateTo, setDateTo,
   selectedPerson, setSelectedPerson,
   personCondition, setPersonCondition,
+  mediaType, setMediaType,
   apiURL, t, lang, theme
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const selectStyles = getSelectStyles(theme); // Get styles based on theme
+  const selectStyles = getSelectStyles(theme);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -158,7 +141,7 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
     };
   }, [wrapperRef]);
 
-  const activeFilterCount = [dateFrom, dateTo, selectedPerson && selectedPerson.length > 0].filter(Boolean).length;
+  const activeFilterCount = [dateFrom, dateTo, selectedPerson && selectedPerson.length > 0, mediaType].filter(Boolean).length;
 
   const loadPersonOptions = async (
     search: string,
@@ -166,22 +149,28 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
     additional: { page: number } | undefined
   ) => {
     const page = additional?.page || 1;
-    const response = await fetch(`${apiURL}/persons?page=${page}&search=${search}&lang=${lang}`);
-    const data = await response.json();
+    try {
+      const data = await fetchPersons(page, search, lang);
 
-    return {
-      options: data.options.map((person: any) => {
+      const options = data.options.map((person: any) => {
         const label = (lang === 'ar' && person.name_arabic)
           ? `${person.name_arabic} - ${person.name_english}`
           : `${person.name_english}${person.name_arabic ? ` - ${person.name_arabic}` : ''}`;
 
         return { value: person.id, label };
-      }),
-      hasMore: data.hasMore,
-      additional: {
-        page: page + 1,
-      },
-    };
+      });
+
+      return {
+        options,
+        hasMore: data.hasMore,
+        additional: {
+          page: page + 1,
+        },
+      };
+    } catch (error) {
+      console.error("Error loading person options:", error);
+      return { options: [], hasMore: false };
+    }
   };
 
   return (
@@ -190,9 +179,7 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-white text-sm font-medium rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition shadow-sm"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 12.414V17a1 1 0 01-1.447.894l-2-1A1 1 0 018 16.051V12.414L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
-        </svg>
+        <Image src="/icons/filter.svg" alt="" width={20} height={20} className="dark:invert" />
         {t('filters')}
         {activeFilterCount > 0 && (
           <span className="ml-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
@@ -206,6 +193,43 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">{t('advancedFilters')}</h3>
 
           <div className="space-y-4">
+            {/* Media Type Buttons */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('mediaType')}</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setMediaType(mediaType === 'image' ? null : 'image')}
+                  className={`flex-1 flex items-center justify-center p-2 rounded-md border transition-colors ${mediaType === 'image'
+                    ? 'bg-blue-600 border-blue-600 text-white'
+                    : 'bg-white dark:bg-[#121212] border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
+                  title={t('images')}
+                >
+                  <Image src="/file-image.svg" alt={t('images')} width={20} height={20} className={`w-5 h-5 `} />
+                </button>
+                <button
+                  onClick={() => setMediaType(mediaType === 'video' ? null : 'video')}
+                  className={`flex-1 flex items-center justify-center p-2 rounded-md border transition-colors ${mediaType === 'video'
+                    ? 'bg-red-600 border-red-600 text-white'
+                    : 'bg-white dark:bg-[#121212] border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
+                  title={t('videos')}
+                >
+                  <Image src="/file-video.svg" alt={t('videos')} width={20} height={20} className={`w-5 h-5`} />
+                </button>
+                <button
+                  onClick={() => setMediaType(mediaType === 'pdf' ? null : 'pdf')}
+                  className={`flex-1 flex items-center justify-center p-2 rounded-md border transition-colors ${mediaType === 'pdf'
+                    ? 'bg-yellow-500 border-yellow-500 text-white'
+                    : 'bg-white dark:bg-[#121212] border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
+                  title={t("files")}
+                >
+                  <Image src="/file-document.svg" alt={t("files")} width={20} height={20} className={`w-5 h-5`} />
+                </button>
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('dateRange')}</label>
               <DateRangePicker

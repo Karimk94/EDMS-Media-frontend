@@ -19,12 +19,12 @@ const archive = archiver('zip', {
 });
 
 // --- Step 3: Handle the zip stream ---
-output.on('close', function() {
+output.on('close', function () {
   console.log(`\nBundle created successfully: deploy.zip (${(archive.pointer() / 1024 / 1024).toFixed(2)} MB)`);
   console.log('You can now transfer deploy.zip to your server.');
 });
 
-archive.on('warning', function(err) {
+archive.on('warning', function (err) {
   if (err.code === 'ENOENT') {
     console.warn('Warning:', err);
   } else {
@@ -32,7 +32,7 @@ archive.on('warning', function(err) {
   }
 });
 
-archive.on('error', function(err) {
+archive.on('error', function (err) {
   throw err;
 });
 
@@ -42,33 +42,33 @@ archive.pipe(output);
 console.log('\nAdding files to the deployment bundle...');
 
 const files_and_folders_to_bundle = [
-    'node_modules',
-    '.next',
-    'public',
-    'src',
-    'package.json',
-    'package-lock.json',
-    'next.config.mjs',
-    'server.js',
-    '.env.production',
-    'tailwind.config.ts',
-    'postcss.config.ts',
-    'postcss.config.mjs'
+  // 'node_modules',
+  '.next',
+  // 'public',
+  // 'src',
+  // 'package.json',
+  // 'package-lock.json',
+  // 'next.config.mjs',
+  // 'server.js',
+  // '.env.production',
+  // 'tailwind.config.ts',
+  // 'postcss.config.ts',
+  // 'postcss.config.mjs'
 ];
 
 files_and_folders_to_bundle.forEach(item => {
-    const itemPath = path.join(__dirname, item);
-    if (fs.existsSync(itemPath)) {
-        if (fs.lstatSync(itemPath).isDirectory()) {
-            console.log(`- Adding directory: ${item}/`);
-            archive.directory(itemPath, item);
-        } else {
-            console.log(`- Adding file: ${item}`);
-            archive.file(itemPath, { name: item });
-        }
+  const itemPath = path.join(__dirname, item);
+  if (fs.existsSync(itemPath)) {
+    if (fs.lstatSync(itemPath).isDirectory()) {
+      console.log(`- Adding directory: ${item}/`);
+      archive.directory(itemPath, item);
     } else {
-        console.warn(`- Skipping (not found): ${item}`);
+      console.log(`- Adding file: ${item}`);
+      archive.file(itemPath, { name: item });
     }
+  } else {
+    console.warn(`- Skipping (not found): ${item}`);
+  }
 });
 
 

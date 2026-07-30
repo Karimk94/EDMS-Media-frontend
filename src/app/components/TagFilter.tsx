@@ -2,44 +2,27 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 
-interface TagFilterProps {
-  apiURL: string;
-  selectedTags: string[];
-  setSelectedTags: (tags: string[]) => void;
-  t: Function;
-  lang: 'en' | 'ar';
-}
+import { TagFilterProps } from '../../interfaces/PropsInterfaces';
+import Image from 'next/image';
+
+import { useTags } from '../../hooks/useTags';
 
 export const TagFilter: React.FC<TagFilterProps> = ({ apiURL, selectedTags, setSelectedTags, t, lang }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [allTags, setAllTags] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [tagsFetched, setTagsFetched] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  // Use the new hook
+  const { allTags, isLoadingAllTags } = useTags({ lang });
+
   const TAG_CHUNK_SIZE = 50;
   const [visibleTagCount, setVisibleTagCount] = useState(TAG_CHUNK_SIZE);
 
-  const handleOpen = async () => {
+  const handleOpen = () => {
     setIsOpen(true);
-    if (!tagsFetched) {
-      setIsLoading(true);
-      try {
-        const response = await fetch(`${apiURL}/tags?lang=${lang}`);
-        if (!response.ok) throw new Error('Failed to fetch tags');
-        const data = await response.json();
-        setAllTags(data);
-        setTagsFetched(true);
-      } catch (error) {
-        console.error("Failed to fetch tags:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
   };
-  
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
@@ -52,10 +35,6 @@ export const TagFilter: React.FC<TagFilterProps> = ({ apiURL, selectedTags, setS
     };
   }, [wrapperRef]);
 
-  useEffect(() => {
-    setTagsFetched(false);
-    setAllTags([]);
-  }, [lang]);
 
   const handleTagClick = (tag: string) => {
     const newSelectedTags = selectedTags.includes(tag)
@@ -70,7 +49,7 @@ export const TagFilter: React.FC<TagFilterProps> = ({ apiURL, selectedTags, setS
   };
 
   const filteredTags = useMemo(() => {
-    return allTags.filter(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+    return (allTags || []).filter(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [allTags, searchTerm]);
 
   const sortedTags = useMemo(() => {
@@ -100,7 +79,7 @@ export const TagFilter: React.FC<TagFilterProps> = ({ apiURL, selectedTags, setS
         onClick={() => isOpen ? setIsOpen(false) : handleOpen()}
         className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-white text-sm font-medium rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition shadow-sm"
       >
-        <img src="/tag.svg" alt="Tags" className="h-5 w-5 invert dark:invert-0" />
+        <Image src="/tag.svg" alt="Tags" width={20} height={20} className="invert dark:invert-0" />
         {t('tags')}
         {selectedTags.length > 0 && (
           <span className="ml-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
@@ -114,12 +93,12 @@ export const TagFilter: React.FC<TagFilterProps> = ({ apiURL, selectedTags, setS
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('filterByTags')}</h3>
             {selectedTags.length > 0 && (
-               <button
-                  onClick={handleClearTags}
-                  className="px-2 py-0.5 text-xs text-red-400 hover:text-red-300 rounded-md border border-red-400 hover:border-red-300"
-                >
-                  {t('clearAllTags')}
-                </button>
+              <button
+                onClick={handleClearTags}
+                className="px-2 py-0.5 text-xs text-red-400 hover:text-red-300 rounded-md border border-red-400 hover:border-red-300"
+              >
+                {t('clearAllTags')}
+              </button>
             )}
           </div>
           <div className="relative mb-4">
@@ -131,7 +110,7 @@ export const TagFilter: React.FC<TagFilterProps> = ({ apiURL, selectedTags, setS
               className="w-full px-3 py-2 bg-gray-50 dark:bg-[#121212] text-gray-900 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-red-500 focus:outline-none"
             />
           </div>
-          {isLoading ? (
+          {isLoadingAllTags ? (
             <p className="text-gray-500 dark:text-gray-400">{t('loadingTags')}</p>
           ) : (
             <div
@@ -143,21 +122,20 @@ export const TagFilter: React.FC<TagFilterProps> = ({ apiURL, selectedTags, setS
                 <button
                   key={tag}
                   onClick={() => handleTagClick(tag)}
-                  className={`px-2 py-1 text-xs font-medium rounded-md transition ${
-                    selectedTags.includes(tag)
-                      ? 'bg-red-600 text-white'
-                      : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500'
-                  }`}
+                  className={`px-2 py-1 text-xs font-medium rounded-md transition ${selectedTags.includes(tag)
+                    ? 'bg-red-600 text-white'
+                    : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500'
+                    }`}
                 >
                   {tag}
                 </button>
               ))}
-               {sortedTags.length === 0 && !searchTerm && (
-                 <p className="text-sm text-gray-600 dark:text-gray-500 italic px-1">{t('noTagsAvailable')}</p>
-               )}
-               {sortedTags.length === 0 && searchTerm && (
-                 <p className="text-sm text-gray-600 dark:text-gray-500 italic px-1">{t('noTagsMatch')}</p>
-               )}
+              {sortedTags.length === 0 && !searchTerm && (
+                <p className="text-sm text-gray-600 dark:text-gray-500 italic px-1">{t('noTagsAvailable')}</p>
+              )}
+              {sortedTags.length === 0 && searchTerm && (
+                <p className="text-sm text-gray-600 dark:text-gray-500 italic px-1">{t('noTagsMatch')}</p>
+              )}
             </div>
           )}
         </div>

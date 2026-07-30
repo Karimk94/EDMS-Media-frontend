@@ -1,23 +1,15 @@
 import React from 'react';
 import { SearchBar } from './SearchBar';
-import { PersonOption } from '../../models/PersonOption';
 
-interface HeaderProps {
-  onSearch: (searchTerm: string) => void;
-  onClearCache: () => void;
-  lang: 'en' | 'ar';
-  setLang: (lang: 'en' | 'ar') => void;
-  theme: 'light' | 'dark';
-  onThemeChange: (theme: 'light' | 'dark') => void;
-  t: Function;
-  apiURL: string;
-  onOpenUploadModal: () => void;
-  isProcessing: boolean;
-  onLogout: () => void;
-  isEditor: boolean;
-  isSidebarOpen: boolean;
-  toggleSidebar: () => void;
-}
+import { HeaderProps } from '../../interfaces/PropsInterfaces';
+
+import { useAuth } from '../../hooks/useAuth';
+import { useUserPreferences } from '../../hooks/useUserPreferences';
+import { useQuota } from '../../hooks/useQuota';
+import Image from 'next/image';
+import { Spinner } from './Spinner';
+import { UserAccessBadge } from './UserAccessBadge';
+import { QuotaAccessBadge } from './QuotaAccessBadge';
 
 export const Header: React.FC<HeaderProps> = ({
   onSearch,
@@ -25,33 +17,33 @@ export const Header: React.FC<HeaderProps> = ({
   apiURL,
   onOpenUploadModal,
   isProcessing,
-  onLogout,
   isEditor,
-  lang,
-  setLang,
-  theme,
-  onThemeChange,
   t,
   isSidebarOpen,
   toggleSidebar,
+  activeSection,
 }) => {
+  const { user, logout, isLoggingOut } = useAuth();
+  const { updateLanguage, updateTheme } = useUserPreferences();
+  const { data: quotaData } = useQuota({ enabled: activeSection === 'folders' });
+
+  const lang = user?.lang || 'en';
+  const theme = user?.theme || 'light';
+  const quota = quotaData?.total ?? user?.quota;
+  const remainingQuota = quotaData?.remaining ?? user?.remaining_quota;
+
   const handleLanguageChange = async () => {
     const newLang = lang === 'en' ? 'ar' : 'en';
     try {
-      await fetch('/api/user/language', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lang: newLang }),
-      });
-      setLang(newLang);
+      await updateLanguage(newLang);
     } catch (error) {
       console.error('Failed to update language', error);
     }
   };
 
-  const rtlClass = lang === 'ar' ? 'flex-row-reverse' : '';
-  const searchBarMargin = lang === 'ar' ? 'mr-auto' : 'ml-auto';
-  const logoMargin = lang === 'ar' ? 'mr-4' : 'ml-4';
+  const rtlClass = '';
+  const searchBarMargin = 'ml-auto';
+  const logoMargin = 'ml-4';
 
   return (
     <header
@@ -64,26 +56,13 @@ export const Header: React.FC<HeaderProps> = ({
             className="p-2 rounded-full text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
             aria-label={isSidebarOpen ? 'Close menu' : 'Open menu'}
           >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M4 6h16M4 12h16M4 18h16"
-              ></path>
-            </svg>
+            <Image src="/icons/menu.svg" alt="" width={24} height={24} className="dark:invert" />
           </button>
-          <a href="/">
+          <a href="/dashboard">
             <h1
               className={`text-xl font-bold text-gray-900 dark:text-white ${logoMargin} cursor-pointer`}
             >
-              <span className="text-red-500">EDMS</span> Media
+              Smart <span className="text-red-500">EDMS</span>
             </h1>
           </a>
           <button
@@ -94,62 +73,57 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
           {/* Theme Toggle Button */}
           <button
-            onClick={() => onThemeChange(theme === 'light' ? 'dark' : 'light')}
+            onClick={() => updateTheme(theme === 'light' ? 'dark' : 'light')}
             className={`p-2 rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-700 ${logoMargin}`}
             aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
           >
             {theme === 'light' ? (
-              <img src="/moon.svg" alt="Dark Mode" className="w-5 h-5" />
+              <Image src="/moon.svg" alt="Dark Mode" width={20} height={20} />
             ) : (
-              <img src="/sun.svg" alt="Light Mode" className="w-5 h-5 invert" />
+              <Image src="/sun.svg" alt="Light Mode" width={20} height={20} className="invert" />
             )}
           </button>
         </div>
 
         {/* Center: Search Bar */}
         <div className="flex-1 flex justify-center px-4 items-center">
-          <div className="w-full max-w-md">
-            <SearchBar onSearch={onSearch} t={t} lang={lang} />
-          </div>
+          {activeSection !== 'folders'  && (
+            <div className="w-full max-w-md">
+              <SearchBar onSearch={onSearch} t={t} lang={lang} />
+            </div>
+          )}
         </div>
 
         {/* Right Side: Actions */}
         <div
           className={`flex items-center gap-4 ${searchBarMargin} ${rtlClass}`}
         >
+          {activeSection === 'folders' && quota !== undefined && remainingQuota !== undefined && (
+            <QuotaAccessBadge total={quota} remaining={remainingQuota} t={t} />
+          )}
           {isProcessing && (
             <div className="flex items-center gap-2 text-gray-900 dark:text-white text-sm">
-              <div className="w-5 h-5 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+              <Spinner size="xs" />
               <span>{t('processing')}</span>
             </div>
           )}
-          {isEditor && (
+          {isEditor && activeSection !== 'folders'  && (
             <button
               onClick={onOpenUploadModal}
               className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition flex items-center gap-2"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z"
-                  clipRule="evenodd"
-                />
-              </svg>
+              <Image src="/upload.svg" alt="" width={20} height={20} className="dark:invert" />
               <span>{t('upload')}</span>
             </button>
           )}
-          <button
-            onClick={onLogout}
-            className="px-4 py-2 bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-white text-sm font-medium rounded-md hover:bg-gray-300 dark:hover:bg-gray-700 transition flex items-center gap-2"
-          >
-            <img src="/logout.svg" alt="Logout" className="h-5 w-5 dark:brightness-0 dark:invert" />
-            <span>{t('logout')}</span>
-          </button>
+          <UserAccessBadge
+            user={user}
+            lang={lang}
+            onLogout={logout}
+            logoutText={t('logout')}
+            isLoggingOut={isLoggingOut}
+            loggingOutText={t('loggingOut')}
+          />
         </div>
       </div>
     </header>

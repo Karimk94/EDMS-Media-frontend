@@ -2,9 +2,7 @@
 
 import { useEffect } from 'react';
 
-interface HtmlThemeUpdaterProps {
-  theme: 'light' | 'dark';
-}
+import { HtmlThemeUpdaterProps } from '../../interfaces/PropsInterfaces';
 
 const HtmlThemeUpdater: React.FC<HtmlThemeUpdaterProps> = ({ theme }) => {
   useEffect(() => {

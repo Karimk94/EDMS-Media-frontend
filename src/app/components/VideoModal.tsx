@@ -1,28 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Document } from '../../models/Document';
-import { TagEditor } from './TagEditor';
-import { EventEditor } from './EventEditor';
-import { CollapsibleSection } from './CollapsibleSection';
+import Image from 'next/image';
+import React, { useEffect, useRef, useState } from 'react';
 import DatePicker from 'react-datepicker';
+import { useDocumentMutations } from '../../hooks/useDocumentMutations';
+import { useDownload } from '../../hooks/useDownload';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { VideoModalProps } from '../../interfaces/PropsInterfaces';
+import { CollapsibleSection } from './CollapsibleSection';
+import { LoadingButton } from './LoadingButton';
+import { ModalNavigationBar } from './ModalNavigationBar';
 import { ReadOnlyTagDisplay } from './ReadOnlyTagDisplay';
-import { ReadOnlyEventDisplay } from './ReadOnlyEventDisplay';
-
-interface EventOption {
-  value: number;
-  label: string;
-}
-
-interface VideoModalProps {
-  doc: Document;
-  onClose: () => void;
-  apiURL: string;
-  onUpdateAbstractSuccess: () => void;
-  onToggleFavorite: (docId: number, isFavorite: boolean) => void;
-  isEditor: boolean;
-  t: Function;
-  lang: 'en' | 'ar';
-  theme: 'light' | 'dark';
-}
+import { TagEditor } from './TagEditor';
 
 const safeParseDate = (dateString: string): Date | null => {
   if (!dateString || dateString === "N/A") return null;
@@ -69,10 +56,15 @@ const formatToApiDate = (date: Date | null): string | null => {
   const hours = pad(date.getHours());
   const minutes = pad(date.getMinutes());
   const seconds = pad(date.getSeconds());
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  return `${year} -${month} -${day} ${hours}:${minutes}:${seconds} `;
 };
 
-export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, onUpdateAbstractSuccess, onToggleFavorite, isEditor, t, lang, theme }) => {
+export const VideoModal: React.FC<VideoModalProps> = ({
+  doc, onClose, apiURL, onUpdateAbstractSuccess, isEditor, t, lang, theme,
+  currentDocIndex, totalInGroup, isGrouped, onNavigateNext, onNavigatePrevious,
+  canNavigateNext, canNavigatePrevious, searchTerm, searchMatchField, searchFieldValue,
+}) => {
+  const focusTrapRef = useFocusTrap(onClose);
   const [isEditingDate, setIsEditingDate] = useState(false);
   const [documentDate, setDocumentDate] = useState<Date | null>(safeParseDate(doc.date));
   const [initialDate, setInitialDate] = useState<Date | null>(safeParseDate(doc.date));
@@ -82,32 +74,10 @@ export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, on
   const [initialAbstract, setInitialAbstract] = useState(doc.title || '');
 
   const [isFavorite, setIsFavorite] = useState(doc.is_favorite);
-  const [selectedEvent, setSelectedEvent] = useState<EventOption | null>(null);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
-  useEffect(() => {
-    const fetchDocumentEvent = async () => {
-      try {
-        const response = await fetch(`${apiURL}/document/${doc.doc_id}/event`);
-        if (response.ok) {
-          const eventData = await response.json();
-          if (eventData && eventData.event_id && eventData.event_name) {
-            setSelectedEvent({ value: eventData.event_id, label: eventData.event_name });
-          } else {
-            setSelectedEvent(null);
-          }
-        } else if (response.status !== 404) {
-          console.error(`Failed to fetch document event (${response.status}):`, await response.text());
-        } else {
-          setSelectedEvent(null);
-        }
-      } catch (err) {
-        console.error("Network or parsing error fetching document event:", err);
-        setSelectedEvent(null);
-      }
-    };
-    setSelectedEvent(null);
-    fetchDocumentEvent();
-  }, [doc.doc_id, apiURL]);
+  const { download, isDownloading } = useDownload();
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     setIsFavorite(doc.is_favorite);
@@ -122,6 +92,20 @@ export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, on
     setIsEditingAbstract(false);
     setIsEditingDate(false);
   }, [doc.title, doc.date]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isFullScreen) {
+          setIsFullScreen(false);
+        } else {
+          onClose();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose, isFullScreen]);
 
   const handleDateChange = (date: Date | null) => {
     setDocumentDate(date);
@@ -146,6 +130,8 @@ export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, on
     setAbstract(initialAbstract);
     setIsEditingAbstract(false);
   };
+
+  const { updateMetadata, toggleFavorite } = useDocumentMutations();
 
   const handleUpdateMetadata = async () => {
     const payload: { doc_id: number; abstract?: string; date_taken?: string | null } = {
@@ -174,12 +160,7 @@ export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, on
     }
 
     try {
-      const response = await fetch(`${apiURL}/update_metadata`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) throw new Error((await response.json()).error || 'Failed to update metadata');
+      await updateMetadata(payload);
 
       if (payload.abstract !== undefined) setInitialAbstract(payload.abstract);
       if (payload.date_taken !== undefined) setInitialDate(documentDate);
@@ -192,28 +173,24 @@ export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, on
     }
   };
 
-  const handleToggleFavorite = () => {
+  const handleToggleFavorite = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     const newFavoriteStatus = !isFavorite;
     setIsFavorite(newFavoriteStatus);
-    onToggleFavorite(doc.doc_id, newFavoriteStatus);
+
+    try {
+      await toggleFavorite({ docId: doc.doc_id, isFavorite: newFavoriteStatus });
+    } catch (error) {
+      setIsFavorite(!newFavoriteStatus);
+    }
   };
 
-  const handleEventChangeInModal = async (docIdParam: number, eventId: number | null): Promise<boolean> => {
-    try {
-      const response = await fetch(`${apiURL}/document/${docIdParam}/event`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event_id: eventId }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update event association');
-      }
-      return true;
-    } catch (error: any) {
-      console.error('Failed to update event association:', error);
-      return false;
-    }
+  const handleFullScreen = () => {
+    setIsFullScreen(!isFullScreen);
+  };
+
+  const handleDownload = () => {
+    download({ docId: doc.doc_id, docname: doc.docname || 'download', apiURL, mediaType: doc.media_type });
   };
 
   const modalBg = theme === 'dark' ? 'bg-[#282828]' : 'bg-white';
@@ -229,29 +206,79 @@ export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, on
   const closeButtonColor = theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-400 hover:text-gray-900';
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className={`${modalBg} ${textPrimary} rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto`} onClick={e => e.stopPropagation()}>
-        <div className="p-6 relative">
-          <button onClick={onClose} className={`absolute top-4 right-4 ${closeButtonColor} text-3xl z-10`}>&times;</button>
-          {/* Favorite Button */}
-          <button
-            onClick={handleToggleFavorite}
-            className={`absolute top-4 left-4 ${textMuted} hover:text-yellow-400 z-10 p-2 bg-black bg-opacity-30 rounded-full`}
-            title={isFavorite ? "Remove from favorites" : "Add to favorites"}
-          >
-            <svg className={`w-6 h-6 ${isFavorite ? 'text-yellow-400' : 'text-gray-300'}`} fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={isFavorite ? 1 : 2}
-                d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.562.562 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.562.562 0 01 .321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5Z"
-              />             </svg>
-          </button>
-          <h2 className={`text-xl font-bold ${textHeader} mb-4 pl-12`}>{doc.docname.replace(/\.[^/.]+$/, "")}</h2>
-          <video controls autoPlay className="w-full max-h-[70vh] rounded-lg bg-black">
-            <source src={`${apiURL}/video/${doc.doc_id}`} type="video/mp4" />
-            Your browser does not support the video tag.
-          </video>
+    <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-label="Video player" onClick={onClose}>
+      <div ref={focusTrapRef} className={`${modalBg} ${textPrimary} rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto`} onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="pt-6 pr-6 pl-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-start top-0 z-20 bg-inherit rounded-t-xl">
+
+          {/* Left: Favorite & Title */}
+          <div className="flex items-start gap-3 flex-grow min-w-0">
+            {/* Favorite Button */}
+            <button
+              onClick={handleToggleFavorite}
+              className={`p-2 rounded-full transition-colors ${isFavorite ? 'bg-black bg-opacity-10' : 'hover:bg-gray-100 dark:hover:bg-gray-700'} flex-shrink-0 mt-0.5`}
+              title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+            >
+              <Image src={isFavorite ? "/icons/star-filled.svg" : "/icons/star-outline.svg"} alt="" width={24} height={24} />
+            </button>
+            <h2 className={`text-xl font-bold ${textHeader} break-words pt-1 mt-0.5`}>
+              {doc.docname.replace(/\.[^/.]+$/, "")}
+              <span className="ml-2 text-sm font-normal text-gray-400">File preview</span>
+            </h2>
+          </div>
+
+          {/* Right: Actions */}
+          <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+            {/* Download Button */}
+            {isEditor && (
+            <LoadingButton onClick={handleDownload} isLoading={isDownloading} loadingText={null} spinnerSize="sm" className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors`} title="Download">
+              <Image src="/download.svg" alt="Download" width={24} height={24} className="dark:invert" />
+            </LoadingButton>
+            )}
+
+            {/* Full Screen Button */}
+            <button onClick={handleFullScreen} className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors`} title="Full Screen">
+              <Image src="/expand.svg" alt="Full Screen" width={24} height={24} className="dark:invert" />
+            </button>
+
+            {/* Close Button */}
+            <button onClick={onClose} className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ml-2`}>
+              <Image src="/icons/close.svg" alt="" width={24} height={24} className={`${closeButtonColor.includes('hover:text-white') ? 'invert' : 'dark:invert'}`} />
+            </button>
+          </div>
+        </div>
+
+        <ModalNavigationBar
+          currentDocIndex={currentDocIndex}
+          totalInGroup={totalInGroup}
+          isGrouped={isGrouped}
+          onNavigateNext={onNavigateNext}
+          onNavigatePrevious={onNavigatePrevious}
+          canNavigateNext={canNavigateNext}
+          canNavigatePrevious={canNavigatePrevious}
+          searchTerm={searchTerm}
+          searchMatchField={searchMatchField}
+          searchFieldValue={searchFieldValue}
+          lang={lang}
+          t={t}
+        />
+
+        <div className="p-6">
+          <div className={`relative ${isFullScreen ? 'fixed inset-0 z-[60] bg-black flex items-center justify-center' : ''} `}>
+            <video ref={videoRef} controls autoPlay className={isFullScreen ? 'w-full h-full' : 'w-full max-h-[70vh] rounded-lg bg-black'}>
+              <source src={`${apiURL}/video/${doc.doc_id}`} type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+            {isFullScreen && (
+              <button
+                onClick={handleFullScreen}
+                className="absolute top-4 right-4 p-2 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-colors z-[70]"
+              >
+                <Image src="/icons/close.svg" alt="" width={32} height={32} className="invert" />
+              </button>
+            )}
+          </div>
           <div className="mt-4 mb-6">
             <CollapsibleSection title={t('details')} theme={theme}>
               {/* Abstract Section */}
@@ -317,18 +344,6 @@ export const VideoModal: React.FC<VideoModalProps> = ({ doc, onClose, apiURL, on
                   </p>
                 )}
               </div>
-              {isEditor ? (
-                <EventEditor
-                  docId={doc.doc_id}
-                  apiURL={apiURL}
-                  selectedEvent={selectedEvent}
-                  setSelectedEvent={setSelectedEvent}
-                  onEventChange={handleEventChangeInModal}
-                  theme={theme}
-                />
-              ) : (
-                <ReadOnlyEventDisplay event={selectedEvent} t={t} />
-              )}
               {isEditor ? (
                 <TagEditor docId={doc.doc_id} apiURL={apiURL} lang={lang} theme={theme} t={t} />
               ) : (

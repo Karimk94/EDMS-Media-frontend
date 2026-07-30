@@ -4,19 +4,25 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "env-cmd -f .env.production next build",
     "start": "next start",
     "lint": "next lint",
     "bundle": "node create-bundle.js"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.101.4",
+    "docx-preview": "^0.4.0",
+    "env-cmd": "^11.0.0",
     "exifreader": "^4.32.0",
-    "next": "14.2.4",
-    "react": "^18",
+    "jszip": "^3.10.1",
+    "next": "^16.2.12",
+    "react": "^19.2.8",
     "react-datepicker": "^8.7.0",
-    "react-dom": "^18",
+    "react-dom": "^19.2.8",
+    "react-error-boundary": "^6.1.2",
     "react-select": "^5.10.2",
-    "react-select-async-paginate": "^0.7.11"
+    "react-select-async-paginate": "^0.7.11",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/aspect-ratio": "^0.4.2",

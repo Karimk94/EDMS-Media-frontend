@@ -10,4 +10,5 @@ export interface UploadableFile {
     editedFileName: string;
     editedDateTaken: Date | null;
     dateSource?: 'exif' | 'filename_full' | 'filename_partial' | 'file';
+    relativePath?: string; // Relative path within a selected folder (e.g. "subfolder/file.pdf")
 }

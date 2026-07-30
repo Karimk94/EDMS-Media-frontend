@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import Image from 'next/image';
 import DatePicker from 'react-datepicker';
 import { UploadFileItemProps } from '../../interfaces';
+import { Spinner } from './Spinner';
 
 const formatDateForInput = (date: Date | null): string => {
   if (!date) return '';
@@ -43,13 +45,13 @@ export const UploadFileItem: React.FC<UploadFileItemProps> = ({
   const getStatusIndicator = () => {
     switch (status) {
       case 'uploading':
-        return <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>;
+        return <Spinner size="sm" />;
       case 'processing':
-        return <div className="w-6 h-6 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>;
+        return <Spinner size="sm" />;
       case 'success':
-        return <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>;
+        return <Image src="/icons/check.svg" alt="" width={24} height={24} className="text-green-500 dark:invert" />;
       case 'error':
-        return <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>;
+        return <Image src="/icons/close.svg" alt="" width={24} height={24} className="text-red-500 dark:invert" />;
       default:
         return <div className="w-6 h-6 bg-gray-600 rounded-full"></div>;
     }
@@ -125,7 +127,9 @@ export const UploadFileItem: React.FC<UploadFileItemProps> = ({
         {status === 'error' && <p className="text-xs text-red-400 mt-1 truncate">{error}</p>}
       </div>
       {isActionable && (
-        <button onClick={onRemove} className="text-gray-400 hover:text-white mt-1 text-xl leading-none">&times;</button>
+        <button onClick={onRemove} className="text-gray-400 hover:text-white mt-1 p-1 leading-none">
+          <Image src="/icons/close.svg" alt="" width={16} height={16} className="dark:invert" />
+        </button>
       )}
     </div>
   );

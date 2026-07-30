@@ -1,16 +1,13 @@
 import React, { useState } from 'react';
+import Image from 'next/image';
 
-interface SearchBarProps {
-  onSearch: (searchTerm: string) => void;
-  t: Function;
-  lang: 'en' | 'ar';
-}
+import { SearchBarProps } from '../../interfaces/PropsInterfaces';
 
 export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, t, lang }) => {
   const [input, setInput] = useState('');
 
   const handleSearch = () => onSearch(input.trim());
-  
+
   const handleKeyUp = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleSearch();
   };
@@ -44,14 +41,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, t, lang }) => {
                       ${lang === 'ar' ? 'left-[68px]' : 'right-[68px]'}`}
           aria-label="Clear search"
         >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <Image src="/icons/close.svg" alt="" width={20} height={20} className="dark:invert" />
         </button>
       )}
 
@@ -61,14 +51,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, t, lang }) => {
                     ${lang === 'ar' ? 'border-r border-gray-300 dark:border-gray-600' : 'border-l border-gray-300 dark:border-gray-600'}`}
         aria-label="Search"
       >
-        <svg
-          className="w-5 h-5 text-gray-600 dark:text-gray-300"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
+        <Image src="/search-icon.svg" alt="" width={20} height={20} className="dark:invert" />
       </button>
     </div>
   );

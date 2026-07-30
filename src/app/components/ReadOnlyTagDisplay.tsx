@@ -1,42 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 
-interface ReadOnlyTagDisplayProps {
-  docId: number;
-  apiURL: string;
-  lang: 'en' | 'ar';
-  t: Function
-}
-
-interface TagObject {
-  text: string;
-  shortlisted: number;
-  type: 'keyword' | 'person';
-}
+import { ReadOnlyTagDisplayProps } from '../../interfaces/PropsInterfaces';
+import { useTags } from '../../hooks/useTags';
 
 export const ReadOnlyTagDisplay: React.FC<ReadOnlyTagDisplayProps> = ({ docId, apiURL, lang, t }) => {
-  const [tags, setTags] = useState<TagObject[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchTags = async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetch(`${apiURL}/tags/${docId}?lang=${lang}`);
-        if (response.ok) {
-          const data = await response.json();
-          setTags((data.tags || []).sort((a: TagObject, b: TagObject) => a.text.localeCompare(b.text)));
-        } else {
-          setTags([]);
-        }
-      } catch (error) {
-        console.error(`Failed to fetch tags for doc ${docId}`, error);
-        setTags([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchTags();
-  }, [docId, apiURL, lang]);
+  // Use the new hook
+  const { documentTags: tags, isLoadingDocumentTags: isLoading } = useTags({ lang, docId });
 
   return (
     <div className="mt-4">

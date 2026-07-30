@@ -1,12 +1,48 @@
-// Component Props Interfaces
-// This file contains all React component prop interfaces used throughout the application
+import { Document } from "../models/Document";
+import { UploadableFile } from "./UploadableFile";
+import { PersonOption } from "../models/PersonOption";
+import { TagObject } from "./TagObject";
 
-// Upload-related Props
+/**
+ * Enhanced modal props for document modals in profile search context
+ * Supports grouping/collage and search term highlighting
+ */
+export interface EnhancedModalProps {
+    // Navigation between collaged/grouped documents
+    onNavigateNext?: () => void;
+    onNavigatePrevious?: () => void;
+    canNavigateNext?: boolean;
+    canNavigatePrevious?: boolean;
+    
+    // Group/collage information
+    currentDocIndex?: number; // 0-based index in group
+    totalInGroup?: number;   // Total documents in group
+    isGrouped?: boolean;     // Whether this doc is part of a group
+    
+    // Search context for highlighting
+    searchTerm?: string;
+    searchMatchType?: 'like' | 'exact' | 'startsWith';
+    searchMatchField?: string; // Which field was matched (e.g., 'document_content', 'title')
+    searchFieldValue?: string; // The matched value/snippet returned by profile search
+}
+
 export interface UploadModalProps {
     onClose: () => void;
     apiURL: string;
-    onAnalyze: (uploadedFiles: any[]) => void;
     theme: 'light' | 'dark';
+    t: Function;
+}
+
+export interface FolderUploadModalProps {
+    onClose: () => void;
+    apiURL: string;
+    theme: 'light' | 'dark';
+    parentId: string | null;
+    parentName: string;
+    onUploadComplete: () => void;
+    t: Function;
+    /** Pre-seeded files from an OS drag-and-drop onto the folder grid */
+    initialFiles?: File[];
 }
 
 export interface UploadFileItemProps {
@@ -16,7 +52,6 @@ export interface UploadFileItemProps {
     onUpdateDateTaken: (id: string, newDate: Date | null) => void;
 }
 
-// Event-related Props
 export interface EventStackProps {
     event: any;
     apiURL: string;
@@ -46,58 +81,61 @@ export interface ReadOnlyEventDisplayProps {
     t: Function;
 }
 
-// Modal Props
-export interface ImageModalProps {
-    doc: any;
+export interface PdfModalProps extends EnhancedModalProps {
+    doc: Document;
     onClose: () => void;
     apiURL: string;
     onUpdateAbstractSuccess: () => void;
-    onToggleFavorite: (docId: number, isFavorite: boolean) => void;
+
     isEditor: boolean;
     t: Function;
     lang: 'en' | 'ar';
     theme: 'light' | 'dark';
 }
 
-export interface VideoModalProps {
-    doc: any;
+export interface ImageModalProps extends EnhancedModalProps {
+    doc: Document;
     onClose: () => void;
     apiURL: string;
     onUpdateAbstractSuccess: () => void;
-    onToggleFavorite: (docId: number, isFavorite: boolean) => void;
+
     isEditor: boolean;
     t: Function;
     lang: 'en' | 'ar';
     theme: 'light' | 'dark';
 }
 
-export interface PdfModalProps {
-    doc: any;
+export interface VideoModalProps extends EnhancedModalProps {
+    doc: Document;
     onClose: () => void;
     apiURL: string;
     onUpdateAbstractSuccess: () => void;
-    onToggleFavorite: (docId: number, isFavorite: boolean) => void;
+
     isEditor: boolean;
     t: Function;
     lang: 'en' | 'ar';
     theme: 'light' | 'dark';
 }
 
-export interface GalleryModalProps {
-    title: string;
-    images: string[];
-    startIndex: number;
-    onClose: () => void;
-}
-
-// Tag-related Props
-export interface TagEditorProps {
-    docId: number;
+export interface PersonSelectorProps {
     apiURL: string;
+    value: string;
+    onChange: (name: string) => void;
     lang: 'en' | 'ar';
     theme: 'light' | 'dark';
+    fetchUrl?: string;
+    headers?: Record<string, string>;
+    onSelect?: (person: { USER_ID: string; FULL_NAME: string }) => void;
+    mode?: 'persons' | 'groups';
+}
+
+export interface YearFilterProps {
+    selectedYears: number[];
+    setSelectedYears: (years: number[]) => void;
     t: Function;
 }
+
+// ... (Removing duplicates and updating)
 
 export interface TagFilterProps {
     apiURL: string;
@@ -111,69 +149,191 @@ export interface ReadOnlyTagDisplayProps {
     docId: number;
     apiURL: string;
     lang: 'en' | 'ar';
-    t: Function;
+    t: Function
 }
 
-// Filter Props
-export interface YearFilterProps {
-    selectedYears: number[];
-    setSelectedYears: (years: number[]) => void;
-    t: Function;
-}
 
-export interface DateRangePickerProps {
-    dateFrom: string;
-    setDateFrom: (date: string) => void;
-    dateTo: string;
-    setDateTo: (date: string) => void;
-}
 
-export interface AdvancedFiltersProps {
-    dateFrom: string;
-    setDateFrom: (date: string) => void;
-    dateTo: string;
-    setDateTo: (date: string) => void;
-    selectedYears: number[];
-    setSelectedYears: (years: number[]) => void;
-    selectedTags: string[];
-    setSelectedTags: (tags: string[]) => void;
-    selectedPerson: string | null;
-    setSelectedPerson: (person: string | null) => void;
-    t: Function;
+export interface TxtModalProps extends EnhancedModalProps {
+    doc: Document;
+    onClose: () => void;
     apiURL: string;
+    onUpdateAbstractSuccess: () => void;
+
+    isEditor: boolean;
+    t: Function;
     lang: 'en' | 'ar';
     theme: 'light' | 'dark';
 }
 
-// Document-related Props
+export interface FileModalProps extends EnhancedModalProps {
+    doc: Document;
+    onClose: () => void;
+    apiURL: string;
+    onUpdateAbstractSuccess: () => void;
+
+    isEditor: boolean;
+    t: Function;
+    lang: 'en' | 'ar';
+    theme: 'light' | 'dark';
+}
+
+export interface GalleryModalProps {
+    title: string;
+    images: string[];
+    startIndex: number;
+    onClose: () => void;
+}
+
+export interface ExcelModalProps extends EnhancedModalProps {
+    doc: Document;
+    onClose: () => void;
+    apiURL: string;
+    onUpdateAbstractSuccess: () => void;
+
+    isEditor: boolean;
+    t: Function;
+    lang: 'en' | 'ar';
+    theme: 'light' | 'dark';
+}
+
+export interface WordModalProps extends EnhancedModalProps {
+    doc: Document;
+    onClose: () => void;
+    apiURL: string;
+    onUpdateAbstractSuccess: () => void;
+
+    isEditor: boolean;
+    t: Function;
+    lang: 'en' | 'ar';
+    theme: 'light' | 'dark';
+}
+
+export interface PowerPointModalProps extends EnhancedModalProps {
+    doc: Document;
+    onClose: () => void;
+    apiURL: string;
+    onUpdateAbstractSuccess: () => void;
+
+    isEditor: boolean;
+    t: Function;
+    lang: 'en' | 'ar';
+    theme: 'light' | 'dark';
+}
+
+export interface ShareModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    documentId?: string;
+    folderId?: string;
+    documentName: string;
+    itemType?: 'file' | 'folder';
+    t: Function;
+}
+
+export interface Trustee {
+    username: string;
+    rights: number;
+    flag: number;
+}
+
+export interface SecurityModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    docId: string;
+    library: string;
+    itemName: string;
+    t: Function;
+}
+
+export interface FolderUploadModalProps {
+    onClose: () => void;
+    apiURL: string;
+    theme: 'light' | 'dark';
+    parentId: string | null;
+    parentName: string;
+    onUploadComplete: () => void;
+    t: Function;
+    /** Pre-seeded files from an OS drag-and-drop onto the folder grid */
+    initialFiles?: File[];
+}
+
+export interface TagEditorProps {
+    docId: number;
+    apiURL: string;
+    lang: 'en' | 'ar';
+    theme: 'light' | 'dark';
+    t: Function;
+}
+
+
+
+export interface DateRangePickerProps {
+    dateFrom: Date | null;
+    setDateFrom: (date: Date | null) => void;
+    dateTo: Date | null;
+    setDateTo: (date: Date | null) => void;
+    t: Function;
+}
+
+export interface CreateFolderModalProps {
+    onClose: () => void;
+    apiURL: string;
+    onFolderCreated: () => void;
+    t: Function;
+    initialParentId?: string;
+}
+
+export interface AdvancedFiltersProps {
+    dateFrom: Date | null;
+    setDateFrom: (date: Date | null) => void;
+    dateTo: Date | null;
+    setDateTo: (date: Date | null) => void;
+    selectedPerson: PersonOption[] | null;
+    setSelectedPerson: (person: PersonOption[] | null) => void;
+    personCondition: 'any' | 'all';
+    setPersonCondition: (condition: 'any' | 'all') => void;
+    mediaType: 'image' | 'video' | 'pdf' | null;
+    setMediaType: (type: 'image' | 'video' | 'pdf' | null) => void;
+    apiURL: string;
+    t: Function;
+    lang: 'en' | 'ar';
+    theme: 'light' | 'dark';
+}
+
 export interface DocumentListProps {
-    documents: any[];
-    onDocumentClick: (doc: any) => void;
+    documents: Document[];
+    onDocumentClick: (doc: Document) => void;
     apiURL: string;
     onTagSelect: (tag: string) => void;
     isLoading: boolean;
     processingDocs: number[];
-    onToggleFavorite: (docId: number, isFavorite: boolean) => void;
+    enableCollage?: boolean;
+    showFavoriteButton?: boolean;
+
     lang: 'en' | 'ar';
+    t: Function;
 }
 
 export interface DocumentItemProps {
-    doc: any;
-    onDocumentClick: (doc: any) => void;
+    doc: Document;
+    onDocumentClick: (doc: Document) => void;
     apiURL: string;
     onTagSelect: (tag: string) => void;
     isProcessing: boolean;
-    onToggleFavorite: (docId: number, isFavorite: boolean) => void;
+    itemTags?: TagObject[];
+    isTagsLoading?: boolean;
+    showFavoriteButton?: boolean;
+
     lang: 'en' | 'ar';
+    t: Function;
 }
 
-// Journey Props
 export interface JourneyProps {
     apiURL: string;
     t: Function;
 }
 
-// Pagination Props
 export interface PaginationProps {
     currentPage: number;
     totalPages: number;
@@ -181,50 +341,35 @@ export interface PaginationProps {
     t: Function;
 }
 
-// Person Selector Props
-export interface PersonSelectorProps {
-    apiURL: string;
-    value: string | null;
-    onChange: (value: string) => void;
-    lang: 'en' | 'ar';
-    theme: 'light' | 'dark';
-}
-
-// Header and Sidebar Props
 export interface HeaderProps {
     onSearch: (searchTerm: string) => void;
     onClearCache: () => void;
-    lang: 'en' | 'ar';
-    setLang: (lang: 'en' | 'ar') => void;
-    theme: 'light' | 'dark';
-    onThemeChange: (theme: 'light' | 'dark') => void;
     t: Function;
     apiURL: string;
     onOpenUploadModal: () => void;
     isProcessing: boolean;
-    onLogout: () => void;
     isEditor: boolean;
     isSidebarOpen: boolean;
     toggleSidebar: () => void;
+    activeSection?: 'recent' | 'favorites' | 'folders';
 }
 
 export interface SidebarProps {
     isSidebarOpen: boolean;
-    activeSection: 'recent' | 'favorites' | 'events' | 'memories' | 'journey';
-    handleSectionChange: (section: 'recent' | 'favorites' | 'events' | 'memories' | 'journey') => void;
+    activeSection: 'recent' | 'favorites' | 'folders';
+    handleSectionChange: (section: 'recent' | 'favorites' | 'folders') => void;
     isShowingFullMemories: boolean;
     t: Function;
     lang: 'en' | 'ar';
+    hiddenSections?: ('recent' | 'favorites' | 'folders')[];
 }
 
-// Search Props
 export interface SearchBarProps {
     onSearch: (searchTerm: string) => void;
     t: Function;
     lang: 'en' | 'ar';
 }
 
-// Utility Props
 export interface CollapsibleSectionProps {
     title: string;
     children: React.ReactNode;
@@ -237,6 +382,7 @@ export interface HtmlThemeUpdaterProps {
 
 export interface HtmlLangUpdaterProps {
     lang: 'en' | 'ar';
+    forceDir?: 'ltr' | 'rtl';
 }
 
 export interface MemoriesStackProps {
@@ -252,4 +398,41 @@ export interface AnalysisViewProps {
     onUpdateAbstractSuccess: () => void;
     lang: 'en' | 'ar';
     theme: 'light' | 'dark';
+    t: Function;
 }
+
+export interface SlideData {
+    id: number;
+    title: string;
+    content: string[];
+}
+
+export interface ShareInfo {
+    is_restricted: boolean;
+    target_email: string | null;
+    target_email_hint: string | null;
+    expiry_date: string | null;
+    share_type: 'file' | 'folder';
+    skip_otp?: boolean; // true for restricted shares (specific email) - skip OTP verification
+}
+
+export interface FolderItem {
+    id: string;
+    name: string;
+    type: 'folder' | 'file';
+    media_type: string;
+}
+
+export interface BreadcrumbItem {
+    id: string;
+    name: string;
+}
+
+export interface StoredSession {
+    email: string;
+    verifiedAt: number;
+    shareType: 'file' | 'folder';
+    folderId?: string;
+}
+
+

@@ -1,10 +1,6 @@
 import React, { useState } from 'react';
-
-interface CollapsibleSectionProps {
-  title: string;
-  children: React.ReactNode;
-  theme: 'light' | 'dark';
-}
+import { CollapsibleSectionProps } from '../../interfaces/PropsInterfaces';
+import Image from 'next/image';
 
 export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ title, children, theme }) => {
   const [isOpen, setIsOpen] = useState(true);
@@ -21,14 +17,7 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ title, c
         className={`w-full flex justify-between items-center p-4 text-left font-semibold ${buttonTextColor} ${buttonHoverBg} rounded-t-lg focus:outline-none transition-colors`}
       >
         <span>{title}</span>
-        <svg
-          className={`w-5 h-5 transform transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-        </svg>
+        <Image src="/icons/chevron-down.svg" alt="" width={20} height={20} className={`dark:invert transform transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-screen' : 'max-h-0'}`}>
         <div className={`p-4 border-t ${borderColor}`}>
