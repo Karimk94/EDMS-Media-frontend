@@ -483,5 +483,13 @@
   "quotaUsage": "الحصة (الاستخدام)",
   "noUsersMatch": "لا يوجد مستخدمون يطابقون بحثك",
   "noUsersFound": "لم يتم العثور على مستخدمين",
-  "showing": "عرض"
+  "showing": "عرض",
+  "tabAccess": "صلاحيات التبويبات",
+  "noTabPermissions": "لا توجد صلاحيات تبويب محددة",
+  "noAccess": "لا يوجد وصول",
+  "tabRecent": "المضافة مؤخراً",
+  "tabFavorites": "المفضلة",
+  "tabFolders": "المجلدات",
+  "tabProfileSearch": "بحث الملفات",
+  "tabEmsAdmin": "إدارة EMS"
 }

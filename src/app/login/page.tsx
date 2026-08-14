@@ -1,5 +1,6 @@
 "use client";
 
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from '../hooks/useTranslations';
@@ -85,7 +86,10 @@ export default function LoginPage() {
           {lang === 'en' ? 'العربية' : 'English'}
         </button>
 
-        <div className="w-full max-w-md p-8 space-y-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+        <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+          <div className="flex justify-center mb-2">
+            <Image src="/logo.png" alt="Company Logo" width={140} height={56} className="h-14 w-auto object-contain" priority />
+          </div>
           <h1 className="text-2xl font-bold text-center">{t('loginTitle')}</h1>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>

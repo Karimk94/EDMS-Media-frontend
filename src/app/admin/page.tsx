@@ -63,12 +63,6 @@ export default function AdminPage() {
         isRetryingSelectedQueue,
         clearCompletedQueue,
         isClearingCompletedQueue,
-        pauseQueueWorker,
-        isPausingQueueWorker,
-        resumeQueueWorker,
-        isResumingQueueWorker,
-        drainQueueWorker,
-        isDrainingQueueWorker,
         addUser,
         isAddingUser,
         updateUser,
@@ -358,30 +352,7 @@ export default function AdminPage() {
         await refetchQueueStatus();
     };
 
-    const handleToggleWorkerPause = async () => {
-        try {
-            if (queueStatus?.worker_paused) {
-                await resumeQueueWorker();
-                showToast('Processing worker resumed', 'success');
-            } else {
-                await pauseQueueWorker();
-                showToast('Processing worker paused', 'info');
-            }
-            await refetchQueueStatus();
-        } catch (err: any) {
-            showToast(err.message || 'Failed to toggle worker state', 'error');
-        }
-    };
 
-    const handleDrainWorker = async () => {
-        try {
-            await drainQueueWorker();
-            showToast('Processing worker is draining then will pause', 'info');
-            await refetchQueueStatus();
-        } catch (err: any) {
-            showToast(err.message || 'Failed to drain worker', 'error');
-        }
-    };
 
     const displayedQueueRows = queueViewFilter === 'failed'
         ? (queueStatus?.recent_failures || [])
@@ -422,7 +393,7 @@ export default function AdminPage() {
                 </div>
 
 
-                {/* Processing Queue Status */}
+                {/* Processing Queue Status — Read-Only Monitoring */}
                 {activeAdminTab === 'worker' && (
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
                     <div className="flex items-center justify-between mb-4">
@@ -434,22 +405,6 @@ export default function AdminPage() {
                                 className="px-3 py-1.5 rounded-md text-xs font-medium bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isQueueFetching ? 'Refreshing...' : 'Refresh'}
-                            </button>
-                            <button
-                                onClick={handleToggleWorkerPause}
-                                disabled={isPausingQueueWorker || isResumingQueueWorker}
-                                className={`px-3 py-1.5 rounded-md text-xs font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed ${queueStatus?.worker_paused ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-orange-600 hover:bg-orange-700'}`}
-                            >
-                                {isPausingQueueWorker || isResumingQueueWorker
-                                    ? 'Updating...'
-                                    : (queueStatus?.worker_paused ? 'Resume Worker' : 'Pause Worker')}
-                            </button>
-                            <button
-                                onClick={handleDrainWorker}
-                                disabled={isDrainingQueueWorker || queueStatus?.worker_mode === 'paused' || queueStatus?.worker_mode === 'draining'}
-                                className="px-3 py-1.5 rounded-md text-xs font-medium text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isDrainingQueueWorker ? 'Draining...' : 'Drain & Pause'}
                             </button>
                             <button
                                 onClick={handleRetryFailedQueue}
@@ -468,20 +423,8 @@ export default function AdminPage() {
                             <span className="text-xs text-gray-500 dark:text-gray-400">
                                 {isQueueLoading ? 'Loading...' : 'Auto-refresh every 8s'}
                             </span>
-                            <span className={`text-xs px-2 py-1 rounded ${queueStatus?.worker_mode === 'paused' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300' : queueStatus?.worker_mode === 'draining' ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'}`}>
-                                Worker: {queueStatus?.worker_mode === 'draining' ? 'Draining' : (queueStatus?.worker_paused ? 'Paused' : 'Running')}
-                            </span>
                         </div>
                     </div>
-
-                    {queueStatus?.last_mode_change?.changed_at && (
-                        <div className="mb-3 text-xs text-gray-500 dark:text-gray-400">
-                            Last mode change: {queueStatus.last_mode_change.previous_mode || 'unknown'}{' -> '}{queueStatus.last_mode_change.new_mode || 'unknown'}
-                            {' '}by <span className="font-medium">{queueStatus.last_mode_change.actor || 'system'}</span>
-                            {' '}at {queueStatus.last_mode_change.changed_at}
-                            {queueStatus.last_mode_change.reason ? ` (${queueStatus.last_mode_change.reason})` : ''}
-                        </div>
-                    )}
 
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
                         <div className="rounded-md border border-gray-200 dark:border-gray-700 p-3">

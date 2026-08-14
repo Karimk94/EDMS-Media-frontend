@@ -484,5 +484,13 @@
   "quotaUsage": "Quota (Usage)",
   "noUsersMatch": "No users match your search",
   "noUsersFound": "No users found",
-  "showing": "Showing"
+  "showing": "Showing",
+  "tabAccess": "Tab Access",
+  "noTabPermissions": "No explicit tab permissions",
+  "noAccess": "No Access",
+  "tabRecent": "Recent",
+  "tabFavorites": "Favorites",
+  "tabFolders": "Folders",
+  "tabProfileSearch": "Profile Search",
+  "tabEmsAdmin": "EMS Admin"
 }

@@ -60,9 +60,12 @@ export function useTags({ lang, docId }: UseTagsParams) {
             const previousTags = queryClient.getQueryData(['documentTags', docId, lang]);
 
             // Optimistically add the tag
-            queryClient.setQueryData(['documentTags', docId, lang], (old: TagObject[] | undefined) => {
-                if (!old) return [{ text: tag, shortlisted: false }];
-                return [...old, { text: tag, shortlisted: false }].sort((a, b) => a.text.localeCompare(b.text));
+            queryClient.setQueryData(['documentTags', docId, lang], (old: TagsResponse | undefined) => {
+                const currentTags = old?.tags || [];
+                return {
+                    ...old,
+                    tags: [...currentTags, { text: tag, shortlisted: false }].sort((a, b) => a.text.localeCompare(b.text))
+                };
             });
 
             return { previousTags };
@@ -99,9 +102,12 @@ export function useTags({ lang, docId }: UseTagsParams) {
             const previousTags = queryClient.getQueryData(['documentTags', docId, lang]);
 
             // Optimistically remove the tag
-            queryClient.setQueryData(['documentTags', docId, lang], (old: TagObject[] | undefined) => {
-                if (!old) return [];
-                return old.filter(tag => tag.text !== tagToRemove);
+            queryClient.setQueryData(['documentTags', docId, lang], (old: TagsResponse | undefined) => {
+                const currentTags = old?.tags || [];
+                return {
+                    ...old,
+                    tags: currentTags.filter(tag => tag.text !== tagToRemove)
+                };
             });
 
             return { previousTags };
@@ -135,13 +141,16 @@ export function useTags({ lang, docId }: UseTagsParams) {
             const previousTags = queryClient.getQueryData(['documentTags', docId, lang]);
 
             // Optimistically toggle shortlist status
-            queryClient.setQueryData(['documentTags', docId, lang], (old: TagObject[] | undefined) => {
-                if (!old) return [];
-                return old.map(tag =>
-                    tag.text === tagText
-                        ? { ...tag, shortlisted: tag.shortlisted ? 0 : 1 }
-                        : tag
-                );
+            queryClient.setQueryData(['documentTags', docId, lang], (old: TagsResponse | undefined) => {
+                const currentTags = old?.tags || [];
+                return {
+                    ...old,
+                    tags: currentTags.map(tag =>
+                        tag.text === tagText
+                            ? { ...tag, shortlisted: tag.shortlisted ? 0 : 1 }
+                            : tag
+                    )
+                };
             });
 
             return { previousTags };

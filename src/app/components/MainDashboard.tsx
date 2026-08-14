@@ -65,12 +65,12 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
     useEffect(() => {
         if (user && !isLoadingUser && !allowedSections.includes(initialSection)) {
             const sectionRoutes: Record<string, string> = {
-                recent: '/dashboard',
+                recent: '/',
                 favorites: '/favorites',
                 folders: '/folders',            };
             const order = ['recent', 'favorites', 'folders'];
             const firstAllowed = order.find(s => allowedSections.includes(s as any));
-            router.push(firstAllowed ? sectionRoutes[firstAllowed] : '/dashboard');
+            router.push(firstAllowed ? sectionRoutes[firstAllowed] : '/');
         }
     }, [user, isLoadingUser, allowedSections, initialSection, router]);
 
@@ -196,7 +196,7 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
     };
 
     const handleSectionChange = (section: ActiveSection) => {
-        if (section === 'recent') router.push('/dashboard');
+        if (section === 'recent') router.push('/');
         else if (section === 'favorites') router.push('/favorites');
         else if (section === 'folders') router.push('/folders');    };
 

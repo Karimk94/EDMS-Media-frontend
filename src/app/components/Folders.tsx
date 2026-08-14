@@ -130,14 +130,12 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
     const isLoading = isInitialLoading || isOperationLoading;
 
     // Auto-clear operation loading, refreshing & navigation when fetch settles
-    const prevIsFetchingRef = useRef(false);
     useEffect(() => {
-        if (prevIsFetchingRef.current && !isFetching) {
+        if (!isFetching) {
             setIsOperationLoading(false);
             setIsRefreshing(false);
             setIsNavigating(false);
         }
-        prevIsFetchingRef.current = isFetching;
     }, [isFetching]);
 
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -587,6 +585,8 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
         const target = breadcrumbs[index];
         // Don't navigate if already on this crumb
         if (index === breadcrumbs.length - 1) return;
+        setSearchTerm('');
+        setDebouncedSearchTerm('');
         setIsNavigating(true);
         if (target.id === null) {
             // Navigate back to root folders
@@ -1614,20 +1614,35 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
 
             <div className="relative border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#252525]">
                 <div className="flex items-center justify-between px-6 py-4">
-                    <nav className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300 overflow-x-auto no-scrollbar flex-grow">
-                        {breadcrumbs.map((crumb, index) => (
-                            <div key={index} className="flex items-center whitespace-nowrap">
-                                {index > 0 && <span className="mx-2 text-gray-400">/</span>}
-                                <button
-                                    onClick={() => handleBreadcrumbClick(index)}
-                                    className={`hover:text-blue-500 hover:underline transition-colors ${index === breadcrumbs.length - 1 ? 'font-bold text-gray-900 dark:text-white' : ''
-                                        }`}
-                                >
-                                    {crumb.name}
-                                </button>
-                            </div>
-                        ))}
-                    </nav>
+                    <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar flex-grow">
+                        {breadcrumbs.length > 1 && (
+                            <button
+                                onClick={() => handleBreadcrumbClick(breadcrumbs.length - 2)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 mr-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#333] text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
+                                title={t('back') || 'Go back one directory'}
+                                aria-label={t('back') || 'Go back one directory'}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="rtl:rotate-180">
+                                    <polyline points="15 18 9 12 15 6"></polyline>
+                                </svg>
+                                <span>{t('back') || 'Back'}</span>
+                            </button>
+                        )}
+                        <nav className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                            {breadcrumbs.map((crumb, index) => (
+                                <div key={index} className="flex items-center whitespace-nowrap">
+                                    {index > 0 && <span className="mx-2 text-gray-400">/</span>}
+                                    <button
+                                        onClick={() => handleBreadcrumbClick(index)}
+                                        className={`hover:text-blue-500 hover:underline transition-colors ${index === breadcrumbs.length - 1 ? 'font-bold text-gray-900 dark:text-white' : ''
+                                            }`}
+                                    >
+                                        {crumb.name}
+                                    </button>
+                                </div>
+                            ))}
+                        </nav>
+                    </div>
 
                     <div className="flex items-center space-x-3 ml-4">
                         <div className="relative">
@@ -1805,7 +1820,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                     <div className="py-8">
                         <Spinner size="lg" center label={t('loading') || 'Loading...'} />
                     </div>
-                ) : isNavigating ? (
+                ) : isNavigating && isFetching ? (
                     <div className="py-8">
                         <Spinner size="lg" center label={t('loading') || 'Loading...'} />
                     </div>
@@ -2618,6 +2633,18 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                         </p>
 
                         <div className="flex items-center flex-wrap gap-2 text-sm mb-3">
+                            {moveBreadcrumbs.length > 1 && (
+                                <button
+                                    onClick={() => handleMoveBreadcrumbClick(moveBreadcrumbs.length - 2)}
+                                    className="flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#333] text-xs font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shadow-sm mr-1"
+                                    title={t('back') || 'Go back one directory'}
+                                >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="rtl:rotate-180">
+                                        <polyline points="15 18 9 12 15 6"></polyline>
+                                    </svg>
+                                    <span>{t('back') || 'Back'}</span>
+                                </button>
+                            )}
                             {moveBreadcrumbs.map((crumb, index) => (
                                 <React.Fragment key={`${crumb.id || 'root'}-${index}`}>
                                     {index > 0 && <span className="text-gray-400">/</span>}

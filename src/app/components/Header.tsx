@@ -58,7 +58,7 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Image src="/icons/menu.svg" alt="" width={24} height={24} className="dark:invert" />
           </button>
-          <a href="/dashboard">
+          <a href="/">
             <h1
               className={`text-xl font-bold text-gray-900 dark:text-white ${logoMargin} cursor-pointer`}
             >

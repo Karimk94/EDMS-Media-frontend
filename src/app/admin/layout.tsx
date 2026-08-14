@@ -48,7 +48,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     <h1 className="text-2xl font-bold text-red-600 dark:text-red-400 mb-4">Access Denied</h1>
                     <p className="text-gray-600 dark:text-gray-300 mb-6">You do not have permission to access this section.</p>
                     <button
-                        onClick={() => router.push("/dashboard")}
+                        onClick={() => router.push("/")}
                         className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                     >
                         {t('backToDashboard')}
@@ -66,7 +66,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     {/* Left: Back to Dashboard + Title */}
                     <div className="flex-shrink-0 flex items-center">
                         <Link
-                            href="/dashboard"
+                            href="/"
                             className="p-2 rounded-full text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
                             aria-label={t('backToDashboard')}
                         >
