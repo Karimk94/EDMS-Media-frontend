@@ -492,5 +492,6 @@
   "tabFavorites": "Favorites",
   "tabFolders": "Folders",
   "tabProfileSearch": "Profile Search",
-  "tabEmsAdmin": "EMS Admin"
+  "tabEmsAdmin": "EMS Admin",
+  "uploadRateLimit": "Maximum 100 files per minute allowed"
 }

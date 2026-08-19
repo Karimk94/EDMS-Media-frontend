@@ -33,12 +33,16 @@ export const DocumentCollage: React.FC<DocumentCollageProps> = ({
     onCollageClick(documents[0]);
   };
 
-  const buildThumbnailUrl = (thumbnailUrl: string) => {
-    if (!thumbnailUrl?.trim()) return null;
-    if (thumbnailUrl.startsWith('http')) return thumbnailUrl;
-    const cleanApiUrl = apiURL.replace(/\/$/, '');
-    const cleanThumbnailUrl = thumbnailUrl.replace(/^\//, '');
-    return `${cleanApiUrl}/${cleanThumbnailUrl}`;
+  const buildThumbnailUrl = (thumbnailUrl: string | undefined, docId: number) => {
+    // If thumbnail_url is provided, use it
+    if (thumbnailUrl?.trim()) {
+      if (thumbnailUrl.startsWith('http')) return thumbnailUrl;
+      const cleanApiUrl = apiURL.replace(/\/$/, '');
+      const cleanThumbnailUrl = thumbnailUrl.replace(/^\//, '');
+      return `${cleanApiUrl}/${cleanThumbnailUrl}`;
+    }
+    // Fallback to on-demand cache path - backend generates thumbnails when accessed
+    return `${apiURL}/cache/${docId}.jpg`;
   };
 
   const cleanDocName = documents[0].docname ? documents[0].docname.replace(/\.[^/.]+$/, "") : "";
@@ -56,7 +60,7 @@ export const DocumentCollage: React.FC<DocumentCollageProps> = ({
           const doc = documents[idx];
           const offset = stackOffsets[idx];
           const isTop = idx === 0;
-          const thumbnailSrc = imageErrors[doc.doc_id] ? null : buildThumbnailUrl(doc.thumbnail_url);
+          const thumbnailSrc = imageErrors[doc.doc_id] ? null : buildThumbnailUrl(doc.thumbnail_url, doc.doc_id);
 
           return (
             <div

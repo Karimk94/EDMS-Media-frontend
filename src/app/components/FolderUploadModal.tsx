@@ -63,7 +63,7 @@ const removeExtension = (filename: string) => {
 import { FolderUploadModalProps } from '../../interfaces/PropsInterfaces';
 import Image from 'next/image';
 
-export const FolderUploadModal: React.FC<FolderUploadModalProps> = ({ onClose, apiURL, theme, parentId, parentName, onUploadComplete, t, initialFiles }) => {
+export const FolderUploadModal: React.FC<FolderUploadModalProps> = ({ onClose, apiURL, theme, parentId, parentName, onUploadComplete, t, initialFiles, onUploadSuccess }) => {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [files, setFiles] = useState<UploadableFile[]>([]);
@@ -280,6 +280,15 @@ export const FolderUploadModal: React.FC<FolderUploadModalProps> = ({ onClose, a
     queryClient.invalidateQueries({ queryKey: ['user'] });
     queryClient.invalidateQueries({ queryKey: ['folders'] });
     setIsUploading(false);
+
+    // Collect successfully uploaded docnumbers and notify parent for processing status tracking
+    const successfulDocnumbers = files
+      .filter(f => f.status === 'success' && f.docnumber != null)
+      .map(f => f.docnumber as number);
+    
+    if (onUploadSuccess && successfulDocnumbers.length > 0) {
+      onUploadSuccess(successfulDocnumbers);
+    }
   };
 
   const handleClose = () => {
@@ -344,6 +353,11 @@ export const FolderUploadModal: React.FC<FolderUploadModalProps> = ({ onClose, a
               onChange={handleFolderSelect}
             />
             <p className="mt-2 text-xs text-gray-500">{t('selectsAllFilesRecursively')}</p>
+
+            {/* Rate limit notice */}
+            <p className="mt-3 text-xs text-amber-400 bg-amber-900/30 px-3 py-2 rounded-md border border-amber-700/50">
+              ⚠️ {t('uploadRateLimit')}
+            </p>
           </div>
         </div>
 

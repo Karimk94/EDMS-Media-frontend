@@ -386,7 +386,13 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
 
                 <Suspense fallback={null}>
                 {isUploadModalOpen && isSectionWritable(activeSection) && (
-                    <UploadModal onClose={() => setIsUploadModalOpen(false)} apiURL={API_PROXY_URL} theme={theme} t={t} />
+                    <UploadModal 
+                        onClose={() => setIsUploadModalOpen(false)} 
+                        apiURL={API_PROXY_URL} 
+                        theme={theme} 
+                        t={t} 
+                        onUploadSuccess={addProcessingDocs}
+                    />
                 )}
 
                 {isFolderUploadModalOpen && isSectionWritable('folders') && (
@@ -399,6 +405,7 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
                         onUploadComplete={handleFolderUploadComplete}
                         t={t}
                         initialFiles={uploadInitialFiles}
+                        onUploadSuccess={addProcessingDocs}
                     />
                 )}
 

@@ -159,8 +159,11 @@ export const DocumentItem: React.FC<DocumentItemProps> = ({
   };
 
   const displayDate = formatDateOnly(doc.date);
-  const thumbnailUrl = doc.thumbnail_url && doc.thumbnail_url.trim() ? (doc.thumbnail_url.startsWith('http') ? doc.thumbnail_url : `${apiURL}/${doc.thumbnail_url}`)
-    : null;
+  // Construct thumbnail URL with fallback to on-demand cache path
+  // The backend generates thumbnails on-demand when accessing /cache/{doc_id}.jpg
+  const thumbnailUrl = doc.thumbnail_url && doc.thumbnail_url.trim() 
+    ? (doc.thumbnail_url.startsWith('http') ? doc.thumbnail_url : `${apiURL}/${doc.thumbnail_url}`)
+    : `${apiURL}/cache/${doc.doc_id}.jpg`;
   const cleanDocName = doc.docname ? doc.docname.replace(/\.[^/.]+$/, "") : "";
   const typeIcon = getFileTypeIcon();
 

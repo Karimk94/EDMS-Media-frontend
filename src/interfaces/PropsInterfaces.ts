@@ -31,6 +31,7 @@ export interface UploadModalProps {
     apiURL: string;
     theme: 'light' | 'dark';
     t: Function;
+    onUploadSuccess?: (docnumbers: number[]) => void;
 }
 
 export interface FolderUploadModalProps {
@@ -43,6 +44,7 @@ export interface FolderUploadModalProps {
     t: Function;
     /** Pre-seeded files from an OS drag-and-drop onto the folder grid */
     initialFiles?: File[];
+    onUploadSuccess?: (docnumbers: number[]) => void;
 }
 
 export interface UploadFileItemProps {

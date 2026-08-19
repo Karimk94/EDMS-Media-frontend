@@ -491,5 +491,6 @@
   "tabFavorites": "المفضلة",
   "tabFolders": "المجلدات",
   "tabProfileSearch": "بحث الملفات",
-  "tabEmsAdmin": "إدارة EMS"
+  "tabEmsAdmin": "إدارة EMS",
+  "uploadRateLimit": "الحد الأقصى 100 ملف في الدقيقة"
 }

@@ -3,6 +3,10 @@ import { UploadFileItem } from './UploadFileItem';
 import ExifReader from 'exifreader';
 import { UploadStatus, UploadableFile } from '../../interfaces';
 import { useToast } from '../context/ToastContext';
+import { useQueryClient } from '@tanstack/react-query';
+import Image from 'next/image';
+import { LoadingButton } from './LoadingButton';
+import { UploadModalProps } from '../../interfaces/PropsInterfaces';
 
 const formatDateTimeForAPI = (date: Date | null): string | null => {
   if (!date) return null;
@@ -58,13 +62,7 @@ const removeExtension = (filename: string) => {
   return filename.replace(/\.[^/.]+$/, "");
 };
 
-import { UploadModalProps } from '../../interfaces/PropsInterfaces';
-
-import { useQueryClient } from '@tanstack/react-query';
-import Image from 'next/image';
-import { LoadingButton } from './LoadingButton';
-
-export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, theme, t }) => {
+export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, theme, t, onUploadSuccess }) => {
   const [files, setFiles] = useState<UploadableFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -100,11 +98,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, theme
     return null;
   };
 
-  const handleFiles = async (selectedFiles: FileList | null) => {
-    if (!selectedFiles) return;
-
-    const newUploadPromises = Array.from(selectedFiles).map(async (file) => {
-
+  const processFilesIntoUploadable = async (fileArray: File[]): Promise<UploadableFile[]> => {
+    const newUploadPromises = fileArray.map(async (file) => {
       let finalDate: Date | null = null;
       let dateSource: UploadableFile['dateSource'] = undefined;
 
@@ -135,8 +130,24 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, theme
       } as UploadableFile;
     });
 
-    const newUploads = await Promise.all(newUploadPromises);
+    return Promise.all(newUploadPromises);
+  };
+
+  const handleFiles = async (selectedFiles: FileList | null) => {
+    if (!selectedFiles) return;
+    const newUploads = await processFilesIntoUploadable(Array.from(selectedFiles));
     setFiles(prev => [...prev, ...newUploads]);
+  };
+
+  const handleFolderSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = e.target.files;
+    if (!selectedFiles) return;
+    // webkitdirectory gives us all files recursively — filter out any empty entries
+    const fileArray = Array.from(selectedFiles).filter(f => f.size > 0 || f.name !== '');
+    const newUploads = await processFilesIntoUploadable(fileArray);
+    setFiles(prev => [...prev, ...newUploads]);
+    // Reset input so same folder can be re-selected if needed
+    e.target.value = '';
   };
 
   const onDrop = (event: React.DragEvent<HTMLDivElement>) => {
@@ -249,14 +260,27 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, theme
     await Promise.all(uploadPromises);
     setIsUploading(false);
 
+    // Collect successfully uploaded docnumbers
+    const successfulDocnumbers = files
+      .filter(f => f.status === 'success' && f.docnumber != null)
+      .map(f => f.docnumber as number);
+
     if (errorCount === 0 && successCount > 0) {
       showToast(`${t('SuccessfullyUploaded')} ${successCount} ${t('file(s)')}`, 'success');
       queryClient.invalidateQueries({ queryKey: ['folders'] });
       queryClient.invalidateQueries({ queryKey: ['documents'] });
+      // Notify parent about successful uploads for processing status tracking
+      if (onUploadSuccess && successfulDocnumbers.length > 0) {
+        onUploadSuccess(successfulDocnumbers);
+      }
     } else if (errorCount > 0 && successCount > 0) {
       showToast(`${t('uploadCompletedWith')} ${errorCount} ${t('error(s)')} `, 'warning');
       queryClient.invalidateQueries({ queryKey: ['folders'] });
       queryClient.invalidateQueries({ queryKey: ['documents'] });
+      // Notify parent about successful uploads for processing status tracking
+      if (onUploadSuccess && successfulDocnumbers.length > 0) {
+        onUploadSuccess(successfulDocnumbers);
+      }
     } else if (errorCount > 0 && successCount === 0) {
       showToast(t('AllUploadsFailed'), 'error');
     }
@@ -277,19 +301,50 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, theme
           <div
             onDrop={onDrop}
             onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
             className={`flex-1 border-2 border-dashed rounded-xl flex flex-col justify-center items-center p-4 md:p-8 text-center transition-colors min-h-[150px] ${isDragOver ? 'border-red-500 bg-[#222]' : 'border-gray-600'}`}>
             <Image src="/upload.svg" alt="Upload Icon" width={40} height={40} className="text-gray-400 mb-2 invert" />
             <p className="mt-2 text-lg text-gray-300">{t('dragAndDrop')}</p>
             <p className="text-sm text-gray-500">{t('or')}</p>
+
+            {/* Browse individual files */}
             <label htmlFor="file-upload" className="mt-2 cursor-pointer px-4 py-2 bg-gray-700 text-white text-sm font-medium rounded-md hover:bg-gray-600 transition">
               {t('browseFiles')}
             </label>
             <input id="file-upload" type="file" multiple className="hidden" onChange={e => handleFiles(e.target.files)} />
+
+            {/* Browse an entire folder (all children + sub-children) */}
+            <label
+              htmlFor="directory-upload"
+              className="mt-2 cursor-pointer px-4 py-2 bg-indigo-700 text-white text-sm font-medium rounded-md hover:bg-indigo-800 transition flex items-center gap-2"
+              title={t('selectFolderTooltip')}
+            >
+              <Image src="/folder.svg" alt="" width={16} height={16} className="brightness-0 invert" />
+              {t('selectFolder')}
+            </label>
+            <input
+              id="directory-upload"
+              type="file"
+              className="hidden"
+              // @ts-ignore — webkitdirectory is non-standard but widely supported
+              webkitdirectory=""
+              multiple
+              onChange={handleFolderSelect}
+            />
+            <p className="mt-2 text-xs text-gray-500">{t('selectsAllFilesRecursively')}</p>
+
+            {/* Rate limit notice */}
+            <p className="mt-3 text-xs text-amber-400 bg-amber-900/30 px-3 py-2 rounded-md border border-amber-700/50">
+              ⚠️ {t('uploadRateLimit')}
+            </p>
           </div>
         </div>
 
-        <div className="w-full md:w-2/3 flex flex-col bg-[#282828] rounded-xl p-4 md:p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">{t('uploadQueue')} ({files.length})</h3>
+        <div className="w-full md:w-2/3 flex flex-col bg-[#282828] rounded-xl p-4 md:p-6 border border-gray-700">
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <span className="bg-blue-600 w-2 h-2 rounded-full"></span>
+            {t('uploadQueue')} ({files.length})
+          </h3>
           <div className="flex-1 overflow-y-auto pr-2 space-y-3 mb-4">
             {files.length > 0 ? (
               files.map(f => (
