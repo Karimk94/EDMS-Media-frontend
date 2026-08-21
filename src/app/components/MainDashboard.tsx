@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { useQueryClient } from '@tanstack/react-query';
 import { enGB } from 'date-fns/locale/en-GB';
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState, useRef } from 'react';
 import { registerLocale } from 'react-datepicker';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useDocumentModals } from '../../hooks/useDocumentModals';
@@ -91,6 +91,12 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [initialLoadDone, setInitialLoadDone] = useState(false);
+    const [isPageChanging, setIsPageChanging] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
+    
+    // Refs to track if loading has started (to prevent premature reset)
+    const hasSearchLoadedRef = useRef(false);
+    const hasPageChangeLoadedRef = useRef(false);
 
     // --- Custom Hooks ---
     const API_PROXY_URL = '/api';
@@ -107,6 +113,7 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
     const {
         data: documentsData,
         isLoading: isDocumentsLoading,
+        isFetching: isDocumentsFetching,
         error: documentsError
     } = useDocuments({
         activeSection, activeFolder, currentPage, searchTerm: debouncedSearchTerm,
@@ -117,7 +124,9 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
 
     const documents = documentsData?.documents || [];
     const totalPages = documentsData?.total_pages || 1;
+    // Use isFetching to show skeleton during search/page change (isLoading is false when keepPreviousData is used)
     const isLoading = isDocumentsLoading;
+    const isFetchingDocuments = isDocumentsFetching;
     const error = documentsError instanceof Error ? documentsError.message : (documentsError ? String(documentsError) : null);
 
     // --- Upload & Cache ---
@@ -158,8 +167,36 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
         }
     }, [isDocumentsLoading, initialLoadDone]);
 
+    // Track when fetching starts (set refs to true)
+    useEffect(() => {
+        if (isDocumentsFetching) {
+            if (isSearching) hasSearchLoadedRef.current = true;
+            if (isPageChanging) hasPageChangeLoadedRef.current = true;
+        }
+    }, [isDocumentsFetching, isSearching, isPageChanging]);
+
+    // Reset page changing state when fetching completes (only if fetching had started)
+    useEffect(() => {
+        if (!isDocumentsFetching && isPageChanging && hasPageChangeLoadedRef.current) {
+            setIsPageChanging(false);
+            hasPageChangeLoadedRef.current = false;
+        }
+    }, [isDocumentsFetching, isPageChanging]);
+
+    // Reset searching state when fetching completes (only if fetching had started)
+    useEffect(() => {
+        if (!isDocumentsFetching && isSearching && hasSearchLoadedRef.current) {
+            setIsSearching(false);
+            hasSearchLoadedRef.current = false;
+        }
+    }, [isDocumentsFetching, isSearching]);
+
     // --- Handlers ---
-    const handleSearch = (newSearchTerm: string) => { setSearchTerm(newSearchTerm); setCurrentPage(1); };
+    const handleSearch = (newSearchTerm: string) => { 
+        setIsSearching(true);
+        setSearchTerm(newSearchTerm); 
+        setCurrentPage(1); 
+    };
 
     const handleClearFilters = () => {
         setDateFrom(null); setDateTo(null); setSelectedPerson(null);
@@ -192,7 +229,10 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
     };
 
     const handlePageChange = (newPage: number) => {
-        if (newPage >= 1 && newPage <= totalPages) setCurrentPage(newPage);
+        if (newPage >= 1 && newPage <= totalPages && newPage !== currentPage) {
+            setIsPageChanging(true);
+            setCurrentPage(newPage);
+        }
     };
 
     const handleSectionChange = (section: ActiveSection) => {
@@ -224,7 +264,8 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
     const renderContent = () => {
         if (!isClient) return <div className="min-h-screen bg-gray-50 dark:bg-gray-900" />;
 
-        if (isLoading) {
+        // Show skeleton loader during initial load, or during search/page change when fetching
+        if (isLoading || (isFetchingDocuments && (isSearching || isPageChanging))) {
             return (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8">
                     {Array.from({ length: 15 }).map((_, index) => (
@@ -319,6 +360,7 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
                     isSidebarOpen={isSidebarOpen}
                     toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
                     activeSection={activeSection}
+                    isLoading={isSearching}
                 />
 
                 <div className="flex flex-1 overflow-hidden">
@@ -336,7 +378,8 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
                         />
                     )}
 
-                    <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-[#1f1f1f] text-gray-900 dark:text-gray-100 p-4 sm:p-6 lg:p-8 min-w-0">
+                    <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-[#1f1f1f] text-gray-900 dark:text-gray-100 p-4 sm:p-6 lg:p-8 min-w-0 relative">
+                        
                         {(activeSection !== 'folders' || activeFolder) && (
                             <FilterBar
                                 apiURL={API_PROXY_URL}

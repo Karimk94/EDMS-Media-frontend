@@ -493,5 +493,6 @@
   "tabFolders": "Folders",
   "tabProfileSearch": "Profile Search",
   "tabEmsAdmin": "EMS Admin",
-  "uploadRateLimit": "Maximum 100 files per minute allowed"
+  "uploadRateLimit": "Maximum 100 files per minute allowed",
+  "loadingPage": "Loading page..."
 }

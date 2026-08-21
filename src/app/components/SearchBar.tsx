@@ -2,11 +2,16 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 
 import { SearchBarProps } from '../../interfaces/PropsInterfaces';
+import { Spinner } from './Spinner';
 
-export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, t, lang }) => {
+export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, t, lang, isLoading }) => {
   const [input, setInput] = useState('');
 
-  const handleSearch = () => onSearch(input.trim());
+  const handleSearch = () => {
+    if (!isLoading) {
+      onSearch(input.trim());
+    }
+  };
 
   const handleKeyUp = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleSearch();
@@ -47,11 +52,17 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, t, lang }) => {
 
       <button
         onClick={handleSearch}
+        disabled={isLoading}
         className={`px-5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition flex items-center justify-center
-                    ${lang === 'ar' ? 'border-r border-gray-300 dark:border-gray-600' : 'border-l border-gray-300 dark:border-gray-600'}`}
+                    ${lang === 'ar' ? 'border-r border-gray-300 dark:border-gray-600' : 'border-l border-gray-300 dark:border-gray-600'}
+                    ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
         aria-label="Search"
       >
-        <Image src="/search-icon.svg" alt="" width={20} height={20} className="dark:invert" />
+        {isLoading ? (
+          <Spinner size="xs" />
+        ) : (
+          <Image src="/search-icon.svg" alt="" width={20} height={20} className="dark:invert" />
+        )}
       </button>
     </div>
   );

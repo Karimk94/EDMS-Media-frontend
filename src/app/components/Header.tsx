@@ -22,6 +22,7 @@ export const Header: React.FC<HeaderProps> = ({
   isSidebarOpen,
   toggleSidebar,
   activeSection,
+  isLoading,
 }) => {
   const { user, logout, isLoggingOut } = useAuth();
   const { updateLanguage, updateTheme } = useUserPreferences();
@@ -89,7 +90,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex-1 flex justify-center px-4 items-center">
           {activeSection !== 'folders'  && (
             <div className="w-full max-w-md">
-              <SearchBar onSearch={onSearch} t={t} lang={lang} />
+              <SearchBar onSearch={onSearch} t={t} lang={lang} isLoading={isLoading} />
             </div>
           )}
         </div>

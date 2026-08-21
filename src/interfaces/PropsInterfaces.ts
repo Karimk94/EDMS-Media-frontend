@@ -354,6 +354,7 @@ export interface HeaderProps {
     isSidebarOpen: boolean;
     toggleSidebar: () => void;
     activeSection?: 'recent' | 'favorites' | 'folders';
+    isLoading?: boolean;
 }
 
 export interface SidebarProps {
@@ -370,6 +371,7 @@ export interface SearchBarProps {
     onSearch: (searchTerm: string) => void;
     t: Function;
     lang: 'en' | 'ar';
+    isLoading?: boolean;
 }
 
 export interface CollapsibleSectionProps {
