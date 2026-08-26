@@ -164,6 +164,11 @@ async function handleResponse(response: Response): Promise<any> {
 
 // --- API Client ---
 
+/** Default headers to include with all requests */
+const DEFAULT_HEADERS: Record<string, string> = {
+    'X-App-Source': 'edms-media',
+};
+
 export const apiClient = {
     async get(url: string, options?: RequestInit): Promise<any> {
         return fetchWithRetry(async () => {
@@ -171,6 +176,7 @@ export const apiClient = {
                 ...options,
                 method: 'GET',
                 credentials: 'include',
+                headers: { ...DEFAULT_HEADERS, ...(options?.headers || {}) },
             });
             return handleResponse(response);
         }, 'GET');
@@ -184,8 +190,8 @@ export const apiClient = {
                 method: 'POST',
                 credentials: 'include',
                 headers: isFormData
-                    ? { ...(options?.headers || {}) }
-                    : { 'Content-Type': 'application/json', ...(options?.headers || {}) },
+                    ? { ...DEFAULT_HEADERS, ...(options?.headers || {}) }
+                    : { 'Content-Type': 'application/json', ...DEFAULT_HEADERS, ...(options?.headers || {}) },
                 body: isFormData ? body : (body ? JSON.stringify(body) : undefined),
             });
             return handleResponse(response);
@@ -198,7 +204,7 @@ export const apiClient = {
                 ...options,
                 method: 'PUT',
                 credentials: 'include',
-                headers: { 'Content-Type': 'application/json', ...(options?.headers || {}) },
+                headers: { 'Content-Type': 'application/json', ...DEFAULT_HEADERS, ...(options?.headers || {}) },
                 body: body ? JSON.stringify(body) : undefined,
             });
             return handleResponse(response);
@@ -211,6 +217,7 @@ export const apiClient = {
                 ...options,
                 method: 'DELETE',
                 credentials: 'include',
+                headers: { ...DEFAULT_HEADERS, ...(options?.headers || {}) },
             });
             return handleResponse(response);
         }, 'DELETE');
@@ -225,6 +232,7 @@ export const apiClient = {
             const response = await fetch(url, {
                 ...options,
                 credentials: 'include',
+                headers: { ...DEFAULT_HEADERS, ...(options?.headers || {}) },
             });
             if (response.status === 401) {
                 if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {

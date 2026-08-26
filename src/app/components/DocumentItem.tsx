@@ -225,6 +225,17 @@ export const DocumentItem: React.FC<DocumentItemProps> = ({
 
       <div className="flex flex-col flex-grow">
         <h3 className="font-bold text-base text-gray-900 dark:text-white truncate group-hover:text-gray-600 dark:group-hover:text-gray-400 transition" title={cleanDocName}>{cleanDocName || "No title available."}</h3>
+        
+        {/* Display event/folder name if document was found via event search */}
+        {doc.event_name && (
+          <div className="flex items-center gap-1 mt-0.5">
+            <Image src="/folder.svg" alt="" width={12} height={12} className="opacity-60 dark:opacity-80" />
+            <p className="text-xs text-indigo-600 dark:text-indigo-400 truncate font-medium" title={doc.event_name}>
+              {doc.event_name}
+            </p>
+          </div>
+        )}
+        
         <p className="text-xs text-gray-500 dark:text-gray-400">{displayDate}</p>
         <div className="relative mt-auto pt-1 mb-1 h-5">
           {isTagsLoading ? (

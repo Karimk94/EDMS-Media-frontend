@@ -493,5 +493,9 @@
   "tabProfileSearch": "بحث الملفات",
   "tabEmsAdmin": "إدارة EMS",
   "uploadRateLimit": "الحد الأقصى 100 ملف في الدقيقة",
-  "loadingPage": "جاري تحميل الصفحة..."
+  "loadingPage": "جاري تحميل الصفحة...",
+  "folderUploadDetected": "تم اكتشاف مجلد:",
+  "eventCreated": "تم إنشاء الحدث بنجاح",
+  "eventFound": "تم العثور على حدث موجود، إضافة الملفات إليه",
+  "newFolder": "مجلد جديد"
 }

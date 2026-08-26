@@ -494,5 +494,9 @@
   "tabProfileSearch": "Profile Search",
   "tabEmsAdmin": "EMS Admin",
   "uploadRateLimit": "Maximum 100 files per minute allowed",
-  "loadingPage": "Loading page..."
+  "loadingPage": "Loading page...",
+  "folderUploadDetected": "Folder detected:",
+  "eventCreated": "Event created successfully",
+  "eventFound": "Found existing event, adding files to it",
+  "newFolder": "New Folder"
 }

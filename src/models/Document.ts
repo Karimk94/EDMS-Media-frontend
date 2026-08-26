@@ -13,6 +13,8 @@ export class Document {
     searchMatchField?: string; // Field where the search term was found
     searchMatchValue?: string; // The value that was searched for
     searchFieldValue?: string; // The actual value from the matched field
+    // Event/Folder context - populated when document found via event search
+    event_name?: string; // The event/folder name this document was found in
 
     constructor(data: Partial<Document>) {
         this.doc_id = data.doc_id || 0;
@@ -33,5 +35,6 @@ export class Document {
         this.searchMatchField = data.searchMatchField || rawData.search_match_field;
         this.searchMatchValue = data.searchMatchValue || rawData.search_match_value;
         this.searchFieldValue = data.searchFieldValue || rawData.search_field_value;
+        this.event_name = data.event_name;
     }
 }
