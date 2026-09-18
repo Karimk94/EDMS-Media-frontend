@@ -1,39 +1,44 @@
 "use client";
 
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from '../hooks/useTranslations';
 import HtmlLangUpdater from '../components/HtmlLangUpdater';
+import { useUser } from '../context/UserContext';
+import { useQueryClient } from '@tanstack/react-query';
 
-export default function LoginPage() {
+function getSafeRedirect(redirect: string | null): string {
+  if (!redirect) return '/';
+  // Must start with '/' and not '//' (prevents open redirects)
+  if (!redirect.startsWith('/') || redirect.startsWith('//')) return '/';
+  // Must not redirect to login page itself (prevents redirect loop)
+  if (redirect.startsWith('/login')) return '/';
+  return redirect;
+}
+
+function LoginForm() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isChecking, setIsChecking] = useState(true);
   
   const [lang, setLang] = useState<'en' | 'ar'>('en'); 
   const t = useTranslations(lang);
   
-  const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawRedirect = searchParams.get('redirect');
+  const destinationUrl = getSafeRedirect(rawRedirect);
 
+  const { isAuthenticated, isLoading: isLoadingUser, login } = useUser();
+  const queryClient = useQueryClient();
+
+  // If already authenticated, redirect to destination
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const response = await fetch('/api/auth/user');
-        if (response.ok) {
-          router.push('/');
-        } else {
-          setIsChecking(false);
-        }
-      } catch (err) {
-        setIsChecking(false);
-      }
-    };
-
-    checkSession();
-  }, [router]);
+    if (!isLoadingUser && isAuthenticated) {
+      window.location.href = destinationUrl;
+    }
+  }, [isAuthenticated, isLoadingUser, destinationUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,23 +46,16 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
-      });
-
-      if (response.ok) {
-        router.push('/');
-      } else {
-        const data = await response.json();
-        setError(data.error || 'Login failed');
+      const data = await login({ username, password });
+      if (data?.user) {
+        queryClient.setQueryData(['user'], data.user);
       }
-    } catch (err) {
-      setError('An error occurred. Please try again.');
-    } finally {
+      queryClient.invalidateQueries({ queryKey: ['user'] });
+      // Perform full navigation so all authenticated states and queries cleanly initialize
+      window.location.href = destinationUrl;
+    } catch (err: any) {
+      const errMsg = err?.data?.detail || err?.data?.error || err?.message || 'Login failed';
+      setError(errMsg);
       setIsLoading(false);
     }
   };
@@ -66,7 +64,8 @@ export default function LoginPage() {
     setLang(prev => prev === 'en' ? 'ar' : 'en');
   };
 
-  if (isChecking) {
+  // Show loading while checking existing session or while redirecting
+  if (isLoadingUser || isAuthenticated) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white">
         <div>{t('loading')}</div>
@@ -90,7 +89,7 @@ export default function LoginPage() {
           <div className="flex justify-center mb-2">
             <Image src="/logo.png" alt="Company Logo" width={140} height={56} className="h-14 w-auto object-contain" priority />
           </div>
-          <h1 className="text-2xl font-bold text-center">{t('loginTitle')}</h1>
+          <h1 className="text-2xl font-bold text-center">Smart <span className="text-blue-500">EDMS Media</span> {t('login')}</h1>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label
@@ -105,7 +104,7 @@ export default function LoginPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-red-500 focus:outline-none"
+                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:outline-none"
               />
             </div>
             <div>
@@ -121,14 +120,14 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-red-500 focus:outline-none"
+                className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:outline-none"
               />
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-2 px-4 bg-red-600 hover:bg-red-700 rounded-md font-semibold text-white disabled:bg-red-800"
+              className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded-md font-semibold text-white disabled:bg-blue-800"
             >
               {isLoading ? t('loggingIn') : t('login')}
             </button>
@@ -136,5 +135,17 @@ export default function LoginPage() {
         </div>
       </div>
     </>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white">
+        <div>Loading...</div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

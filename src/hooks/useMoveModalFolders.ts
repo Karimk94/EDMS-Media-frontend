@@ -3,7 +3,7 @@ import { apiClient } from '../lib/apiClient';
 import { FolderItem } from './useFolderContents';
 
 interface UseMoveModalFoldersParams {
-    parentId: string | null;
+    parentId: string | number | null;
     apiURL: string;
     isEnabled?: boolean;
 }
@@ -25,7 +25,7 @@ export function useMoveModalFolders({
         queryKey: ['move-modal-folders', parentId],
         queryFn: async (): Promise<FolderItem[]> => {
             const params = new URLSearchParams();
-            if (parentId) params.append('parent_id', parentId);
+            if (parentId) params.append('parent_id', String(parentId));
             params.append('scope', 'folders');
 
             const response = await apiClient.get(`${apiURL}/folders?${params.toString()}`);

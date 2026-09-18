@@ -174,6 +174,19 @@ async function proxyHandler(req: NextRequest): Promise<NextResponse> {
       newHeaders.delete('content-length');
       newHeaders.delete('content-encoding');
 
+      // Preserve separate Set-Cookie headers from the backend
+      // @ts-ignore
+      if (typeof response.headers.getSetCookie === 'function') {
+        // @ts-ignore
+        const cookies = response.headers.getSetCookie();
+        if (cookies && cookies.length > 0) {
+          newHeaders.delete('set-cookie');
+          for (const cookie of cookies) {
+            newHeaders.append('set-cookie', cookie);
+          }
+        }
+      }
+
       return new NextResponse(responseBody, {
         status: response.status,
         statusText: response.statusText,

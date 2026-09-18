@@ -63,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({
             <h1
               className={`text-xl font-bold text-gray-900 dark:text-white ${logoMargin} cursor-pointer`}
             >
-              Smart <span className="text-red-500">EDMS</span>
+              Smart <span className="text-blue-500">EDMS Media</span>
             </h1>
           </a>
           <button
@@ -108,15 +108,7 @@ export const Header: React.FC<HeaderProps> = ({
               <span>{t('processing')}</span>
             </div>
           )}
-          {isEditor && activeSection !== 'folders'  && (
-            <button
-              onClick={onOpenUploadModal}
-              className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition flex items-center gap-2"
-            >
-              <Image src="/upload.svg" alt="" width={20} height={20} className="dark:invert" />
-              <span>{t('upload')}</span>
-            </button>
-          )}
+
           <UserAccessBadge
             user={user}
             lang={lang}

@@ -13,6 +13,11 @@ import { Document } from '../../models/Document';
 import { useToast } from '../context/ToastContext';
 import { LoadingButton } from './LoadingButton';
 import { Spinner } from './Spinner';
+import { FolderIcon } from './FolderIcon';
+import { useReviewStatus } from '../../hooks/useReviewStatus';
+import { useRerunAnalysis } from '../../hooks/useSystemOperations';
+import { ReviewStatusBadge } from './ReviewStatusBadge';
+import { useFolderProcessingStatus } from '../../hooks/useFolderProcessingStatus';
 
 // Lazy-loaded modals — only loaded when user opens them via context menu
 const CreateFolderModal = React.lazy(() => import('./CreateFolderModal').then(m => ({ default: m.CreateFolderModal })));
@@ -31,6 +36,8 @@ interface FoldersProps {
     isEditor: boolean;
     initialFolderId?: string | null;
     externalRefreshTrigger?: number;
+    /** Global list of doc IDs being tracked for AI processing (from useProcessingStatus). */
+    processingDocs?: number[];
 }
 
 interface ContextMenuState {
@@ -58,7 +65,7 @@ function formatDate(dateStr?: string): string {
     }).format(date);
 }
 
-export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick, onUploadClick, t, apiURL, isEditor, initialFolderId, externalRefreshTrigger }) => {
+export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick, onUploadClick, t, apiURL, isEditor, initialFolderId, externalRefreshTrigger, processingDocs = [] }) => {
     const searchParams = useSearchParams();
     const queryClient = useQueryClient();
 
@@ -92,8 +99,8 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [selectedHistoryItem, setSelectedHistoryItem] = useState<FolderItem | null>(null);
 
-    const [currentFolderId, setCurrentFolderId] = useState<string | null>(initialFolderId || null);
-    const [breadcrumbs, setBreadcrumbs] = useState<{ id: string | null; name: string }[]>([
+    const [currentFolderId, setCurrentFolderId] = useState<string | number | null>(initialFolderId || null);
+    const [breadcrumbs, setBreadcrumbs] = useState<{ id: string | number | null; name: string }[]>([
         { id: null, name: t('home') || 'Home' }
     ]);
 
@@ -106,10 +113,23 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
         apiURL
     });
 
-    const [hiddenItemIds, setHiddenItemIds] = useState<Set<string>>(new Set());
+    const [hiddenItemIds, setHiddenItemIds] = useState<Set<string | number>>(new Set());
     const items = (data?.contents || []).filter((item) => !hiddenItemIds.has(item.id));
-    
-    const isInsideStandardFolder = ['images', 'videos', 'files'].includes(currentFolderId || '');
+
+    const docIds = React.useMemo(() => items.filter(item => item.type === 'file').map(item => item.id), [items]);
+    const { statuses: reviewStatuses, setDocumentStatus, setFolderStatus } = useReviewStatus(docIds, apiURL, isEditor);
+    const { mutateAsync: rerunAnalysis } = useRerunAnalysis();
+
+    // Auto-refresh the folder grid when any file in this folder finishes AI analysis.
+    // Only polls when at least one docId here is in the global processingDocs set (opt-in).
+    useFolderProcessingStatus({
+        docIds,
+        currentFolderId,
+        processingDocs,
+        apiURL,
+    });
+
+    const isInsideStandardFolder = ['images', 'videos', 'files'].includes(String(currentFolderId || ''));
 
     const standardItems = items.filter(item => item.is_standard && !isInsideStandardFolder);
 
@@ -192,7 +212,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
 
     // Pending drag-and-drop move confirmation
     const [pendingMoveConfirm, setPendingMoveConfirm] = useState<{
-        fileIds: string[];
+        fileIds: (string | number)[];
         destination: FolderItem;
     } | null>(null);
 
@@ -204,7 +224,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
     const [renameValue, setRenameValue] = useState('');
     const [isRenaming, setIsRenaming] = useState(false);
 
-    const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
+    const [selectedFileIds, setSelectedFileIds] = useState<Set<string | number>>(new Set());
     const [isSelectionMode, setIsSelectionMode] = useState(false);
     const [lastClickedIndex, setLastClickedIndex] = useState<number | null>(null);
     const [focusedItemIndex, setFocusedItemIndex] = useState<number | null>(null);
@@ -215,12 +235,12 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
         currentX: number;
         currentY: number;
         additive: boolean;
-        baseSelection: Set<string>;
+        baseSelection: Set<string | number>;
         containerOffsetX: number;
         containerOffsetY: number;
         zoomFactor: number;
     } | null>(null);
-    const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
+    const [dragOverFolderId, setDragOverFolderId] = useState<string | number | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const gridAreaRef = useRef<HTMLDivElement>(null);
     const fileTileRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -231,14 +251,14 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
     const externalDragCounterRef = useRef(0); // track nested dragenter/dragleave pairs
 
     const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
-    const [moveCurrentFolderId, setMoveCurrentFolderId] = useState<string | null>(null);
-    const [moveBreadcrumbs, setMoveBreadcrumbs] = useState<{ id: string | null; name: string }[]>([{ id: null, name: t('home') || 'Home' }]);
-    const [targetMoveFolderId, setTargetMoveFolderId] = useState<string | null>(null);
+    const [moveCurrentFolderId, setMoveCurrentFolderId] = useState<string | number | null>(null);
+    const [moveBreadcrumbs, setMoveBreadcrumbs] = useState<{ id: string | number | null; name: string }[]>([{ id: null, name: t('home') || 'Home' }]);
+    const [targetMoveFolderId, setTargetMoveFolderId] = useState<string | number | null>(null);
     const [moveItemIds, setMoveItemIds] = useState<string[]>([]);
     const [isBatchMoving, setIsBatchMoving] = useState(false);
     const [isBatchDeleting, setIsBatchDeleting] = useState(false);
     const [isBatchDownloading, setIsBatchDownloading] = useState(false);
-    const [downloadingItemIds, setDownloadingItemIds] = useState<Set<string>>(new Set());
+    const [downloadingItemIds, setDownloadingItemIds] = useState<Set<string | number>>(new Set());
 
     // Use react-query hook for move modal folders with caching
     const { data: moveFolderItems = [], isLoading: isMoveFoldersLoading, isFetching: isMoveFoldersFetching } = useMoveModalFolders({
@@ -470,6 +490,27 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
             invertClass = "";
         }
 
+        if (type === 'image' && item.type === 'file' && !isStandard) {
+            const cleanApiUrl = apiURL.replace(/\/$/, '');
+            let thumbUrl = `${cleanApiUrl}/cache/${item.id}.jpg`;
+            if (item.thumbnail_url?.trim()) {
+                if (item.thumbnail_url.startsWith('http')) {
+                    thumbUrl = item.thumbnail_url;
+                } else {
+                    const cleanThumb = item.thumbnail_url.replace(/^\//, '');
+                    thumbUrl = `${cleanApiUrl}/${cleanThumb}`;
+                }
+            }
+            return (
+                <div style={{ width: size, height: size }} className="relative overflow-hidden rounded-md flex items-center justify-center">
+                    <img src={thumbUrl} alt={altText} className="object-cover w-full h-full" onError={(e) => {
+                        e.currentTarget.src = '/file-image.svg';
+                        e.currentTarget.className = "w-full h-full object-contain";
+                    }} />
+                </div>
+            );
+        }
+
         return <Image src={iconSrc} alt={altText} width={size} height={size} className={invertClass} />;
     };
 
@@ -507,10 +548,10 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
     }, []);
 
     // Helper function to update URL without full page reload (shallow routing)
-    const updateUrlShallow = useCallback((folderId: string | null, newBreadcrumbs: { id: string | null; name: string }[]) => {
+    const updateUrlShallow = useCallback((folderId: string | number | null, newBreadcrumbs: { id: string | number | null; name: string }[]) => {
         if (folderId === null) {
             window.history.pushState(null, '', '/folders');
-        } else if (['images', 'videos', 'files'].includes(folderId)) {
+        } else if (['images', 'videos', 'files'].includes(String(folderId))) {
             window.history.pushState(null, '', `/folder/${folderId}`);
         } else {
             const breadcrumbsJson = JSON.stringify(newBreadcrumbs);
@@ -539,9 +580,9 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
         if (folder.is_standard) {
             // For standard folders (images, videos, files), use internal state update
             setIsNavigating(true);
-            setCurrentFolderId(folder.id);
-            setBreadcrumbs([{ id: null, name: t('home') || 'Home' }, { id: folder.id, name: t(folder.id) || folder.name }]);
-            updateUrlShallow(folder.id, [{ id: null, name: t('home') || 'Home' }, { id: folder.id, name: t(folder.id) || folder.name }]);
+            setCurrentFolderId(String(folder.id));
+            setBreadcrumbs([{ id: null, name: t('home') || 'Home' }, { id: String(folder.id), name: t(String(folder.id)) || folder.name }]);
+            updateUrlShallow(String(folder.id), [{ id: null, name: t('home') || 'Home' }, { id: String(folder.id), name: t(String(folder.id)) || folder.name }]);
             return;
         }
 
@@ -561,11 +602,12 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                 else mediaType = 'file';
 
                 const doc = new Document({
-                    doc_id: parseInt(folder.id),
+                    doc_id: parseInt(String(folder.id), 10),
                     docname: folder.name,
-                    title: folder.name,
+                    title: (folder as any).title || (folder as any).abstract || '',
+                    abstract: (folder as any).abstract || '',
                     media_type: mediaType,
-                    date: new Date().toISOString(),
+                    date: (folder as any).date || new Date().toISOString(),
                     thumbnail_url: folder.thumbnail_url || `cache/${folder.id}.jpg`
                 });
                 onDocumentClick(doc);
@@ -575,10 +617,10 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
 
         // Internal state navigation for dynamic folders (no full page reload)
         setIsNavigating(true);
-        const newBreadcrumbs = [...breadcrumbs, { id: folder.id, name: folder.name }];
-        setCurrentFolderId(folder.id);
+        const newBreadcrumbs = [...breadcrumbs, { id: String(folder.id), name: folder.name }];
+        setCurrentFolderId(String(folder.id));
         setBreadcrumbs(newBreadcrumbs);
-        updateUrlShallow(folder.id, newBreadcrumbs);
+        updateUrlShallow(String(folder.id), newBreadcrumbs);
     }, [breadcrumbs, onDocumentClick, showToast, t, updateUrlShallow, getMediaType]);
 
     const handleBreadcrumbClick = (index: number) => {
@@ -624,7 +666,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
         });
     };
 
-    const hideItemsFromCurrentView = (itemIds: string[]) => {
+    const hideItemsFromCurrentView = (itemIds: (string | number)[]) => {
         if (itemIds.length === 0) return;
 
         const idsToHide = new Set(itemIds);
@@ -669,7 +711,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
         });
     };
 
-    const toggleFileSelection = (fileId: string, checked?: boolean) => {
+    const toggleFileSelection = (fileId: string | number, checked?: boolean) => {
         setSelectedFileIds(prev => {
             const next = new Set(prev);
             const isChecked = checked !== undefined ? checked : !next.has(fileId);
@@ -963,7 +1005,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
         }
 
         if (collectedFiles.length === 0) return;
-        onUploadClick(currentFolderId, getCurrentFolderName(), collectedFiles);
+        onUploadClick(currentFolderId !== null ? String(currentFolderId) : null, getCurrentFolderName(), collectedFiles);
     };
 
 
@@ -989,7 +1031,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                     suppressItemClickRef.current = true;
                 }
 
-                const intersected = new Set<string>();
+                const intersected = new Set<string | number>();
                 items.forEach((item) => {
                     const node = fileTileRefs.current[item.id];
                     if (!node) return;
@@ -1034,7 +1076,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
         };
     }, [marqueeSelection, items]);
 
-    const moveFilesToFolder = async (fileIds: string[], destinationFolderId: string | null) => {
+    const moveFilesToFolder = async (fileIds: (string | number)[], destinationFolderId: string | number | null) => {
         if (fileIds.length === 0) return;
 
         if (destinationFolderId === currentFolderId) {
@@ -1104,10 +1146,10 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
         setMoveItemIds([]);
     };
 
-    const openMoveModal = async (fileIds: string[]) => {
+    const openMoveModal = async (fileIds: (string | number)[]) => {
         if (fileIds.length === 0) return;
 
-        setMoveItemIds(fileIds);
+        setMoveItemIds(fileIds.map(String));
         setIsMoveModalOpen(true);
         setMoveCurrentFolderId(null);
         setMoveBreadcrumbs([{ id: null, name: t('home') || 'Home' }]);
@@ -1116,10 +1158,10 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
     };
 
     const handleMoveModalNavigate = async (folder: FolderItem) => {
-        const nextBreadcrumbs = [...moveBreadcrumbs, { id: folder.id, name: folder.name }];
-        setMoveCurrentFolderId(folder.id);
+        const nextBreadcrumbs = [...moveBreadcrumbs, { id: String(folder.id), name: folder.name }];
+        setMoveCurrentFolderId(String(folder.id));
         setMoveBreadcrumbs(nextBreadcrumbs);
-        setTargetMoveFolderId(folder.id);
+        setTargetMoveFolderId(String(folder.id));
         // Hook automatically fetches data based on moveCurrentFolderId change
     };
 
@@ -1141,13 +1183,13 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
 
         let deleted = 0;
         let failed = 0;
-        const deletedIds: string[] = [];
+        const deletedIds: (string | number)[] = [];
         let didTriggerRefresh = false;
 
         try {
             await Promise.all(Array.from(selectedFileIds).map(async (id) => {
                 try {
-                    await deleteFolderMutation.mutateAsync({ id, force: false, apiURL });
+                    await deleteFolderMutation.mutateAsync({ id: String(id), force: false, apiURL });
                     deleted += 1;
                     deletedIds.push(id);
                 } catch {
@@ -1185,10 +1227,10 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
         for (const fileId of Array.from(selectedFileIds)) {
             const item = items.find(i => i.id === fileId);
             if (!item) continue;
-            
+
             const mediaType = getMediaType(item);
             const toastId = showToast((t('downloadingFile') || "Downloading ") + item.name + "...", 'info', 'subtle', 0);
-            
+
             try {
                 await downloadAsync({ docId: item.id, docname: item.name, apiURL, mediaType });
                 downloaded++;
@@ -1199,7 +1241,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                 removeToast(toastId);
             }
         }
-        
+
         if (downloaded > 0 && selectedFileCount > 1) {
             showToast(t('successDownloading') || `Downloaded ${downloaded} file(s) successfully.`, 'success');
         }
@@ -1271,7 +1313,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
     const handleContextMenuAction = async (action: string) => {
         if (action === 'upload' && !contextMenu.item) {
             setContextMenu({ ...contextMenu, visible: false });
-            onUploadClick(currentFolderId, getCurrentFolderName());
+            onUploadClick(currentFolderId !== null ? String(currentFolderId) : null, getCurrentFolderName());
             return;
         }
 
@@ -1340,6 +1382,32 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
         else if (action === 'moveFile' && targetItem.type === 'file') {
             openMoveModal([targetItem.id]);
         }
+        else if (action === 'markVerified' || action === 'markPending') {
+            const status = action === 'markVerified' ? 'verified' : 'pending';
+            try {
+                await setDocumentStatus({ docId: targetItem.id, status });
+                showToast(t('statusUpdated') || 'Status updated successfully', 'success');
+            } catch (e: any) {
+                showToast(t('errorUpdatingStatus') || 'Error updating status', 'error');
+            }
+        }
+        else if (action === 'rerunAnalysis') {
+            try {
+                await rerunAnalysis({ docId: targetItem.id, apiURL });
+                showToast(t('analysisQueued') || 'Document queued for analysis', 'success');
+            } catch (e: any) {
+                showToast(t('errorQueuingAnalysis') || 'Error queuing analysis', 'error');
+            }
+        }
+        else if (action === 'markFolderVerified' || action === 'markFolderPending') {
+            const status = action === 'markFolderVerified' ? 'verified' : 'pending';
+            try {
+                await setFolderStatus({ folderId: String(targetItem.id), status });
+                showToast(t('statusUpdated') || 'Folder status updated successfully', 'success');
+            } catch (e: any) {
+                showToast(t('errorUpdatingStatus') || 'Error updating folder status', 'error');
+            }
+        }
         else if (action === 'moveSelected') {
             openMoveModal(Array.from(selectedFileIds));
         }
@@ -1384,7 +1452,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                     try {
                         const errData = await response.json();
                         if (errData && errData.detail) errMsg = errData.detail;
-                    } catch (e) {}
+                    } catch (e) { }
                     showToast(errMsg, 'error');
                 } else if (response.status === 404) {
                     showToast("Folder has no files to download", 'error');
@@ -1400,11 +1468,11 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
             if (contentType && contentType.includes('application/json')) {
                 const manifest = await response.json();
                 removeToast(toastId);
-                
+
                 if (manifest.multipart && manifest.total_parts > 0) {
                     const partsCount = manifest.total_parts;
                     showToast(`Large folder detected. Downloading in ${partsCount} parts...`, 'info');
-                    
+
                     // Download parts sequentially
                     for (let i = 1; i <= partsCount; i++) {
                         const partToastId = showToast(`Downloading part ${i} of ${partsCount}...`, 'info', 'subtle', 0);
@@ -1413,14 +1481,14 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                                 method: 'GET',
                                 credentials: 'include',
                             });
-                            
+
                             if (!partResponse.ok) throw new Error(`HTTP ${partResponse.status}`);
-                            
+
                             const blob = await partResponse.blob();
                             const url = URL.createObjectURL(blob);
                             const a = document.createElement('a');
                             a.href = url;
-                            
+
                             // Try to get filename from Content-Disposition header, fallback to part_filename
                             const disposition = partResponse.headers.get('Content-Disposition');
                             let filename = `${manifest.folder_name}_Part${i}of${partsCount}.zip`;
@@ -1428,7 +1496,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                                 const match = disposition.match(/filename="?([^"]+)"?/);
                                 if (match && match[1]) filename = match[1];
                             }
-                            
+
                             a.download = filename;
                             document.body.appendChild(a);
                             a.click();
@@ -1449,7 +1517,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                
+
                 // Try to get filename from Content-Disposition header
                 const disposition = response.headers.get('Content-Disposition');
                 let filename = `${item.name}.zip`;
@@ -1457,7 +1525,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                     const match = disposition.match(/filename="?([^"]+)"?/);
                     if (match && match[1]) filename = match[1];
                 }
-                
+
                 a.download = filename;
                 document.body.appendChild(a);
                 a.click();
@@ -1575,13 +1643,13 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
         }
     };
 
-    const getStandardFolderColor = (id: string) => {
+    const getStandardFolderColor = (id: string | number) => {
         return 'bg-gray-50 dark:bg-[#2a2a2a] border border-gray-200 dark:border-gray-700';
     };
 
     const getFileColorClass = (item: FolderItem) => {
         if (item.type === 'folder') return 'text-yellow-500 dark:text-yellow-400';
-        
+
         const type = getMediaType(item);
         const colorMap: Record<string, string> = {
             'image': 'text-purple-500 dark:text-purple-400',
@@ -1715,7 +1783,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                         )}
 
                         {isEditor && (<button
-                            onClick={() => onUploadClick(currentFolderId, getCurrentFolderName())}
+                            onClick={() => onUploadClick(currentFolderId !== null ? String(currentFolderId) : null, getCurrentFolderName())}
                             className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition shadow-sm text-sm font-medium"
                         >
                             <Image src="/upload.svg" alt="" width={20} height={20} className="invert dark:invert-0" />
@@ -1791,430 +1859,192 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
             </div>
 
             <div className="flex-1 flex flex-row min-h-0 relative">
-            <div
-                ref={gridAreaRef}
-                className="flex-1 overflow-y-auto p-6 relative"
-                onContextMenu={handleBackgroundContextMenu}
-                onMouseDown={startMarqueeSelection}
-                onDragEnter={handleGridDragEnter}
-                onDragOver={handleGridDragOver}
-                onDragLeave={handleGridDragLeave}
-                onDrop={handleGridDrop}
-            >
-                {/* OS drag-and-drop overlay */}
-                {isExternalDragOver && isEditor && (
-                    <div className="absolute inset-0 z-[200] flex flex-col items-center justify-center pointer-events-none rounded-xl border-4 border-dashed border-blue-500 bg-blue-500/10 backdrop-blur-[2px] transition-all">
-                        <div className="flex flex-col items-center gap-3 bg-white/90 dark:bg-[#1e1e1e]/90 rounded-2xl px-10 py-8 shadow-2xl border border-blue-200 dark:border-blue-800">
-                            <div className="text-blue-500 animate-bounce">
-                                <Image src="/upload.svg" alt="" width={48} height={48} className="invert dark:invert-0" />
-                            </div>
-                            <p className="text-lg font-bold text-blue-700 dark:text-blue-300">Drop to Upload</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
-                                Files &amp; folders will be added to<br />
-                                <span className="font-semibold text-gray-700 dark:text-gray-200">{getCurrentFolderName()}</span>
-                            </p>
-                        </div>
-                    </div>
-                )}
-                {isLoading ? (
-                    <div className="py-8">
-                        <Spinner size="lg" center label={t('loading') || 'Loading...'} />
-                    </div>
-                ) : isNavigating && isFetching ? (
-                    <div className="py-8">
-                        <Spinner size="lg" center label={t('loading') || 'Loading...'} />
-                    </div>
-                ) : (
-                    <div className="flex flex-col gap-8">
-
-                        {standardItems.length > 0 && !searchTerm && (
-                            <div className="animate-fade-in">
-                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-1">
-                                    {t('libraries') || 'Quick Access'}
-                                </h3>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                    {standardItems.map((item) => (
-                                        <div
-                                            key={item.id}
-                                            onClick={() => handleNavigate(item)}
-                                            className={`group flex items-center p-4 rounded-xl cursor-pointer transition-all duration-200 hover:shadow-md ${getStandardFolderColor(item.id)}`}
-                                        >
-                                            <div className="flex-shrink-0 p-2 bg-white dark:bg-[#333] rounded-lg shadow-sm group-hover:scale-110 transition-transform">
-                                                {renderIcon(item, true)}
-                                            </div>
-                                            <div className="ml-4 flex-1 min-w-0">
-                                                <p className="text-sm font-bold text-gray-800 dark:text-white truncate">{t(item.id)}</p>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{item.count !== undefined ? `${item.count} ${t('items')}` : ''}</p>
-                                            </div>
-                                            <div className="text-gray-300 dark:text-gray-600">
-                                                <Image src="/icons/chevron-right.svg" alt="" width={20} height={20} className="dark:invert" />
-                                            </div>
-                                        </div>
-                                    ))}
+                <div
+                    ref={gridAreaRef}
+                    className="flex-1 overflow-y-auto p-6 relative"
+                    onContextMenu={handleBackgroundContextMenu}
+                    onMouseDown={startMarqueeSelection}
+                    onDragEnter={handleGridDragEnter}
+                    onDragOver={handleGridDragOver}
+                    onDragLeave={handleGridDragLeave}
+                    onDrop={handleGridDrop}
+                >
+                    {/* OS drag-and-drop overlay */}
+                    {isExternalDragOver && isEditor && (
+                        <div className="absolute inset-0 z-[200] flex flex-col items-center justify-center pointer-events-none rounded-xl border-4 border-dashed border-blue-500 bg-blue-500/10 backdrop-blur-[2px] transition-all">
+                            <div className="flex flex-col items-center gap-3 bg-white/90 dark:bg-[#1e1e1e]/90 rounded-2xl px-10 py-8 shadow-2xl border border-blue-200 dark:border-blue-800">
+                                <div className="text-blue-500 animate-bounce">
+                                    <Image src="/upload.svg" alt="" width={48} height={48} className="invert dark:invert-0" />
                                 </div>
+                                <p className="text-lg font-bold text-blue-700 dark:text-blue-300">Drop to Upload</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+                                    Files &amp; folders will be added to<br />
+                                    <span className="font-semibold text-gray-700 dark:text-gray-200">{getCurrentFolderName()}</span>
+                                </p>
                             </div>
-                        )}
+                        </div>
+                    )}
+                    {isLoading ? (
+                        <div className="py-8">
+                            <Spinner size="lg" center label={t('loading') || 'Loading...'} />
+                        </div>
+                    ) : isNavigating && isFetching ? (
+                        <div className="py-8">
+                            <Spinner size="lg" center label={t('loading') || 'Loading...'} />
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-8">
 
-                        <div className="flex-1">
-                            {(standardItems.length > 0 && userItems.length > 0 && !searchTerm) && (
-                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-1">{t('folders') || 'Folders'}</h3>
+                            {standardItems.length > 0 && !searchTerm && (
+                                <div className="animate-fade-in">
+                                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-1">
+                                        {t('libraries') || 'Quick Access'}
+                                    </h3>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                        {standardItems.map((item) => (
+                                            <div
+                                                key={item.id}
+                                                onClick={() => handleNavigate(item)}
+                                                className={`group flex items-center p-4 rounded-xl cursor-pointer transition-all duration-200 hover:shadow-md ${getStandardFolderColor(item.id)}`}
+                                            >
+                                                <div className="flex-shrink-0 p-2 bg-white dark:bg-[#333] rounded-lg shadow-sm group-hover:scale-110 transition-transform">
+                                                    {renderIcon(item, true)}
+                                                </div>
+                                                <div className="ml-4 flex-1 min-w-0">
+                                                    <p className="text-sm font-bold text-gray-800 dark:text-white truncate">{t(item.id)}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{item.count !== undefined ? `${item.count} ${t('items')}` : ''}</p>
+                                                </div>
+                                                <div className="text-gray-300 dark:text-gray-600">
+                                                    <Image src="/icons/chevron-right.svg" alt="" width={20} height={20} className="dark:invert" />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
                             )}
 
-                            <div className="mb-4">
-                                {viewMode === 'grid' ? (
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                                {userItems.map((item) => {
-                                    const isFile = item.type === 'file';
-                                    const isSelected = selectedFileIds.has(item.id);
-                                    const isDragOverTarget = dragOverFolderId === item.id;
+                            <div className="flex-1">
+                                {(standardItems.length > 0 && userItems.length > 0 && !searchTerm) && (
+                                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-1">{t('folders') || 'Folders'}</h3>
+                                )}
 
-                                    if (!isFile && item.type === 'folder') {
-                                        const isFocused = focusedItemIndex !== null && userItems[focusedItemIndex]?.id === item.id;
-                                        return (
-                                            <div
-                                                ref={(el) => {
-                                                    fileTileRefs.current[item.id] = el;
-                                                }}
-                                                data-folder-item="true"
-                                                key={item.id}
-                                                onClick={(e) => handleItemClick(item, e)}
-                                                onDoubleClick={() => handleItemDoubleClick(item)}
-                                                onContextMenu={(e) => handleRightClick(e, item)}
-                                                onDragOver={(e) => {
-                                                    if (!isEditor) return;
-                                                    e.preventDefault();
-                                                    setDragOverFolderId(item.id);
-                                                }}
-                                                onDragLeave={() => {
-                                                    if (dragOverFolderId === item.id) {
-                                                        setDragOverFolderId(null);
-                                                    }
-                                                }}
-                                                onDrop={async (e) => {
-                                                    if (!isEditor) return;
-                                                    e.preventDefault();
-                                                    e.stopPropagation(); // prevent grid-level OS-drop handler firing
-                                                    setDragOverFolderId(null);
-
-                                                    // If this is an OS file drag, upload to this folder
-                                                    if (isOsDrag(e)) {
-                                                        externalDragCounterRef.current = 0;
-                                                        setIsExternalDragOver(false);
-
-                                                        let collectedFiles: File[] = [];
-                                                        const dragItems = Array.from(e.dataTransfer.items);
-                                                        if (dragItems.length > 0 && typeof dragItems[0].webkitGetAsEntry === 'function') {
-                                                            const entries = dragItems
-                                                                .map((dragItem) => dragItem.webkitGetAsEntry())
-                                                                .filter((entry): entry is FileSystemEntry => entry !== null);
-                                                            const nested = await Promise.all(entries.map(readFilesFromEntry));
-                                                            nested.forEach((f) => collectedFiles.push(...f));
-                                                        } else {
-                                                            collectedFiles = Array.from(e.dataTransfer.files);
-                                                        }
-
-                                                        if (collectedFiles.length > 0) {
-                                                            onUploadClick(item.id, item.name, collectedFiles);
-                                                        }
-                                                        return;
-                                                    }
-
-                                                    // Only handle internal file drags
-                                                    let draggedIds: string[] = [];
-                                                    try {
-                                                        const raw = e.dataTransfer.getData('application/json');
-                                                        if (raw) {
-                                                            const parsed = JSON.parse(raw);
-                                                            if (Array.isArray(parsed?.fileIds)) {
-                                                                draggedIds = parsed.fileIds;
-                                                            }
-                                                        }
-                                                    } catch {
-                                                        draggedIds = [];
-                                                    }
-
-                                                    const idsToMove = draggedIds.length > 0 ? draggedIds : Array.from(selectedFileIds);
-                                                    if (idsToMove.length === 0) return;
-
-                                                    // Stage the move — show confirmation dialog instead of moving immediately
-                                                    setPendingMoveConfirm({ fileIds: idsToMove, destination: item });
-                                                }}
-                                                className={`group relative flex flex-col items-center p-4 rounded-xl cursor-pointer transition-all duration-200 border hover:bg-gray-50 hover:shadow-sm dark:hover:bg-[#2c2c2c] ${isDragOverTarget ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-500' : isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30' : 'border-transparent hover:border-gray-200 dark:hover:border-gray-700'} ${isFocused ? 'ring-2 ring-blue-400 ring-offset-1 dark:ring-offset-[#1e1e1e]' : ''}`}
-                                            >
-                                                {/* Downloading overlay (ZIP download) */}
-                                                {downloadingItemIds.has(item.id) && (
-                                                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-xl bg-white/70 dark:bg-[#1e1e1e]/70 backdrop-blur-[1px]">
-                                                        <Spinner size="sm" />
-                                                        <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('downloading') || 'Downloading...'}</span>
-                                                    </div>
-                                                )}
-                                                {/* Grip / drag icon on selected folders */}
-                                                {isSelected && isEditor && (
-                                                    <div className="absolute top-1 left-1/2 -translate-x-1/2 z-10 transition-opacity duration-200 cursor-grab active:cursor-grabbing select-none" title={t('dragToMove') || 'Drag to move'}>
-                                                        <svg width="16" height="10" viewBox="0 0 16 10" fill="currentColor" className="text-gray-400 dark:text-gray-500">
-                                                            <circle cx="4" cy="2" r="1.2"/><circle cx="8" cy="2" r="1.2"/><circle cx="12" cy="2" r="1.2"/>
-                                                            <circle cx="4" cy="7" r="1.2"/><circle cx="8" cy="7" r="1.2"/><circle cx="12" cy="7" r="1.2"/>
-                                                        </svg>
-                                                    </div>
-                                                )}
-                                                {/* Checkbox on selected */}
-                                                {isEditor && isSelected && (
-                                                    <label className="absolute top-2 left-2 z-10 flex items-center justify-center w-5 h-5 rounded border border-blue-400 dark:border-blue-500 bg-blue-500 cursor-pointer" onClick={(e) => e.stopPropagation()}>
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={isSelected}
-                                                            onChange={(e) => {
-                                                                e.stopPropagation();
-                                                                toggleFileSelection(item.id, e.target.checked);
-                                                            }}
-                                                            onClick={(e) => e.stopPropagation()}
-                                                            className="h-3.5 w-3.5 accent-blue-500"
-                                                        />
-                                                    </label>
-                                                )}
-                                                <div className="mb-3 transform group-hover:scale-105 transition-transform duration-200 text-gray-400 group-hover:text-blue-500">
-                                                    {renderIcon(item, false)}
-                                                </div>
-                                                {itemToRename?.id === item.id ? (
-                                                    <form onSubmit={handleRenameSubmit} className="w-full px-1" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-                                                        <input
-                                                            type="text"
-                                                            value={renameValue}
-                                                            onChange={(e) => setRenameValue(e.target.value)}
-                                                            onBlur={handleRenameSubmit}
-                                                            onKeyDown={(e) => {
-                                                                if (e.key === 'Escape') setItemToRename(null);
-                                                            }}
-                                                            className="w-full text-sm font-medium text-center text-gray-900 dark:text-white bg-white dark:bg-gray-800 border border-blue-500 rounded px-1 py-0.5 outline-none focus:ring-2 focus:ring-blue-500"
-                                                            autoFocus
-                                                            onFocus={(e) => e.target.select()}
-                                                        />
-                                                    </form>
-                                                ) : (
-                                                    <span className="text-sm font-medium text-center text-gray-700 dark:text-gray-300 break-words w-full line-clamp-2 px-1" title={item.name}>
-                                                        {item.name}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        );
-                                    }
-
-                                    const isFocused = focusedItemIndex !== null && userItems[focusedItemIndex]?.id === item.id;
-                                    return (
-                                        <div
-                                            ref={(el) => {
-                                                fileTileRefs.current[item.id] = el;
-                                            }}
-                                            data-select-item="true"
-                                            key={item.id}
-                                            onClick={(e) => handleItemClick(item, e)}
-                                            onDoubleClick={() => handleItemDoubleClick(item)}
-                                            onContextMenu={(e) => handleRightClick(e, item)}
-                                            draggable={isEditor}
-                                            onDragStart={(e) => {
-                                                const payloadIds = isSelected && selectedItemCount > 1
-                                                    ? Array.from(selectedFileIds)
-                                                    : [item.id];
-                                                e.dataTransfer.setData('application/json', JSON.stringify({ fileIds: payloadIds }));
-                                                e.dataTransfer.effectAllowed = 'move';
-
-                                                // Custom drag ghost with count badge
-                                                if (payloadIds.length > 1 && dragGhostRef.current) {
-                                                    const ghost = dragGhostRef.current;
-                                                    ghost.textContent = `${payloadIds.length} items`;
-                                                    ghost.style.display = 'flex';
-                                                    document.body.appendChild(ghost);
-                                                    e.dataTransfer.setDragImage(ghost, 40, 20);
-                                                    requestAnimationFrame(() => {
-                                                        ghost.style.display = 'none';
-                                                        if (ghost.parentNode) ghost.parentNode.removeChild(ghost);
-                                                    });
-                                                }
-                                            }}
-                                            onDragEnd={() => setDragOverFolderId(null)}
-                                            className={`group relative flex flex-col items-center p-4 rounded-xl cursor-pointer transition-all duration-200 border hover:bg-gray-50 hover:border-gray-200 hover:shadow-sm dark:hover:bg-[#2c2c2c] dark:hover:border-gray-700 ${isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30' : 'border-transparent'} ${isFocused ? 'ring-2 ring-blue-400 ring-offset-1 dark:ring-offset-[#1e1e1e]' : ''}`}
-                                        >
-                                            {/* Downloading overlay */}
-                                            {downloadingItemIds.has(item.id) && (
-                                                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-xl bg-white/70 dark:bg-[#1e1e1e]/70 backdrop-blur-[1px]">
-                                                    <Spinner size="sm" />
-                                                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('downloading') || 'Downloading...'}</span>
-                                                </div>
-                                            )}
-                                            {/* Grip / drag icon on selected items */}
-                                            {isSelected && isEditor && (
-                                                <div className="absolute top-1 left-1/2 -translate-x-1/2 z-10 transition-opacity duration-200 cursor-grab active:cursor-grabbing select-none" title={t('dragToMove') || 'Drag to move'}>
-                                                    <svg width="16" height="10" viewBox="0 0 16 10" fill="currentColor" className="text-gray-400 dark:text-gray-500">
-                                                        <circle cx="4" cy="2" r="1.2"/><circle cx="8" cy="2" r="1.2"/><circle cx="12" cy="2" r="1.2"/>
-                                                        <circle cx="4" cy="7" r="1.2"/><circle cx="8" cy="7" r="1.2"/><circle cx="12" cy="7" r="1.2"/>
-                                                    </svg>
-                                                </div>
-                                            )}
-                                            {/* Checkbox on selected */}
-                                            {isEditor && isSelected && (
-                                                <label className="absolute top-2 left-2 z-10 flex items-center justify-center w-5 h-5 rounded border border-blue-400 dark:border-blue-500 bg-blue-500 cursor-pointer" onClick={(e) => e.stopPropagation()}>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isSelected}
-                                                        onChange={(e) => {
-                                                            e.stopPropagation();
-                                                            toggleFileSelection(item.id, e.target.checked);
-                                                        }}
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        className="h-3.5 w-3.5 accent-blue-500"
-                                                    />
-                                                </label>
-                                            )}
-                                            <div className={`mb-3 transform group-hover:scale-105 transition-transform duration-200 ${isFile ? getFileColorClass(item) : 'text-gray-400 group-hover:text-blue-500'}`}>
-                                                {renderIcon(item, false)}
-                                            </div>
-                                            {itemToRename?.id === item.id ? (
-                                                <form onSubmit={handleRenameSubmit} className="w-full px-1" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-                                                    <input
-                                                        type="text"
-                                                        value={renameValue}
-                                                        onChange={(e) => setRenameValue(e.target.value)}
-                                                        onBlur={handleRenameSubmit}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Escape') setItemToRename(null);
-                                                        }}
-                                                        className="w-full text-sm font-medium text-center text-gray-900 dark:text-white bg-white dark:bg-gray-800 border border-blue-500 rounded px-1 py-0.5 outline-none focus:ring-2 focus:ring-blue-500"
-                                                        autoFocus
-                                                        onFocus={(e) => e.target.select()}
-                                                    />
-                                                </form>
-                                            ) : (
-                                                <span className="text-sm font-medium text-center text-gray-700 dark:text-gray-300 break-words w-full line-clamp-2 px-1" title={item.name}>
-                                                    {item.name}
-                                                </span>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            ) : (
-                                <div className="flex flex-col border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-[#1a1a1a]">
-                                    <table className="w-full text-left border-collapse text-sm">
-                                        <thead className="bg-gray-50 dark:bg-[#252525] border-b border-gray-200 dark:border-gray-700">
-                                            <tr>
-                                                <th className="px-4 py-3 font-semibold text-gray-500 dark:text-gray-400">Name</th>
-                                                <th className="px-4 py-3 font-semibold text-gray-500 dark:text-gray-400 w-32">Type</th>
-                                                <th className="px-4 py-3 font-semibold text-gray-500 dark:text-gray-400 w-32">Size</th>
-                                                <th className="px-4 py-3 font-semibold text-gray-500 dark:text-gray-400 w-48">Last Modified</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                                <div className="mb-4">
+                                    {viewMode === 'grid' ? (
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                                             {userItems.map((item) => {
                                                 const isFile = item.type === 'file';
                                                 const isSelected = selectedFileIds.has(item.id);
                                                 const isDragOverTarget = dragOverFolderId === item.id;
-                                                const isFocused = focusedItemIndex !== null && userItems[focusedItemIndex]?.id === item.id;
 
-                                                return (
-                                                    <tr
-                                                        ref={(el) => {
-                                                            fileTileRefs.current[item.id] = el;
-                                                        }}
-                                                        data-folder-item={!isFile ? "true" : undefined}
-                                                        data-select-item={isFile ? "true" : undefined}
-                                                        key={item.id}
-                                                        onClick={(e) => handleItemClick(item, e)}
-                                                        onDoubleClick={() => handleItemDoubleClick(item)}
-                                                        onContextMenu={(e) => handleRightClick(e, item)}
-                                                        draggable={isEditor}
-                                                        onDragOver={!isFile ? (e) => {
-                                                            if (!isEditor) return;
-                                                            e.preventDefault();
-                                                            setDragOverFolderId(item.id);
-                                                        } : undefined}
-                                                        onDragLeave={!isFile ? () => {
-                                                            if (dragOverFolderId === item.id) setDragOverFolderId(null);
-                                                        } : undefined}
-                                                        onDrop={!isFile ? async (e) => {
-                                                            if (!isEditor) return;
-                                                            e.preventDefault(); e.stopPropagation();
-                                                            setDragOverFolderId(null);
+                                                if (!isFile && item.type === 'folder') {
+                                                    const isFocused = focusedItemIndex !== null && userItems[focusedItemIndex]?.id === item.id;
+                                                    return (
+                                                        <div
+                                                            ref={(el) => {
+                                                                fileTileRefs.current[item.id] = el;
+                                                            }}
+                                                            data-folder-item="true"
+                                                            key={item.id}
+                                                            onClick={(e) => handleItemClick(item, e)}
+                                                            onDoubleClick={() => handleItemDoubleClick(item)}
+                                                            onContextMenu={(e) => handleRightClick(e, item)}
+                                                            onDragOver={(e) => {
+                                                                if (!isEditor) return;
+                                                                e.preventDefault();
+                                                                setDragOverFolderId(item.id);
+                                                            }}
+                                                            onDragLeave={() => {
+                                                                if (dragOverFolderId === item.id) {
+                                                                    setDragOverFolderId(null);
+                                                                }
+                                                            }}
+                                                            onDrop={async (e) => {
+                                                                if (!isEditor) return;
+                                                                e.preventDefault();
+                                                                e.stopPropagation(); // prevent grid-level OS-drop handler firing
+                                                                setDragOverFolderId(null);
 
-                                                            // If this is an OS file drag, upload to this folder
-                                                            if (isOsDrag(e)) {
-                                                                externalDragCounterRef.current = 0;
-                                                                setIsExternalDragOver(false);
+                                                                // If this is an OS file drag, upload to this folder
+                                                                if (isOsDrag(e)) {
+                                                                    externalDragCounterRef.current = 0;
+                                                                    setIsExternalDragOver(false);
 
-                                                                let collectedFiles: File[] = [];
-                                                                const dragItems = Array.from(e.dataTransfer.items);
-                                                                if (dragItems.length > 0 && typeof dragItems[0].webkitGetAsEntry === 'function') {
-                                                                    const entries = dragItems
-                                                                        .map((dragItem) => dragItem.webkitGetAsEntry())
-                                                                        .filter((entry): entry is FileSystemEntry => entry !== null);
-                                                                    const nested = await Promise.all(entries.map(readFilesFromEntry));
-                                                                    nested.forEach((f) => collectedFiles.push(...f));
-                                                                } else {
-                                                                    collectedFiles = Array.from(e.dataTransfer.files);
+                                                                    let collectedFiles: File[] = [];
+                                                                    const dragItems = Array.from(e.dataTransfer.items);
+                                                                    if (dragItems.length > 0 && typeof dragItems[0].webkitGetAsEntry === 'function') {
+                                                                        const entries = dragItems
+                                                                            .map((dragItem) => dragItem.webkitGetAsEntry())
+                                                                            .filter((entry): entry is FileSystemEntry => entry !== null);
+                                                                        const nested = await Promise.all(entries.map(readFilesFromEntry));
+                                                                        nested.forEach((f) => collectedFiles.push(...f));
+                                                                    } else {
+                                                                        collectedFiles = Array.from(e.dataTransfer.files);
+                                                                    }
+
+                                                                    if (collectedFiles.length > 0) {
+                                                                        onUploadClick(String(item.id), item.name, collectedFiles);
+                                                                    }
+                                                                    return;
                                                                 }
 
-                                                                if (collectedFiles.length > 0) {
-                                                                    onUploadClick(item.id, item.name, collectedFiles);
+                                                                // Only handle internal file drags
+                                                                let draggedIds: string[] = [];
+                                                                try {
+                                                                    const raw = e.dataTransfer.getData('application/json');
+                                                                    if (raw) {
+                                                                        const parsed = JSON.parse(raw);
+                                                                        if (Array.isArray(parsed?.fileIds)) {
+                                                                            draggedIds = parsed.fileIds;
+                                                                        }
+                                                                    }
+                                                                } catch {
+                                                                    draggedIds = [];
                                                                 }
-                                                                return;
-                                                            }
 
-                                                            let draggedIds: string[] = [];
-                                                            try {
-                                                                const raw = e.dataTransfer.getData('application/json');
-                                                                if (raw) {
-                                                                    const parsed = JSON.parse(raw);
-                                                                    if (Array.isArray(parsed?.fileIds)) draggedIds = parsed.fileIds;
-                                                                }
-                                                            } catch { draggedIds = []; }
-                                                            const idsToMove = draggedIds.length > 0 ? draggedIds : Array.from(selectedFileIds);
-                                                            if (idsToMove.length === 0) return;
-                                                            setPendingMoveConfirm({ fileIds: idsToMove, destination: item });
-                                                        } : undefined}
-                                                        onDragStart={(e) => {
-                                                            const payloadIds = isSelected && selectedItemCount > 1 ? Array.from(selectedFileIds) : [item.id];
-                                                            e.dataTransfer.setData('application/json', JSON.stringify({ fileIds: payloadIds }));
-                                                            e.dataTransfer.effectAllowed = 'move';
-                                                            if (payloadIds.length > 1 && dragGhostRef.current) {
-                                                                const ghost = dragGhostRef.current;
-                                                                ghost.textContent = `${payloadIds.length} items`;
-                                                                ghost.style.display = 'flex';
-                                                                document.body.appendChild(ghost);
-                                                                e.dataTransfer.setDragImage(ghost, 40, 20);
-                                                                requestAnimationFrame(() => { ghost.style.display = 'none'; if (ghost.parentNode) ghost.parentNode.removeChild(ghost); });
-                                                            }
-                                                        }}
-                                                        onDragEnd={() => setDragOverFolderId(null)}
-                                                        className={`group cursor-pointer transition-colors ${isDragOverTarget ? 'bg-blue-50 dark:bg-blue-900/30' : isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-[#2c2c2c]'} ${isFocused ? 'ring-2 ring-inset ring-blue-400' : ''}`}
-                                                    >
-                                                        <td className="px-4 py-3 flex items-center gap-3 relative">
+                                                                const idsToMove = draggedIds.length > 0 ? draggedIds : Array.from(selectedFileIds);
+                                                                if (idsToMove.length === 0) return;
+
+                                                                // Stage the move — show confirmation dialog instead of moving immediately
+                                                                setPendingMoveConfirm({ fileIds: idsToMove, destination: item });
+                                                            }}
+                                                            className={`group relative flex flex-col items-center p-4 rounded-xl cursor-pointer transition-all duration-200 border hover:bg-gray-50 hover:shadow-sm dark:hover:bg-[#2c2c2c] ${isDragOverTarget ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-500' : isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30' : 'border-transparent hover:border-gray-200 dark:hover:border-gray-700'} ${isFocused ? 'ring-2 ring-blue-400 ring-offset-1 dark:ring-offset-[#1e1e1e]' : ''}`}
+                                                        >
+                                                            {/* Downloading overlay (ZIP download) */}
                                                             {downloadingItemIds.has(item.id) && (
-                                                                <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 dark:bg-[#1a1a1a]/60 backdrop-blur-[1px] rounded">
-                                                                    <Spinner size="xs" />
-                                                                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">{t('downloading') || 'Downloading...'}</span>
+                                                                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-xl bg-white/70 dark:bg-[#1e1e1e]/70 backdrop-blur-[1px]">
+                                                                    <Spinner size="sm" />
+                                                                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('downloading') || 'Downloading...'}</span>
                                                                 </div>
                                                             )}
+                                                            {/* Grip / drag icon on selected folders */}
                                                             {isSelected && isEditor && (
-                                                                <div className="absolute left-1 cursor-grab active:cursor-grabbing text-gray-400" title={t('dragToMove') || 'Drag to move'}>
-                                                                    <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor"><circle cx="2" cy="4" r="1.2"/><circle cx="2" cy="8" r="1.2"/><circle cx="2" cy="12" r="1.2"/><circle cx="7" cy="4" r="1.2"/><circle cx="7" cy="8" r="1.2"/><circle cx="7" cy="12" r="1.2"/></svg>
+                                                                <div className="absolute top-1 left-1/2 -translate-x-1/2 z-10 transition-opacity duration-200 cursor-grab active:cursor-grabbing select-none" title={t('dragToMove') || 'Drag to move'}>
+                                                                    <svg width="16" height="10" viewBox="0 0 16 10" fill="currentColor" className="text-gray-400 dark:text-gray-500">
+                                                                        <circle cx="4" cy="2" r="1.2" /><circle cx="8" cy="2" r="1.2" /><circle cx="12" cy="2" r="1.2" />
+                                                                        <circle cx="4" cy="7" r="1.2" /><circle cx="8" cy="7" r="1.2" /><circle cx="12" cy="7" r="1.2" />
+                                                                    </svg>
                                                                 </div>
                                                             )}
-                                                            <div className="flex-shrink-0 w-6 h-6 flex justify-center items-center ml-2">
-                                                                {isEditor && isSelected ? (
+                                                            {/* Checkbox on selected */}
+                                                            {isEditor && isSelected && (
+                                                                <label className="absolute top-2 left-2 z-10 flex items-center justify-center w-5 h-5 rounded border border-blue-400 dark:border-blue-500 bg-blue-500 cursor-pointer" onClick={(e) => e.stopPropagation()}>
                                                                     <input
                                                                         type="checkbox"
                                                                         checked={isSelected}
-                                                                        onChange={(e) => { e.stopPropagation(); toggleFileSelection(item.id, e.target.checked); }}
+                                                                        onChange={(e) => {
+                                                                            e.stopPropagation();
+                                                                            toggleFileSelection(item.id, e.target.checked);
+                                                                        }}
                                                                         onClick={(e) => e.stopPropagation()}
-                                                                        className="h-4 w-4 accent-blue-500 rounded cursor-pointer"
+                                                                        className="h-3.5 w-3.5 accent-blue-500"
                                                                     />
-                                                                ) : (
-                                                                    <span className={!isFile ? 'text-gray-400 dark:text-gray-500' : getFileColorClass(item)}>
-                                                                        {renderIcon(item, false)}
-                                                                    </span>
-                                                                )}
+                                                                </label>
+                                                            )}
+                                                            <div className="mb-3 transform group-hover:scale-105 transition-transform duration-200 text-gray-400 group-hover:text-blue-500">
+                                                                <FolderIcon item={item} apiURL={apiURL} isStandard={false} renderDefaultIcon={renderIcon} />
                                                             </div>
                                                             {itemToRename?.id === item.id ? (
-                                                                <form onSubmit={handleRenameSubmit} className="flex-1 min-w-0" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+                                                                <form onSubmit={handleRenameSubmit} className="w-full px-1" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
                                                                     <input
                                                                         type="text"
                                                                         value={renameValue}
@@ -2223,117 +2053,368 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                                                                         onKeyDown={(e) => {
                                                                             if (e.key === 'Escape') setItemToRename(null);
                                                                         }}
-                                                                        className="w-full text-sm font-medium text-gray-900 dark:text-white bg-white dark:bg-gray-800 border border-blue-500 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-blue-500"
+                                                                        className="w-full text-sm font-medium text-center text-gray-900 dark:text-white bg-white dark:bg-gray-800 border border-blue-500 rounded px-1 py-0.5 outline-none focus:ring-2 focus:ring-blue-500"
                                                                         autoFocus
                                                                         onFocus={(e) => e.target.select()}
                                                                     />
                                                                 </form>
                                                             ) : (
-                                                                <span className="font-medium text-gray-800 dark:text-gray-200 truncate ml-1" title={item.name}>{item.name}</span>
+                                                                <span className="text-sm font-medium text-center text-gray-700 dark:text-gray-300 break-words w-full line-clamp-2 px-1" title={item.name}>
+                                                                    {item.name}
+                                                                </span>
                                                             )}
-                                                        </td>
-                                                        <td className="px-4 py-3 text-gray-500 dark:text-gray-400 capitalize">
-                                                            {!isFile ? 'Folder' : getMediaType(item)}
-                                                        </td>
-                                                        <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                                                            {!isFile ? '--' : formatBytes(item.size)}
-                                                        </td>
-                                                        <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                                                            {formatDate(item.date)}
-                                                        </td>
-                                                    </tr>
+                                                        </div>
+                                                    );
+                                                }
+
+                                                const isFocused = focusedItemIndex !== null && userItems[focusedItemIndex]?.id === item.id;
+                                                return (
+                                                    <div
+                                                        ref={(el) => {
+                                                            fileTileRefs.current[item.id] = el;
+                                                        }}
+                                                        data-select-item="true"
+                                                        key={item.id}
+                                                        onClick={(e) => handleItemClick(item, e)}
+                                                        onDoubleClick={() => handleItemDoubleClick(item)}
+                                                        onContextMenu={(e) => handleRightClick(e, item)}
+                                                        draggable={isEditor}
+                                                        onDragStart={(e) => {
+                                                            const payloadIds = isSelected && selectedItemCount > 1
+                                                                ? Array.from(selectedFileIds)
+                                                                : [item.id];
+                                                            e.dataTransfer.setData('application/json', JSON.stringify({ fileIds: payloadIds }));
+                                                            e.dataTransfer.effectAllowed = 'move';
+
+                                                            // Custom drag ghost with count badge
+                                                            if (payloadIds.length > 1 && dragGhostRef.current) {
+                                                                const ghost = dragGhostRef.current;
+                                                                ghost.textContent = `${payloadIds.length} items`;
+                                                                ghost.style.display = 'flex';
+                                                                document.body.appendChild(ghost);
+                                                                e.dataTransfer.setDragImage(ghost, 40, 20);
+                                                                requestAnimationFrame(() => {
+                                                                    ghost.style.display = 'none';
+                                                                    if (ghost.parentNode) ghost.parentNode.removeChild(ghost);
+                                                                });
+                                                            }
+                                                        }}
+                                                        onDragEnd={() => setDragOverFolderId(null)}
+                                                        className={`group relative flex flex-col items-center p-4 rounded-xl cursor-pointer transition-all duration-200 border hover:bg-gray-50 hover:border-gray-200 hover:shadow-sm dark:hover:bg-[#2c2c2c] dark:hover:border-gray-700 ${isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30' : 'border-transparent'} ${isFocused ? 'ring-2 ring-blue-400 ring-offset-1 dark:ring-offset-[#1e1e1e]' : ''}`}
+                                                    >
+                                                        {/* Downloading overlay */}
+                                                        {downloadingItemIds.has(item.id) && (
+                                                            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-xl bg-white/70 dark:bg-[#1e1e1e]/70 backdrop-blur-[1px]">
+                                                                <Spinner size="sm" />
+                                                                <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('downloading') || 'Downloading...'}</span>
+                                                            </div>
+                                                        )}
+                                                        {/* Grip / drag icon on selected items */}
+                                                        {isSelected && isEditor && (
+                                                            <div className="absolute top-1 left-1/2 -translate-x-1/2 z-10 transition-opacity duration-200 cursor-grab active:cursor-grabbing select-none" title={t('dragToMove') || 'Drag to move'}>
+                                                                <svg width="16" height="10" viewBox="0 0 16 10" fill="currentColor" className="text-gray-400 dark:text-gray-500">
+                                                                    <circle cx="4" cy="2" r="1.2" /><circle cx="8" cy="2" r="1.2" /><circle cx="12" cy="2" r="1.2" />
+                                                                    <circle cx="4" cy="7" r="1.2" /><circle cx="8" cy="7" r="1.2" /><circle cx="12" cy="7" r="1.2" />
+                                                                </svg>
+                                                            </div>
+                                                        )}
+                                                        {/* Review Status Badge */}
+                                                        {isEditor && reviewStatuses[item.id] && (
+                                                            <ReviewStatusBadge status={reviewStatuses[item.id]} t={t} />
+                                                        )}
+                                                        {/* Checkbox on selected */}
+                                                        {isEditor && isSelected && (
+                                                            <label className="absolute top-2 left-2 z-10 flex items-center justify-center w-5 h-5 rounded border border-blue-400 dark:border-blue-500 bg-blue-500 cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={isSelected}
+                                                                    onChange={(e) => {
+                                                                        e.stopPropagation();
+                                                                        toggleFileSelection(item.id, e.target.checked);
+                                                                    }}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    className="h-3.5 w-3.5 accent-blue-500"
+                                                                />
+                                                            </label>
+                                                        )}
+                                                        <div className={`mb-3 transform group-hover:scale-105 transition-transform duration-200 ${isFile ? getFileColorClass(item) : 'text-gray-400 group-hover:text-blue-500'}`}>
+                                                            {renderIcon(item, false)}
+                                                        </div>
+                                                        {itemToRename?.id === item.id ? (
+                                                            <form onSubmit={handleRenameSubmit} className="w-full px-1" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+                                                                <input
+                                                                    type="text"
+                                                                    value={renameValue}
+                                                                    onChange={(e) => setRenameValue(e.target.value)}
+                                                                    onBlur={handleRenameSubmit}
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Escape') setItemToRename(null);
+                                                                    }}
+                                                                    className="w-full text-sm font-medium text-center text-gray-900 dark:text-white bg-white dark:bg-gray-800 border border-blue-500 rounded px-1 py-0.5 outline-none focus:ring-2 focus:ring-blue-500"
+                                                                    autoFocus
+                                                                    onFocus={(e) => e.target.select()}
+                                                                />
+                                                            </form>
+                                                        ) : (
+                                                            <span className="text-sm font-medium text-center text-gray-700 dark:text-gray-300 break-words w-full line-clamp-2 px-1" title={item.name}>
+                                                                {item.name}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 );
                                             })}
-                                        </tbody>
-                                    </table>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-[#1a1a1a]">
+                                            <table className="w-full text-left border-collapse text-sm">
+                                                <thead className="bg-gray-50 dark:bg-[#252525] border-b border-gray-200 dark:border-gray-700">
+                                                    <tr>
+                                                        <th className="px-4 py-3 font-semibold text-gray-500 dark:text-gray-400">Name</th>
+                                                        <th className="px-4 py-3 font-semibold text-gray-500 dark:text-gray-400 w-32">Type</th>
+                                                        <th className="px-4 py-3 font-semibold text-gray-500 dark:text-gray-400 w-32">Size</th>
+                                                        <th className="px-4 py-3 font-semibold text-gray-500 dark:text-gray-400 w-48">Last Modified</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                                                    {userItems.map((item) => {
+                                                        const isFile = item.type === 'file';
+                                                        const isSelected = selectedFileIds.has(item.id);
+                                                        const isDragOverTarget = dragOverFolderId === item.id;
+                                                        const isFocused = focusedItemIndex !== null && userItems[focusedItemIndex]?.id === item.id;
+
+                                                        return (
+                                                            <tr
+                                                                ref={(el) => {
+                                                                    fileTileRefs.current[item.id] = el;
+                                                                }}
+                                                                data-folder-item={!isFile ? "true" : undefined}
+                                                                data-select-item={isFile ? "true" : undefined}
+                                                                key={item.id}
+                                                                onClick={(e) => handleItemClick(item, e)}
+                                                                onDoubleClick={() => handleItemDoubleClick(item)}
+                                                                onContextMenu={(e) => handleRightClick(e, item)}
+                                                                draggable={isEditor}
+                                                                onDragOver={!isFile ? (e) => {
+                                                                    if (!isEditor) return;
+                                                                    e.preventDefault();
+                                                                    setDragOverFolderId(item.id);
+                                                                } : undefined}
+                                                                onDragLeave={!isFile ? () => {
+                                                                    if (dragOverFolderId === item.id) setDragOverFolderId(null);
+                                                                } : undefined}
+                                                                onDrop={!isFile ? async (e) => {
+                                                                    if (!isEditor) return;
+                                                                    e.preventDefault(); e.stopPropagation();
+                                                                    setDragOverFolderId(null);
+
+                                                                    // If this is an OS file drag, upload to this folder
+                                                                    if (isOsDrag(e)) {
+                                                                        externalDragCounterRef.current = 0;
+                                                                        setIsExternalDragOver(false);
+
+                                                                        let collectedFiles: File[] = [];
+                                                                        const dragItems = Array.from(e.dataTransfer.items);
+                                                                        if (dragItems.length > 0 && typeof dragItems[0].webkitGetAsEntry === 'function') {
+                                                                            const entries = dragItems
+                                                                                .map((dragItem) => dragItem.webkitGetAsEntry())
+                                                                                .filter((entry): entry is FileSystemEntry => entry !== null);
+                                                                            const nested = await Promise.all(entries.map(readFilesFromEntry));
+                                                                            nested.forEach((f) => collectedFiles.push(...f));
+                                                                        } else {
+                                                                            collectedFiles = Array.from(e.dataTransfer.files);
+                                                                        }
+
+                                                                        if (collectedFiles.length > 0) {
+                                                                            onUploadClick(String(item.id), item.name, collectedFiles);
+                                                                        }
+                                                                        return;
+                                                                    }
+
+                                                                    let draggedIds: string[] = [];
+                                                                    try {
+                                                                        const raw = e.dataTransfer.getData('application/json');
+                                                                        if (raw) {
+                                                                            const parsed = JSON.parse(raw);
+                                                                            if (Array.isArray(parsed?.fileIds)) draggedIds = parsed.fileIds;
+                                                                        }
+                                                                    } catch { draggedIds = []; }
+                                                                    const idsToMove = draggedIds.length > 0 ? draggedIds : Array.from(selectedFileIds);
+                                                                    if (idsToMove.length === 0) return;
+                                                                    setPendingMoveConfirm({ fileIds: idsToMove, destination: item });
+                                                                } : undefined}
+                                                                onDragStart={(e) => {
+                                                                    const payloadIds = isSelected && selectedItemCount > 1 ? Array.from(selectedFileIds) : [item.id];
+                                                                    e.dataTransfer.setData('application/json', JSON.stringify({ fileIds: payloadIds }));
+                                                                    e.dataTransfer.effectAllowed = 'move';
+                                                                    if (payloadIds.length > 1 && dragGhostRef.current) {
+                                                                        const ghost = dragGhostRef.current;
+                                                                        ghost.textContent = `${payloadIds.length} items`;
+                                                                        ghost.style.display = 'flex';
+                                                                        document.body.appendChild(ghost);
+                                                                        e.dataTransfer.setDragImage(ghost, 40, 20);
+                                                                        requestAnimationFrame(() => { ghost.style.display = 'none'; if (ghost.parentNode) ghost.parentNode.removeChild(ghost); });
+                                                                    }
+                                                                }}
+                                                                onDragEnd={() => setDragOverFolderId(null)}
+                                                                className={`group cursor-pointer transition-colors ${isDragOverTarget ? 'bg-blue-50 dark:bg-blue-900/30' : isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-[#2c2c2c]'} ${isFocused ? 'ring-2 ring-inset ring-blue-400' : ''}`}
+                                                            >
+                                                                <td className="px-4 py-3 relative">
+                                                                    {downloadingItemIds.has(item.id) && (
+                                                                        <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 dark:bg-[#1a1a1a]/60 backdrop-blur-[1px] rounded">
+                                                                            <Spinner size="xs" />
+                                                                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">{t('downloading') || 'Downloading...'}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {isSelected && isEditor && (
+                                                                        <div className="absolute left-1 cursor-grab active:cursor-grabbing text-gray-400" title={t('dragToMove') || 'Drag to move'}>
+                                                                            <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor"><circle cx="2" cy="4" r="1.2" /><circle cx="2" cy="8" r="1.2" /><circle cx="2" cy="12" r="1.2" /><circle cx="7" cy="4" r="1.2" /><circle cx="7" cy="8" r="1.2" /><circle cx="7" cy="12" r="1.2" /></svg>
+                                                                        </div>
+                                                                    )}
+                                                                    <div className="flex-shrink-0 w-6 h-6 flex justify-center items-center ml-2">
+                                                                        {isEditor && isSelected ? (
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={isSelected}
+                                                                                onChange={(e) => { e.stopPropagation(); toggleFileSelection(item.id, e.target.checked); }}
+                                                                                onClick={(e) => e.stopPropagation()}
+                                                                                className="h-4 w-4 accent-blue-500 rounded cursor-pointer"
+                                                                            />
+                                                                        ) : (
+                                                                            <span className={!isFile ? 'text-gray-400 dark:text-gray-500' : getFileColorClass(item)}>
+                                                                                {renderIcon(item, false)}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    {itemToRename?.id === item.id ? (
+                                                                        <form onSubmit={handleRenameSubmit} className="flex-1 min-w-0" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+                                                                            <input
+                                                                                type="text"
+                                                                                value={renameValue}
+                                                                                onChange={(e) => setRenameValue(e.target.value)}
+                                                                                onBlur={handleRenameSubmit}
+                                                                                onKeyDown={(e) => {
+                                                                                    if (e.key === 'Escape') setItemToRename(null);
+                                                                                }}
+                                                                                className="w-full text-sm font-medium text-gray-900 dark:text-white bg-white dark:bg-gray-800 border border-blue-500 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-blue-500"
+                                                                                autoFocus
+                                                                                onFocus={(e) => e.target.select()}
+                                                                            />
+                                                                        </form>
+                                                                    ) : (
+                                                                        <div className="flex items-center gap-2 flex-1 min-w-0 ml-1">
+                                                                            <span className="font-medium text-gray-800 dark:text-gray-200 truncate" title={item.name}>
+                                                                                {item.name}
+                                                                            </span>
+                                                                            {isEditor && reviewStatuses[item.id] && (
+                                                                                <div className="flex-shrink-0 flex items-center">
+                                                                                    <ReviewStatusBadge status={reviewStatuses[item.id]} t={t} absolute={false} />
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </td>
+                                                                <td className="px-4 py-3 text-gray-500 dark:text-gray-400 capitalize">
+                                                                    {!isFile ? 'Folder' : getMediaType(item)}
+                                                                </td>
+                                                                <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                                                    {!isFile ? '--' : formatBytes(item.size)}
+                                                                </td>
+                                                                <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                                                    {formatDate(item.date)}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
                                 </div>
-                            )}
+
+                                {items.length === 0 && (
+                                    <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                                        <p>{searchTerm ? t('noDocumentsFound') : (t('emptyFolder') || "This folder is empty.")}</p>
+                                    </div>
+                                )}
                             </div>
 
-                            {items.length === 0 && (
-                                <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-                                    <p>{searchTerm ? t('noDocumentsFound') : (t('emptyFolder') || "This folder is empty.")}</p>
-                                </div>
-                            )}
                         </div>
+                    )}
+                </div>
 
+                {/* Details Sidebar */}
+                {showDetailsSidebar && (
+                    <div className="w-80 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1f1f1f] flex flex-col shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] z-20 flex-shrink-0">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+                            <h3 className="font-semibold text-gray-800 dark:text-gray-200">{t('details') || 'Details'}</h3>
+                            <button onClick={() => setShowDetailsSidebar(false)} className="p-1 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+                                <Image src="/icons/close.svg" alt="" width={16} height={16} className="dark:invert opacity-60 hover:opacity-100" />
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-5">
+                            {(() => {
+                                if (selectedItemCount === 1) {
+                                    const selectedId = Array.from(selectedFileIds)[0];
+                                    const selectedItem = items.find((i) => i.id === selectedId);
+                                    if (!selectedItem) return null;
+                                    const isFile = selectedItem.type === 'file' || (selectedItem.type !== 'folder' && selectedItem.node_type !== 'N' && selectedItem.node_type !== 'F');
+                                    const mediaType = !isFile ? 'folder' : getMediaType(selectedItem);
+                                    return (
+                                        <div className="flex flex-col items-center">
+                                            <div className={`w-32 h-32 flex items-center justify-center rounded-2xl mb-5 ${isFile ? getFileColorClass(selectedItem) : 'text-gray-400 bg-gray-50 dark:bg-[#2a2a2a]'}`}>
+                                                <div className="transform scale-[2.5]">
+                                                    {renderIcon(selectedItem, false)}
+                                                </div>
+                                            </div>
+                                            <h4 className="text-center font-bold text-gray-800 dark:text-gray-200 mb-8 break-words w-full px-2">{selectedItem.name}</h4>
+
+                                            <div className="w-full space-y-4">
+                                                <h5 className="text-[11px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-gray-800 pb-2">{t('properties') || 'Properties'}</h5>
+                                                <div className="flex flex-col gap-3.5 text-sm">
+                                                    <div className="flex justify-between items-start gap-4">
+                                                        <span className="text-gray-500 dark:text-gray-400 flex-shrink-0">{t('type') || 'Type'}</span>
+                                                        <span className="text-gray-800 dark:text-gray-200 font-medium capitalize text-right">{mediaType}</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-start gap-4">
+                                                        <span className="text-gray-500 dark:text-gray-400 flex-shrink-0">{t('size') || 'Size'}</span>
+                                                        <span className="text-gray-800 dark:text-gray-200 font-medium text-right">{!isFile ? '--' : formatBytes(selectedItem.size)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-start gap-4">
+                                                        <span className="text-gray-500 dark:text-gray-400 flex-shrink-0">{t('modified') || 'Modified'}</span>
+                                                        <span className="text-gray-800 dark:text-gray-200 font-medium text-right break-words">{formatDate(selectedItem.date)}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                } else if (selectedItemCount > 1) {
+                                    return (
+                                        <div className="flex flex-col items-center justify-center h-full text-gray-500 space-y-4 pt-10">
+                                            <div className="p-5 bg-blue-50 dark:bg-blue-900/20 rounded-full text-blue-500">
+                                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                                            </div>
+                                            <p className="text-center font-medium text-gray-700 dark:text-gray-300">
+                                                {selectedItemCount} {(t('itemsWord') || 'items')} selected
+                                            </p>
+                                        </div>
+                                    );
+                                } else {
+                                    return (
+                                        <div className="flex flex-col items-center justify-center h-full text-gray-500 space-y-4 pt-10">
+                                            <div className="p-5 bg-gray-50 dark:bg-[#2a2a2a] rounded-full text-gray-400">
+                                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-70"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="font-semibold text-gray-700 dark:text-gray-300">{getCurrentFolderName()}</p>
+                                                <p className="text-sm mt-1.5 text-gray-400">{items.length} {(t('itemsWord') || 'items')} total</p>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+                            })()}
+                        </div>
                     </div>
                 )}
-            </div>
-
-            {/* Details Sidebar */}
-            {showDetailsSidebar && (
-                <div className="w-80 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1f1f1f] flex flex-col shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] z-20 flex-shrink-0">
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-                        <h3 className="font-semibold text-gray-800 dark:text-gray-200">{t('details') || 'Details'}</h3>
-                        <button onClick={() => setShowDetailsSidebar(false)} className="p-1 text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-                            <Image src="/icons/close.svg" alt="" width={16} height={16} className="dark:invert opacity-60 hover:opacity-100" />
-                        </button>
-                    </div>
-                    <div className="flex-1 overflow-y-auto p-5">
-                        {(() => {
-                            if (selectedItemCount === 1) {
-                                const selectedId = Array.from(selectedFileIds)[0];
-                                const selectedItem = items.find((i) => i.id === selectedId);
-                                if (!selectedItem) return null;
-                                const isFile = selectedItem.type === 'file' || (selectedItem.type !== 'folder' && selectedItem.node_type !== 'N' && selectedItem.node_type !== 'F');
-                                const mediaType = !isFile ? 'folder' : getMediaType(selectedItem);
-                                return (
-                                    <div className="flex flex-col items-center">
-                                        <div className={`w-32 h-32 flex items-center justify-center rounded-2xl mb-5 ${isFile ? getFileColorClass(selectedItem) : 'text-gray-400 bg-gray-50 dark:bg-[#2a2a2a]'}`}>
-                                            <div className="transform scale-[2.5]">
-                                                {renderIcon(selectedItem, false)}
-                                            </div>
-                                        </div>
-                                        <h4 className="text-center font-bold text-gray-800 dark:text-gray-200 mb-8 break-words w-full px-2">{selectedItem.name}</h4>
-                                        
-                                        <div className="w-full space-y-4">
-                                            <h5 className="text-[11px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-100 dark:border-gray-800 pb-2">{t('properties') || 'Properties'}</h5>
-                                            <div className="flex flex-col gap-3.5 text-sm">
-                                                <div className="flex justify-between items-start gap-4">
-                                                    <span className="text-gray-500 dark:text-gray-400 flex-shrink-0">{t('type') || 'Type'}</span>
-                                                    <span className="text-gray-800 dark:text-gray-200 font-medium capitalize text-right">{mediaType}</span>
-                                                </div>
-                                                <div className="flex justify-between items-start gap-4">
-                                                    <span className="text-gray-500 dark:text-gray-400 flex-shrink-0">{t('size') || 'Size'}</span>
-                                                    <span className="text-gray-800 dark:text-gray-200 font-medium text-right">{!isFile ? '--' : formatBytes(selectedItem.size)}</span>
-                                                </div>
-                                                <div className="flex justify-between items-start gap-4">
-                                                    <span className="text-gray-500 dark:text-gray-400 flex-shrink-0">{t('modified') || 'Modified'}</span>
-                                                    <span className="text-gray-800 dark:text-gray-200 font-medium text-right break-words">{formatDate(selectedItem.date)}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            } else if (selectedItemCount > 1) {
-                                return (
-                                    <div className="flex flex-col items-center justify-center h-full text-gray-500 space-y-4 pt-10">
-                                        <div className="p-5 bg-blue-50 dark:bg-blue-900/20 rounded-full text-blue-500">
-                                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                        </div>
-                                        <p className="text-center font-medium text-gray-700 dark:text-gray-300">
-                                            {selectedItemCount} {(t('itemsWord') || 'items')} selected
-                                        </p>
-                                    </div>
-                                );
-                            } else {
-                                return (
-                                    <div className="flex flex-col items-center justify-center h-full text-gray-500 space-y-4 pt-10">
-                                        <div className="p-5 bg-gray-50 dark:bg-[#2a2a2a] rounded-full text-gray-400">
-                                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-70"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                                        </div>
-                                        <div className="text-center">
-                                            <p className="font-semibold text-gray-700 dark:text-gray-300">{getCurrentFolderName()}</p>
-                                            <p className="text-sm mt-1.5 text-gray-400">{items.length} {(t('itemsWord') || 'items')} total</p>
-                                        </div>
-                                    </div>
-                                );
-                            }
-                        })()}
-                    </div>
-                </div>
-            )}
             </div>
 
             {/* Hidden drag ghost for multi-item drag preview */}
@@ -2403,6 +2484,25 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                         </button>
                     )}
 
+                    {isEditor && contextMenu.item?.type === 'folder' && (
+                        <>
+                            <button
+                                onClick={() => handleContextMenuAction('markFolderVerified')}
+                                className="w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 flex items-center gap-2"
+                            >
+                                <Image src="/icons/select.svg" width={16} height={16} className="dark:invert opacity-70" alt="" />
+                                {t('markFolderVerified') || 'Mark all Verified'}
+                            </button>
+                            <button
+                                onClick={() => handleContextMenuAction('markFolderPending')}
+                                className="w-full text-left px-4 py-2 text-sm text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 flex items-center gap-2"
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-70"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                {t('markFolderPending') || 'Mark all Pending'}
+                            </button>
+                        </>
+                    )}
+
                     {contextMenu.item?.type === 'folder' && (
                         <button
                             onClick={() => handleContextMenuAction('downloadZip')}
@@ -2470,6 +2570,31 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                                         <Image src="/download.svg" width={16} height={16} className="dark:invert" alt="" />
                                         {t('download') || 'Download'}
                                     </button>
+                                    {isEditor && (
+                                        <>
+                                            <button
+                                                onClick={() => handleContextMenuAction('markVerified')}
+                                                className="w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 flex items-center gap-2"
+                                            >
+                                                <Image src="/icons/select.svg" width={16} height={16} className="dark:invert opacity-70" alt="" />
+                                                {t('markVerified') || 'Mark as Verified'}
+                                            </button>
+                                            <button
+                                                onClick={() => handleContextMenuAction('markPending')}
+                                                className="w-full text-left px-4 py-2 text-sm text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 flex items-center gap-2"
+                                            >
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-70"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                                {t('markPending') || 'Mark as Pending'}
+                                            </button>
+                                            <button
+                                                onClick={() => handleContextMenuAction('rerunAnalysis')}
+                                                className="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-2"
+                                            >
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
+                                                {t('rerunAnalysis') || 'Rerun Analysis'}
+                                            </button>
+                                        </>
+                                    )}
                                 </>
                             )}
 
@@ -2520,51 +2645,51 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
             )}
 
             <Suspense fallback={null}>
-            {isHistoryModalOpen && selectedHistoryItem && (
-                <HistoryModal
-                    isOpen={isHistoryModalOpen}
-                    onClose={() => setIsHistoryModalOpen(false)}
-                    docId={selectedHistoryItem.id}
-                    itemName={selectedHistoryItem.name}
-                    t={t}
-                />
-            )}
+                {isHistoryModalOpen && selectedHistoryItem && (
+                    <HistoryModal
+                        isOpen={isHistoryModalOpen}
+                        onClose={() => setIsHistoryModalOpen(false)}
+                        docId={selectedHistoryItem.id}
+                        itemName={selectedHistoryItem.name}
+                        t={t}
+                    />
+                )}
 
-            {showCreateModal && (
-                <CreateFolderModal
-                    onClose={() => setShowCreateModal(false)}
-                    apiURL={apiURL}
-                    t={t}
-                    initialParentId={currentFolderId || ''}
-                    onFolderCreated={() => refreshCurrentView(true)}
-                />
-            )}
+                {showCreateModal && (
+                    <CreateFolderModal
+                        onClose={() => setShowCreateModal(false)}
+                        apiURL={apiURL}
+                        t={t}
+                        initialParentId={currentFolderId || ''}
+                        onFolderCreated={() => refreshCurrentView(true)}
+                    />
+                )}
 
-            {isSecurityModalOpen && selectedSecurityItem && (
-                <SecurityModal
-                    isOpen={isSecurityModalOpen}
-                    onClose={() => setIsSecurityModalOpen(false)}
-                    docId={selectedSecurityItem.id}
-                    library="RTA_MAIN"
-                    itemName={selectedSecurityItem.name}
-                    t={t}
-                />
-            )}
+                {isSecurityModalOpen && selectedSecurityItem && (
+                    <SecurityModal
+                        isOpen={isSecurityModalOpen}
+                        onClose={() => setIsSecurityModalOpen(false)}
+                        docId={selectedSecurityItem.id}
+                        library="RTA_MAIN"
+                        itemName={selectedSecurityItem.name}
+                        t={t}
+                    />
+                )}
 
-            {isShareModalOpen && itemToShare && (
-                <ShareModal
-                    isOpen={isShareModalOpen}
-                    onClose={() => {
-                        setIsShareModalOpen(false);
-                        setItemToShare(null);
-                    }}
-                    documentId={itemToShare.type !== 'folder' ? itemToShare.id : undefined}
-                    folderId={itemToShare.type === 'folder' ? itemToShare.id : undefined}
-                    documentName={itemToShare.name}
-                    itemType={itemToShare.type === 'folder' ? 'folder' : 'file'}
-                    t={t}
-                />
-            )}
+                {isShareModalOpen && itemToShare && (
+                    <ShareModal
+                        isOpen={isShareModalOpen}
+                        onClose={() => {
+                            setIsShareModalOpen(false);
+                            setItemToShare(null);
+                        }}
+                        documentId={itemToShare.type !== 'folder' ? itemToShare.id : undefined}
+                        folderId={itemToShare.type === 'folder' ? itemToShare.id : undefined}
+                        documentName={itemToShare.name}
+                        itemType={itemToShare.type === 'folder' ? 'folder' : 'file'}
+                        t={t}
+                    />
+                )}
             </Suspense>
 
             {confirmModalOpen && (

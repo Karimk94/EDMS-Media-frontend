@@ -498,5 +498,17 @@
   "folderUploadDetected": "Folder detected:",
   "eventCreated": "Event created successfully",
   "eventFound": "Found existing event, adding files to it",
-  "newFolder": "New Folder"
+  "newFolder": "New Folder",
+  "statusPending": "Not Analysed Yet",
+  "statusReady": "Ready to Verify",
+  "statusVerified": "Completed",
+  "markVerified": "Mark as Completed",
+  "markPending": "Mark as Not Analysed",
+  "rerunAnalysis": "Rerun Analysis",
+  "analysisQueued": "Document queued for analysis",
+  "errorQueuingAnalysis": "Error queuing analysis",
+  "markFolderVerified": "Mark contents Completed",
+  "markFolderPending": "Mark contents Not Analysed",
+  "statusUpdated": "Status updated successfully",
+  "errorUpdatingStatus": "Error updating status"
 }

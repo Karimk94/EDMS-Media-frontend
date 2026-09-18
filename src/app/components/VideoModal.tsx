@@ -10,6 +10,7 @@ import { LoadingButton } from './LoadingButton';
 import { ModalNavigationBar } from './ModalNavigationBar';
 import { ReadOnlyTagDisplay } from './ReadOnlyTagDisplay';
 import { TagEditor } from './TagEditor';
+import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 
 const safeParseDate = (dateString: string): Date | null => {
   if (!dateString || dateString === "N/A") return null;
@@ -70,8 +71,8 @@ export const VideoModal: React.FC<VideoModalProps> = ({
   const [initialDate, setInitialDate] = useState<Date | null>(safeParseDate(doc.date));
 
   const [isEditingAbstract, setIsEditingAbstract] = useState(false);
-  const [abstract, setAbstract] = useState(doc.title || '');
-  const [initialAbstract, setInitialAbstract] = useState(doc.title || '');
+  const [abstract, setAbstract] = useState(doc.abstract || doc.title || '');
+  const [initialAbstract, setInitialAbstract] = useState(doc.abstract || doc.title || '');
 
   const [isFavorite, setIsFavorite] = useState(doc.is_favorite);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -83,15 +84,34 @@ export const VideoModal: React.FC<VideoModalProps> = ({
     setIsFavorite(doc.is_favorite);
   }, [doc.is_favorite]);
 
+  const { data: metaData } = useDocumentMetadata(doc.doc_id, {
+    enabled: !!doc.doc_id,
+  });
+
   useEffect(() => {
-    setAbstract(doc.title || '');
-    setInitialAbstract(doc.title || '');
+    if (metaData) {
+      if (!isEditingAbstract) {
+        setAbstract(metaData.abstract || '');
+        setInitialAbstract(metaData.abstract || '');
+      }
+      if (!isEditingDate && metaData.date) {
+        const parsed = safeParseDate(metaData.date);
+        setDocumentDate(parsed);
+        setInitialDate(parsed);
+      }
+    }
+  }, [metaData, isEditingAbstract, isEditingDate]);
+
+  useEffect(() => {
+    const initialText = doc.abstract !== undefined && doc.abstract !== null ? doc.abstract : (doc.title || '');
+    setAbstract(initialText);
+    setInitialAbstract(initialText);
     const newDate = safeParseDate(doc.date);
     setDocumentDate(newDate);
     setInitialDate(newDate);
     setIsEditingAbstract(false);
     setIsEditingDate(false);
-  }, [doc.title, doc.date]);
+  }, [doc.doc_id, doc.abstract, doc.title, doc.date]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

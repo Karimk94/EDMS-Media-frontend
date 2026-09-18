@@ -16,7 +16,7 @@ export default function SecurityModal({ isOpen, onClose, docId, library, itemNam
   const { user } = useAuth();
   const currentUsername = user?.username;
 
-  const { data: trusteesData, isLoading: isLoadingTrustees } = useTrustees(parseInt(docId));
+  const { data: trusteesData, isLoading: isLoadingTrustees } = useTrustees(parseInt(String(docId), 10));
   const [trustees, setTrustees] = useState<Trustee[]>([]);
   const [saving, setSaving] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -237,7 +237,7 @@ export default function SecurityModal({ isOpen, onClose, docId, library, itemNam
       }
 
       await updateSecurity({
-        docId: parseInt(docId),
+        docId: parseInt(String(docId), 10),
         library: library || 'RTA_MAIN',
         trustees: updatedTrustees,
         security_enabled: '1'

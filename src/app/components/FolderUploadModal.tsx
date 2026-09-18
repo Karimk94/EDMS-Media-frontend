@@ -360,6 +360,8 @@ export const FolderUploadModal: React.FC<FolderUploadModalProps> = ({ onClose, a
       eventId = createdEventId;
     }
 
+    const successfulDocnumbers: number[] = [];
+
     const uploadPromises = pendingFiles.map(uploadableFile => {
       return new Promise<void>(async (resolve) => {
         const { id, file, editedFileName, editedDateTaken } = uploadableFile;
@@ -396,7 +398,11 @@ export const FolderUploadModal: React.FC<FolderUploadModalProps> = ({ onClose, a
               const response = JSON.parse(xhr.responseText);
               if (response.success) {
                 updateFileStatus(id, 'success', { progress: 100, docnumber: response.docnumber });
-                
+                // Collect here — not from state — so we capture the live response value
+                if (response.docnumber != null) {
+                  successfulDocnumbers.push(Number(response.docnumber));
+                }
+
                 // Link document to event if we have an event ID
                 if (eventId && response.docnumber) {
                   await linkDocumentToEvent(response.docnumber, eventId);
@@ -437,11 +443,7 @@ export const FolderUploadModal: React.FC<FolderUploadModalProps> = ({ onClose, a
     queryClient.invalidateQueries({ queryKey: ['folders'] });
     setIsUploading(false);
 
-    // Collect successfully uploaded docnumbers and notify parent for processing status tracking
-    const successfulDocnumbers = files
-      .filter(f => f.status === 'success' && f.docnumber != null)
-      .map(f => f.docnumber as number);
-    
+    // Notify parent so processingDocs tracking activates the folder-polling hook
     if (onUploadSuccess && successfulDocnumbers.length > 0) {
       onUploadSuccess(successfulDocnumbers);
     }

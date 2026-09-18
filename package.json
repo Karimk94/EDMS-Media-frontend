@@ -37,5 +37,10 @@
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.9.2"
+  },
+  "allowScripts": {
+    "exifreader@4.32.0": true,
+    "sharp@0.34.5": true,
+    "unrs-resolver@1.11.1": true
   }
 }

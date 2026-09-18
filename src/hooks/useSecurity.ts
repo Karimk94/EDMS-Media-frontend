@@ -12,8 +12,8 @@ interface UpdateSecurityParams {
 
 interface GenerateShareLinkParams {
     itemType: 'file' | 'folder';
-    documentId?: string;
-    folderId?: string;
+    documentId?: string | number;
+    folderId?: string | number;
     documentName: string;
     expiryDate: string | null;
     shareMode: 'open' | 'restricted';
@@ -60,7 +60,7 @@ export function useSecurityMutation() {
             if (itemType === 'folder') {
                 payload.folder_id = folderId;
             } else {
-                payload.document_id = documentId ? parseInt(documentId) : 0;
+                payload.document_id = documentId ? parseInt(String(documentId), 10) : 0;
             }
 
             if (shareMode === 'restricted') {

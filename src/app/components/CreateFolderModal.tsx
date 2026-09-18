@@ -9,7 +9,7 @@ import { CreateFolderModalProps } from '../../interfaces/PropsInterfaces';
 export const CreateFolderModal: React.FC<CreateFolderModalProps> = ({ onClose, apiURL, onFolderCreated, t, initialParentId = '' }) => {
   const [folderName, setFolderName] = useState('');
   const [description, setDescription] = useState('');
-  const parentId = initialParentId;
+  const parentId = String(initialParentId);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { showToast } = useToast();
   const createFolderMutation = useCreateFolder();

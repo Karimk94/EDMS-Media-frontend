@@ -6,7 +6,7 @@ import Image from 'next/image';
 interface HistoryModalProps {
     isOpen: boolean;
     onClose: () => void;
-    docId: string;
+    docId: string | number;
     itemName: string;
     t: Function;
 }

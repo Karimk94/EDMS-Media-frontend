@@ -226,8 +226,8 @@ export interface PowerPointModalProps extends EnhancedModalProps {
 export interface ShareModalProps {
     isOpen: boolean;
     onClose: () => void;
-    documentId?: string;
-    folderId?: string;
+    documentId?: string | number;
+    folderId?: string | number;
     documentName: string;
     itemType?: 'file' | 'folder';
     t: Function;
@@ -242,7 +242,7 @@ export interface Trustee {
 export interface SecurityModalProps {
     isOpen: boolean;
     onClose: () => void;
-    docId: string;
+    docId: string | number;
     library: string;
     itemName: string;
     t: Function;
@@ -283,7 +283,7 @@ export interface CreateFolderModalProps {
     apiURL: string;
     onFolderCreated: () => void;
     t: Function;
-    initialParentId?: string;
+    initialParentId?: string | number;
 }
 
 export interface AdvancedFiltersProps {

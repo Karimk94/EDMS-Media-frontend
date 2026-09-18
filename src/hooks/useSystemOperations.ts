@@ -43,7 +43,20 @@ export function useClearCache() {
 export function useProcessDocuments() {
     return useMutation<void, Error, ProcessDocumentsParams>({
         mutationFn: async ({ docnumbers, apiURL }) => {
-            await apiClient.post(`${apiURL}/process_uploaded_documents`, { docnumbers });
+            await apiClient.post(`${apiURL}/process_uploaded_documents`, { docnumbers, source: 'edms-media' });
+        },
+    });
+}
+
+interface RerunAnalysisParams {
+    docId: number | string;
+    apiURL: string;
+}
+
+export function useRerunAnalysis() {
+    return useMutation<void, Error, RerunAnalysisParams>({
+        mutationFn: async ({ docId, apiURL }) => {
+            await apiClient.post(`${apiURL}/documents/${docId}/rerun-analysis`);
         },
     });
 }

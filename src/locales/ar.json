@@ -497,5 +497,18 @@
   "folderUploadDetected": "تم اكتشاف مجلد:",
   "eventCreated": "تم إنشاء الحدث بنجاح",
   "eventFound": "تم العثور على حدث موجود، إضافة الملفات إليه",
-  "newFolder": "مجلد جديد"
+  "folderUploadInfo": "سيتم إنشاء مجلد وحدث جديد بهذا الاسم، وسيتم رفع جميع الملفات إليه.",
+  "newFolder": "مجلد جديد",
+  "statusPending": "لم يتم تحليله بعد",
+  "statusReady": "جاهز للمراجعة",
+  "statusVerified": "مكتمل",
+  "markVerified": "تحديد كمكتمل",
+  "markPending": "تعيين كغير محلل",
+  "rerunAnalysis": "إعادة تشغيل التحليل",
+  "analysisQueued": "تمت إضافة المستند إلى قائمة انتظار التحليل",
+  "errorQueuingAnalysis": "حدث خطأ أثناء وضع التحليل في قائمة الانتظار",
+  "markFolderVerified": "تحديد محتويات المجلد كمكتملة",
+  "markFolderPending": "تحديد محتويات المجلد كغير محللة",
+  "statusUpdated": "تم تحديث الحالة بنجاح",
+  "errorUpdatingStatus": "خطأ في تحديث الحالة"
 }

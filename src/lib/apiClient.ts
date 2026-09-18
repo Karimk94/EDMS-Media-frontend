@@ -128,7 +128,10 @@ async function handleResponse(response: Response): Promise<any> {
     if (response.status === 401) {
         // Auto-redirect to login on 401
         if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-            window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+            const path = window.location.pathname;
+            const search = window.location.search;
+            const redirectParam = (path === '/' && !search) ? '' : `?redirect=${encodeURIComponent(path + search)}`;
+            window.location.href = `/login${redirectParam}`;
         }
         throw new ApiError('Unauthorized', 401);
     }
@@ -170,7 +173,7 @@ const DEFAULT_HEADERS: Record<string, string> = {
 };
 
 export const apiClient = {
-    async get(url: string, options?: RequestInit): Promise<any> {
+    async get<T = any>(url: string, options?: RequestInit): Promise<T> {
         return fetchWithRetry(async () => {
             const response = await fetch(url, {
                 ...options,
@@ -182,7 +185,7 @@ export const apiClient = {
         }, 'GET');
     },
 
-    async post(url: string, body?: any, options?: RequestInit): Promise<any> {
+    async post<T = any>(url: string, body?: any, options?: RequestInit): Promise<T> {
         return fetchWithRetry(async () => {
             const isFormData = body instanceof FormData;
             const response = await fetch(url, {
@@ -198,7 +201,7 @@ export const apiClient = {
         }, 'POST');
     },
 
-    async put(url: string, body?: any, options?: RequestInit): Promise<any> {
+    async put<T = any>(url: string, body?: any, options?: RequestInit): Promise<T> {
         return fetchWithRetry(async () => {
             const response = await fetch(url, {
                 ...options,
@@ -211,7 +214,7 @@ export const apiClient = {
         }, 'PUT');
     },
 
-    async delete(url: string, options?: RequestInit): Promise<any> {
+    async delete<T = any>(url: string, options?: RequestInit): Promise<T> {
         return fetchWithRetry(async () => {
             const response = await fetch(url, {
                 ...options,
@@ -236,7 +239,10 @@ export const apiClient = {
             });
             if (response.status === 401) {
                 if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-                    window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+                    const path = window.location.pathname;
+                    const search = window.location.search;
+                    const redirectParam = (path === '/' && !search) ? '' : `?redirect=${encodeURIComponent(path + search)}`;
+                    window.location.href = `/login${redirectParam}`;
                 }
                 throw new ApiError('Unauthorized', 401);
             }

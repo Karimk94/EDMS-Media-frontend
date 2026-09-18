@@ -148,14 +148,25 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
     // Auth redirect
     useEffect(() => {
         if (!isAuthenticated && !isLoadingUser) {
+            if (typeof window !== 'undefined' && window.location.pathname.startsWith('/login')) {
+                return;
+            }
+
             const currentLang = searchParams.get('lang');
             const currentTheme = searchParams.get('theme');
             const params = new URLSearchParams();
             if (currentLang) params.set('lang', currentLang);
             if (currentTheme) params.set('theme', currentTheme);
-            params.set('redirect', window.location.pathname + window.location.search);
+
+            if (typeof window !== 'undefined') {
+                const currentPath = window.location.pathname;
+                if (currentPath !== '/' && !currentPath.startsWith('/login')) {
+                    params.set('redirect', currentPath + window.location.search);
+                }
+            }
+
             const queryString = params.toString();
-            router.push(queryString ? `/login?${queryString}` : '/login');
+            router.replace(queryString ? `/login?${queryString}` : '/login');
         }
     }, [isAuthenticated, isLoadingUser, router, searchParams]);
 
@@ -251,6 +262,11 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
 
     const handleUpdateMetadataSuccess = () => {
         queryClient.invalidateQueries({ queryKey: ['documents'] });
+        // If the user is inside a folder, also refresh the folder grid so
+        // updated labels / review-status badges appear immediately.
+        if (activeSection === 'folders') {
+            queryClient.invalidateQueries({ queryKey: ['folders'] });
+        }
         documentModals.closeAll();
     };
 
@@ -297,6 +313,7 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
                         isEditor={isSectionWritable('folders')}
                         initialFolderId={initialFolderId}
                         externalRefreshTrigger={folderRefreshTrigger}
+                        processingDocs={processingDocs}
                     />
                 </Suspense>
             );

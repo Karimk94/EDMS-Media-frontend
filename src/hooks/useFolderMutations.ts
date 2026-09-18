@@ -9,21 +9,21 @@ interface CreateFolderParams {
 }
 
 interface RenameFolderParams {
-    id: string;
+    id: string | number;
     name: string;
     system_id: string;
     apiURL?: string;
 }
 
 interface DeleteFolderParams {
-    id: string;
+    id: string | number;
     force?: boolean;
     apiURL?: string;
 }
 
 interface MoveItemsParams {
-    item_ids: string[];
-    destination_parent_id: string | null;
+    item_ids: (string | number)[];
+    destination_parent_id: string | number | null;
     item_names: Record<string, string>;
     apiURL?: string;
 }
@@ -83,8 +83,8 @@ export function useMoveItemsMutation() {
     return useMutation({
         mutationFn: async ({ item_ids, destination_parent_id, item_names, apiURL = '/api' }: MoveItemsParams) => {
             return apiClient.post(`${apiURL}/folders/move-items`, {
-                item_ids,
-                destination_parent_id,
+                item_ids: item_ids.map(String),
+                destination_parent_id: destination_parent_id !== null ? String(destination_parent_id) : null,
                 item_names,
             });
         },

@@ -2,7 +2,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { apiClient } from '../lib/apiClient';
 
 export interface FolderItem {
-    id: string;
+    id: string | number;
     system_id: string
     name: string;
     type: 'folder' | 'item' | 'file';
@@ -21,7 +21,7 @@ interface FoldersResponse {
 }
 
 interface UseFolderContentsParams {
-    parentId: string | null;
+    parentId: string | number | null;
     searchTerm: string;
     apiURL: string;
     isEnabled?: boolean;
@@ -37,7 +37,7 @@ export function useFolderContents({
         queryKey: ['folders', parentId, searchTerm],
         queryFn: async (): Promise<FoldersResponse> => {
             const params = new URLSearchParams();
-            if (parentId) params.append('parent_id', parentId);
+            if (parentId) params.append('parent_id', String(parentId));
 
             params.append('scope', 'folders');
 

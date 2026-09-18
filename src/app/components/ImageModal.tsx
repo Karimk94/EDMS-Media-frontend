@@ -13,6 +13,10 @@ import { LoadingButton } from './LoadingButton';
 import { ModalNavigationBar } from './ModalNavigationBar';
 import { ReadOnlyTagDisplay } from './ReadOnlyTagDisplay';
 import { TagEditor } from './TagEditor';
+import { useReviewStatus } from '../../hooks/useReviewStatus';
+import { useRerunAnalysis } from '../../hooks/useSystemOperations';
+import { useToast } from '../context/ToastContext';
+import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 
 const safeParseDate = (dateString: string): Date | null => {
   if (!dateString || dateString === "N/A") return null;
@@ -86,13 +90,43 @@ export const ImageModal: React.FC<ImageModalProps> = ({
   const [initialDate, setInitialDate] = useState<Date | null>(safeParseDate(doc.date));
 
   const [isEditingAbstract, setIsEditingAbstract] = useState(false);
-  const [abstract, setAbstract] = useState(doc.title || '');
-  const [initialAbstract, setInitialAbstract] = useState(doc.title || '');
+  const [abstract, setAbstract] = useState(doc.abstract || doc.title || '');
+  const [initialAbstract, setInitialAbstract] = useState(doc.abstract || doc.title || '');
 
   const [isFavorite, setIsFavorite] = useState(doc.is_favorite);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   const { download, isDownloading } = useDownload();
+  const { setDocumentStatus } = useReviewStatus([doc.doc_id], apiURL, isEditor);
+  const { mutateAsync: rerunAnalysis } = useRerunAnalysis();
+  const { showToast } = useToast();
+
+  const handleMarkVerified = async () => {
+    try {
+      await setDocumentStatus({ docId: doc.doc_id, status: 'verified' });
+      showToast(t('statusUpdated') || 'Status updated successfully', 'success');
+    } catch (e: any) {
+      showToast(t('errorUpdatingStatus') || 'Error updating status', 'error');
+    }
+  };
+
+  const handleMarkPending = async () => {
+    try {
+      await setDocumentStatus({ docId: doc.doc_id, status: 'pending' });
+      showToast(t('statusUpdated') || 'Status updated successfully', 'success');
+    } catch (e: any) {
+      showToast(t('errorUpdatingStatus') || 'Error updating status', 'error');
+    }
+  };
+
+  const handleRerunAnalysis = async () => {
+    try {
+      await rerunAnalysis({ docId: doc.doc_id, apiURL });
+      showToast(t('analysisQueued') || 'Document queued for analysis', 'success');
+    } catch (e: any) {
+      showToast(t('errorQueuingAnalysis') || 'Error queuing analysis', 'error');
+    }
+  };
 
   useEffect(() => {
     const previousImageSrc = lastImageSrcRef.current;
@@ -135,15 +169,34 @@ export const ImageModal: React.FC<ImageModalProps> = ({
     setIsFavorite(doc.is_favorite);
   }, [doc.is_favorite]);
 
+  const { data: metaData } = useDocumentMetadata(doc.doc_id, {
+    enabled: !!doc.doc_id,
+  });
+
   useEffect(() => {
-    setAbstract(doc.title || '');
-    setInitialAbstract(doc.title || '');
+    if (metaData) {
+      if (!isEditingAbstract) {
+        setAbstract(metaData.abstract || '');
+        setInitialAbstract(metaData.abstract || '');
+      }
+      if (!isEditingDate && metaData.date) {
+        const parsed = safeParseDate(metaData.date);
+        setDocumentDate(parsed);
+        setInitialDate(parsed);
+      }
+    }
+  }, [metaData, isEditingAbstract, isEditingDate]);
+
+  useEffect(() => {
+    const initialText = doc.abstract !== undefined && doc.abstract !== null ? doc.abstract : (doc.title || '');
+    setAbstract(initialText);
+    setInitialAbstract(initialText);
     const newDate = safeParseDate(doc.date);
     setDocumentDate(newDate);
     setInitialDate(newDate);
     setIsEditingAbstract(false);
     setIsEditingDate(false);
-  }, [doc.title, doc.date]);
+  }, [doc.doc_id, doc.abstract, doc.title, doc.date]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -307,9 +360,20 @@ export const ImageModal: React.FC<ImageModalProps> = ({
           <div className="flex items-center gap-2 flex-shrink-0 ml-4">
             {/* Download Button */}
             {isEditor && (
-            <LoadingButton onClick={handleDownload} isLoading={isDownloading} loadingText={null} spinnerSize="sm" className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors`} title="Download">
-              <Image src="/download.svg" alt="Download" width={24} height={24} className="dark:invert" />
-            </LoadingButton>
+            <>
+              <button onClick={handleMarkVerified} className={`p-2 rounded-full hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors text-green-600 flex items-center`} title={t('markVerified') || 'Mark as Verified'}>
+                <Image src="/icons/select.svg" width={24} height={24} className="dark:invert opacity-70" alt="" />
+              </button>
+              <button onClick={handleMarkPending} className={`p-2 rounded-full hover:bg-yellow-100 dark:hover:bg-yellow-900/30 transition-colors text-yellow-600 flex items-center`} title={t('markPending') || 'Mark as Pending'}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-70"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              </button>
+              <button onClick={handleRerunAnalysis} className={`p-2 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-blue-600 flex items-center`} title={t('rerunAnalysis') || 'Rerun Analysis'}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
+              </button>
+              <LoadingButton onClick={handleDownload} isLoading={isDownloading} loadingText={null} spinnerSize="sm" className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ml-2 border-l border-gray-300 dark:border-gray-600 pl-4`} title="Download">
+                <Image src="/download.svg" alt="Download" width={24} height={24} className="dark:invert" />
+              </LoadingButton>
+            </>
             )}
 
             {/* Full Screen Button */}
