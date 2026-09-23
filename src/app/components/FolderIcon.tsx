@@ -1,6 +1,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { useFolderPreviews } from '../../hooks/useFolderPreviews';
+import { ThumbnailImage } from './ThumbnailImage';
 
 import { FolderItem } from '../../hooks/useFolderContents';
 interface FolderIconProps {
@@ -8,29 +9,33 @@ interface FolderIconProps {
     apiURL: string;
     isStandard?: boolean;
     renderDefaultIcon: (item: FolderItem, isStandard?: boolean) => React.ReactNode;
+    /** Incremented to bust browser-cached thumbnails after processing completes. */
+    thumbnailRefreshKey?: number;
 }
 
-export const FolderIcon: React.FC<FolderIconProps> = ({ item, apiURL, isStandard = false, renderDefaultIcon }) => {
+export const FolderIcon: React.FC<FolderIconProps> = ({ item, apiURL, isStandard = false, renderDefaultIcon, thumbnailRefreshKey = 0 }) => {
     const { data: previewIds } = useFolderPreviews(item.id, apiURL, isStandard || item.type !== 'folder');
 
     if (!previewIds || previewIds.length === 0) {
         return <>{renderDefaultIcon(item, isStandard)}</>;
     }
 
-    // Grid of up to 4 thumbnails
+    // Grid of up to 4 thumbnails. The ThumbnailImage component transparently
+    // retries on error (with backoff) so previews appear once the backend has
+    // generated them on-demand — no manual refresh needed.
     const displayIds = previewIds.slice(0, 4);
-    
+
     return (
         <div className="w-14 h-14 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden grid grid-cols-2 grid-rows-2 gap-0.5 border-2 border-white dark:border-gray-600 shadow-sm relative">
             {displayIds.map((id, index) => (
                 <div key={id} className="relative w-full h-full bg-gray-300 dark:bg-gray-600">
-                    <Image
+                    <ThumbnailImage
                         src={`${apiURL}/cache/${id}.jpg`}
                         alt={`Preview ${index}`}
-                        fill
-                        className="object-cover"
-                        sizes="28px"
-                        unoptimized={true}
+                        className="object-cover w-full h-full"
+                        fallbackSrc="/file-image.svg"
+                        fallbackClassName="w-full h-full object-contain opacity-50"
+                        refreshKey={thumbnailRefreshKey}
                     />
                 </div>
             ))}

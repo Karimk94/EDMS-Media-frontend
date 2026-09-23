@@ -21,6 +21,10 @@ export function useDocumentMutations() {
         },
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['documents'] });
+            // Invalidate the per-document metadata cache so the modal (and any
+            // reopen) reflects the freshly saved abstract/date instead of the
+            // stale cached value (staleTime is 10s in useDocumentMetadata).
+            queryClient.invalidateQueries({ queryKey: ['documentMetadata', variables.doc_id] });
         },
     });
 

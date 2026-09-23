@@ -26,7 +26,6 @@ interface UserContextType {
     user: User | undefined;
     isLoading: boolean;
     isAuthenticated: boolean;
-    isEditor: boolean;
     login: (credentials: any) => Promise<any>;
     logout: () => Promise<void>;
     currentLang: 'en' | 'ar';
@@ -100,6 +99,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         })()
         : allSections; // Default: show all if no permissions data yet
 
+    // Write access is determined ENTIRELY by per-tab permissions
+    // (tab_permissions.can_write). The global security_level (Editor/Viewer)
+    // has no power here — each tab's access is controlled independently.
+    // When tab_permissions are not yet loaded, default to no write access.
     const writableSections: SectionKey[] = user?.tab_permissions
         ? (() => {
             const writable = user.tab_permissions
@@ -112,13 +115,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             }
             return writable;
         })()
-        : (user?.security_level === 'Editor' || user?.security_level === 'Admin' ? allSections : []);
+        : [];
 
     const value = {
         user,
         isLoading: isLoadingUser,
         isAuthenticated,
-        isEditor: user?.security_level === 'Editor' || user?.security_level === 'Admin',
         login,
         logout,
         currentLang,

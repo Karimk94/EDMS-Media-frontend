@@ -2,6 +2,7 @@
   "recentlyAdded": "المضافة مؤخرا",
   "favorites": "المفضلة",
   "search": "بحث...",
+  "searchInFolder": "ابحث بالاسم أو المحتوى...",
   "upload": "تحميل",
   "logout": "تسجيل الخروج",
   "tags": "الوسوم",
@@ -55,6 +56,8 @@
   "analyzeForFaces": "تحليل الوجوه",
   "noTitle": "لا يوجد عنوان متاح.",
   "processing": "جاري المعالجة...",
+  "processingXOfY": "{{done}}/{{total}}",
+  "processingFolder": "جاري معالجة المجلد...",
   "quotaUsed": "المستخدم",
   "quotaRemaining": "المتبقي",
   "quotaTotal": "الإجمالي",
@@ -510,5 +513,7 @@
   "markFolderVerified": "تحديد محتويات المجلد كمكتملة",
   "markFolderPending": "تحديد محتويات المجلد كغير محللة",
   "statusUpdated": "تم تحديث الحالة بنجاح",
-  "errorUpdatingStatus": "خطأ في تحديث الحالة"
+  "errorUpdatingStatus": "خطأ في تحديث الحالة",
+  "noCompletedDocuments": "لا توجد مستندات مكتملة بعد. ستظهر المستندات هنا بمجرد أن يقوم المحرر بتحديدها كمكتملة.",
+  "viewerReadonlyNotice": "أنت تعمل في وضع القراءة فقط. التحرير متاح للمحررين فقط."
 }

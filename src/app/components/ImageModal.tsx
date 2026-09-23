@@ -185,9 +185,16 @@ export const ImageModal: React.FC<ImageModalProps> = ({
         setInitialDate(parsed);
       }
     }
-  }, [metaData, isEditingAbstract, isEditingDate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metaData]);
 
   useEffect(() => {
+    // When the selected document changes, seed the abstract/date from the doc
+    // object passed in (e.g. from the folder grid) as an immediate placeholder.
+    // The authoritative values come from useDocumentMetadata above, whose effect
+    // will overwrite these once metaData is available. This effect intentionally
+    // only depends on doc.doc_id so it does NOT clobber the metadata-derived
+    // value when other doc fields change.
     const initialText = doc.abstract !== undefined && doc.abstract !== null ? doc.abstract : (doc.title || '');
     setAbstract(initialText);
     setInitialAbstract(initialText);
@@ -196,7 +203,8 @@ export const ImageModal: React.FC<ImageModalProps> = ({
     setInitialDate(newDate);
     setIsEditingAbstract(false);
     setIsEditingDate(false);
-  }, [doc.doc_id, doc.abstract, doc.title, doc.date]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc.doc_id]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -361,11 +369,11 @@ export const ImageModal: React.FC<ImageModalProps> = ({
             {/* Download Button */}
             {isEditor && (
             <>
-              <button onClick={handleMarkVerified} className={`p-2 rounded-full hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors text-green-600 flex items-center`} title={t('markVerified') || 'Mark as Verified'}>
-                <Image src="/icons/select.svg" width={24} height={24} className="dark:invert opacity-70" alt="" />
+              <button onClick={handleMarkVerified} className={`p-2 rounded-full hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors flex items-center`} title={t('markVerified') || 'Mark as Completed'}>
+                <Image src="/icons/status-completed.svg" width={24} height={24} alt="" />
               </button>
-              <button onClick={handleMarkPending} className={`p-2 rounded-full hover:bg-yellow-100 dark:hover:bg-yellow-900/30 transition-colors text-yellow-600 flex items-center`} title={t('markPending') || 'Mark as Pending'}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-70"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              <button onClick={handleMarkPending} className={`p-2 rounded-full hover:bg-yellow-100 dark:hover:bg-yellow-900/30 transition-colors flex items-center`} title={t('markPending') || 'Mark as Not Analysed'}>
+                <Image src="/icons/status-pending.svg" width={24} height={24} alt="" />
               </button>
               <button onClick={handleRerunAnalysis} className={`p-2 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-blue-600 flex items-center`} title={t('rerunAnalysis') || 'Rerun Analysis'}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
@@ -466,12 +474,12 @@ export const ImageModal: React.FC<ImageModalProps> = ({
                           </div>
                         ) : (
                           <div className="flex items-start justify-between">
-                            <p className={`text-sm ${textMuted} mt-1 pr-4`}>{abstract || t('noAbstract')}</p>
+                            <p className={`text-sm ${textMuted} mt-1 pr-4 whitespace-pre-wrap break-words`}>{abstract || t('noAbstract')}</p>
                             <button onClick={handleEditAbstract} className={`px-4 py-1 ${buttonBg} ${buttonText} text-xs rounded-md ${buttonHoverBg} flex-shrink-0`}>{t('edit')}</button>
                           </div>
                         )
                       ) : (
-                        <p className={`text-sm ${textMuted} mt-1 pr-4`}>{abstract}</p>
+                        <p className={`text-sm ${textMuted} mt-1 pr-4 whitespace-pre-wrap break-words`}>{abstract}</p>
                       )}
                     </div>
                   )}

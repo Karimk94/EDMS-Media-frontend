@@ -5,6 +5,7 @@ import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react
 import { useAdmin } from '../../hooks/useAdmin';
 import { useDownload } from '../../hooks/useDownload';
 import { FolderItem, useFolderContents } from '../../hooks/useFolderContents';
+import { useFolderContentSearch } from '../../hooks/useFolderContentSearch';
 import { useDeleteFolder, useMoveItemsMutation, useRenameFolder } from '../../hooks/useFolderMutations';
 import { useMoveModalFolders } from '../../hooks/useMoveModalFolders';
 import { useAuth } from '../../hooks/useAuth';
@@ -12,12 +13,15 @@ import { useUserPreferences } from '../../hooks/useUserPreferences';
 import { Document } from '../../models/Document';
 import { useToast } from '../context/ToastContext';
 import { LoadingButton } from './LoadingButton';
+import { Pagination } from './Pagination';
 import { Spinner } from './Spinner';
 import { FolderIcon } from './FolderIcon';
+import { ThumbnailImage } from './ThumbnailImage';
 import { useReviewStatus } from '../../hooks/useReviewStatus';
 import { useRerunAnalysis } from '../../hooks/useSystemOperations';
 import { ReviewStatusBadge } from './ReviewStatusBadge';
 import { useFolderProcessingStatus } from '../../hooks/useFolderProcessingStatus';
+import { useFolderProcessingSummary } from '../../hooks/useFolderProcessingSummary';
 
 // Lazy-loaded modals — only loaded when user opens them via context menu
 const CreateFolderModal = React.lazy(() => import('./CreateFolderModal').then(m => ({ default: m.CreateFolderModal })));
@@ -65,7 +69,7 @@ function formatDate(dateStr?: string): string {
     }).format(date);
 }
 
-export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick, onUploadClick, t, apiURL, isEditor, initialFolderId, externalRefreshTrigger, processingDocs = [] }) => {
+export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick, onUploadClick, t, apiURL, isEditor: isEditorProp, initialFolderId, externalRefreshTrigger, processingDocs = [] }) => {
     const searchParams = useSearchParams();
     const queryClient = useQueryClient();
 
@@ -75,6 +79,14 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
 
     const { user } = useAuth();
     const { updateViewMode, isUpdatingViewMode } = useUserPreferences();
+
+    // A "Viewer" by security level is never treated as an editor inside the
+    // Folders section, even if stale per-tab can_write permission data would
+    // otherwise grant write access. This keeps the completed-only document
+    // filtering consistent with the Recent and Favorites sections, so a viewer
+    // never sees a document before an editor has marked it "Completed".
+    const isViewer = (user?.security_level || '').trim().toLowerCase() === 'viewer';
+    const isEditor = isEditorProp && !isViewer;
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [showDetailsSidebar, setShowDetailsSidebar] = useState(false);
 
@@ -107,18 +119,115 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
 
+    // Pagination state for the folder grid. Reset to 1 whenever the folder or
+    // the search term changes so the user always starts from the first page.
+    const FOLDER_PAGE_SIZE = 60;
+    const [folderPage, setFolderPage] = useState(1);
+
+    // Reset to first page when navigating into a different folder or when the
+    // (debounced) search term changes.
+    useEffect(() => {
+        setFolderPage(1);
+    }, [currentFolderId, debouncedSearchTerm]);
+
+    // Determine the media-type filter for the standard folders so the content
+    // search is scoped correctly (e.g. only videos when inside the Videos folder).
+    const contentSearchMediaType: 'image' | 'video' | 'pdf' | null =
+        currentFolderId === 'images' ? 'image'
+        : currentFolderId === 'videos' ? 'video'
+        : currentFolderId === 'files' ? 'pdf'
+        : null;
+
     const { data, isLoading: isInitialLoading, isFetching } = useFolderContents({
         parentId: currentFolderId,
         searchTerm: debouncedSearchTerm,
-        apiURL
+        apiURL,
+        page: folderPage,
+        pageSize: FOLDER_PAGE_SIZE,
+    });
+
+    // Parallel content + embedding search (reuses the global /api/documents
+    // engine that powers the Recents search). Only runs when there is a search
+    // term. Results are merged with the folder-name matches below.
+    const { data: contentSearchData, isFetching: isContentSearchFetching } = useFolderContentSearch({
+        searchTerm: debouncedSearchTerm,
+        apiURL,
+        page: 1,
+        pageSize: 40,
+        mediaType: contentSearchMediaType,
+        isEnabled: !!debouncedSearchTerm,
     });
 
     const [hiddenItemIds, setHiddenItemIds] = useState<Set<string | number>>(new Set());
-    const items = (data?.contents || []).filter((item) => !hiddenItemIds.has(item.id));
 
-    const docIds = React.useMemo(() => items.filter(item => item.type === 'file').map(item => item.id), [items]);
-    const { statuses: reviewStatuses, setDocumentStatus, setFolderStatus } = useReviewStatus(docIds, apiURL, isEditor);
+    // Merge folder-name matches (from /api/folders) with content/embedding
+    // matches (from /api/documents?scope=folders). When there is no search term
+    // only the folder contents are shown. Duplicate files (matched by both name
+    // and content) are deduplicated, keeping the folder-name match first.
+    const rawItems: FolderItem[] = React.useMemo(() => {
+        const folderContents = data?.contents || [];
+        if (!debouncedSearchTerm) return folderContents;
+
+        const contentMatches = contentSearchData?.contents || [];
+        const seenIds = new Set<string | number>();
+        const merged: FolderItem[] = [];
+
+        for (const item of folderContents) {
+            if (!seenIds.has(item.id)) {
+                seenIds.add(item.id);
+                merged.push(item);
+            }
+        }
+        for (const item of contentMatches) {
+            if (!seenIds.has(item.id)) {
+                seenIds.add(item.id);
+                merged.push(item);
+            }
+        }
+        return merged;
+    }, [data, contentSearchData, debouncedSearchTerm]);
+
+    const totalFolderPages = data?.total_pages || 1;
+
+    // Derive document IDs from the raw folder contents so review statuses can be
+    // fetched regardless of the viewer/editor role.
+    const docIds = React.useMemo(() => rawItems.filter(item => item.type === 'file').map(item => item.id), [rawItems]);
+    const { statuses: reviewStatuses, setDocumentStatus, setFolderStatus, isError: isReviewStatusError } = useReviewStatus(docIds, apiURL, isEditor);
     const { mutateAsync: rerunAnalysis } = useRerunAnalysis();
+
+    // Viewers may only see file documents that have been marked "Completed"
+    // (review status === 'verified') by an editor. Folders/sub-folders remain
+    // visible to viewers regardless of status since they are organizational
+    // containers. Editors see every item. If the review-status request fails,
+    // fail open (show all items) instead of blocking the viewer on a spinner.
+    const items = React.useMemo(() => {
+        const visibleItems = rawItems.filter((item) => !hiddenItemIds.has(item.id));
+        if (isEditor) return visibleItems;
+        // Wait until review statuses have loaded before filtering, otherwise
+        // viewers would briefly see unverified documents on every navigation.
+        if (docIds.length > 0 && Object.keys(reviewStatuses).length === 0 && !isReviewStatusError) return [];
+        if (isReviewStatusError) return visibleItems;
+        return visibleItems.filter((item) => {
+            if (item.type !== 'file') return true; // keep folders/sub-folders
+            return reviewStatuses[item.id] === 'verified';
+        });
+    }, [rawItems, hiddenItemIds, isEditor, reviewStatuses, docIds.length, isReviewStatusError]);
+
+    // True when a viewer is waiting on review-status data before the filtered
+    // file list can be shown. Used to keep the spinner visible (instead of an
+    // empty/incorrect grid) until filtering is complete.
+    const isViewerWaitingForStatus = !isEditor
+        && docIds.length > 0
+        && Object.keys(reviewStatuses).length === 0
+        && !isReviewStatusError;
+
+    // True when a viewer's folder has file items but none are verified — used to
+    // show an explanatory empty state instead of "This folder is empty".
+    const isViewerFilteredEmpty = !isEditor
+        && docIds.length > 0
+        && Object.keys(reviewStatuses).length > 0
+        && items.filter(i => i.type === 'file').length === 0
+        && items.filter(i => i.type !== 'file').length === 0;
 
     // Auto-refresh the folder grid when any file in this folder finishes AI analysis.
     // Only polls when at least one docId here is in the global processingDocs set (opt-in).
@@ -147,6 +256,8 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
     const [isOperationLoading, setIsOperationLoading] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isNavigating, setIsNavigating] = useState(false);
+    // Incremented to bust browser-cached thumbnails after processing completes
+    const [thumbnailRefreshKey, setThumbnailRefreshKey] = useState(0);
     const isLoading = isInitialLoading || isOperationLoading;
 
     // Auto-clear operation loading, refreshing & navigation when fetch settles
@@ -157,6 +268,25 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
             setIsNavigating(false);
         }
     }, [isFetching]);
+
+    // Collect folder IDs visible in the current grid (event folders / user folders).
+    // Used to poll the batch processing-summary endpoint so we can detect when an
+    // uploaded event folder finishes processing all its photos.
+    const visibleFolderIds = React.useMemo(
+        () => userItems.filter(item => item.type === 'folder').map(item => item.id),
+        [userItems]
+    );
+
+    const handleFolderProcessingComplete = useCallback(() => {
+        setThumbnailRefreshKey(prev => prev + 1);
+    }, []);
+
+    const { summaries: folderProcessingSummaries } = useFolderProcessingSummary({
+        folderIds: visibleFolderIds,
+        currentFolderId,
+        apiURL,
+        onFolderComplete: handleFolderProcessingComplete,
+    });
 
     const [showCreateModal, setShowCreateModal] = useState(false);
 
@@ -501,12 +631,23 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                     thumbUrl = `${cleanApiUrl}/${cleanThumb}`;
                 }
             }
+            // Only cache-bust thumbnails for docs that were actually being
+            // processed (their thumbnail may have changed). For all other docs
+            // the thumbnail is immutable, so we let the browser cache it — this
+            // avoids needlessly re-downloading every thumbnail on each refresh.
+            const itemId = typeof item.id === 'string' ? parseInt(item.id, 10) : item.id;
+            const isBeingProcessed = Array.isArray(processingDocs) && itemId != null && !isNaN(itemId) && processingDocs.includes(itemId);
+            const effectiveRefreshKey = isBeingProcessed ? thumbnailRefreshKey : 0;
             return (
                 <div style={{ width: size, height: size }} className="relative overflow-hidden rounded-md flex items-center justify-center">
-                    <img src={thumbUrl} alt={altText} className="object-cover w-full h-full" onError={(e) => {
-                        e.currentTarget.src = '/file-image.svg';
-                        e.currentTarget.className = "w-full h-full object-contain";
-                    }} />
+                    <ThumbnailImage
+                        src={thumbUrl}
+                        alt={altText}
+                        className="object-cover w-full h-full"
+                        fallbackSrc="/file-image.svg"
+                        fallbackClassName="w-full h-full object-contain"
+                        refreshKey={effectiveRefreshKey}
+                    />
                 </div>
             );
         }
@@ -651,12 +792,22 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
             setIsRefreshing(true);
         }
         // Force refetch from server, bypassing stale time cache
-        queryClient.refetchQueries({ queryKey: ['folders', currentFolderId, debouncedSearchTerm] });
+        queryClient.refetchQueries({ queryKey: ['folders', currentFolderId, debouncedSearchTerm, folderPage, FOLDER_PAGE_SIZE] });
+        queryClient.invalidateQueries({ queryKey: ['folder-content-search'] });
         queryClient.invalidateQueries({ queryKey: ['documents'] });
+        // Also refresh review statuses, folder previews, and processing-related caches
+        // so that newly processed items show their AI labels and thumbnails.
+        queryClient.invalidateQueries({ queryKey: ['review_statuses'] });
+        queryClient.invalidateQueries({ queryKey: ['folder_previews'] });
+        queryClient.invalidateQueries({ queryKey: ['folder_processing_status'] });
+        queryClient.invalidateQueries({ queryKey: ['folder_processing_summary'] });
+        queryClient.invalidateQueries({ queryKey: ['processing_status'] });
+        // Bump thumbnail refresh key so cached thumbnails are re-requested
+        setThumbnailRefreshKey(prev => prev + 1);
     };
 
     const updateItemsInCurrentView = (updater: (item: FolderItem) => FolderItem) => {
-        queryClient.setQueryData(['folders', currentFolderId, debouncedSearchTerm], (previous: any) => {
+        queryClient.setQueryData(['folders', currentFolderId, debouncedSearchTerm, folderPage, FOLDER_PAGE_SIZE], (previous: any) => {
             if (!previous?.contents) return previous;
 
             return {
@@ -676,7 +827,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
             return next;
         });
 
-        queryClient.setQueryData(['folders', currentFolderId, debouncedSearchTerm], (previous: any) => {
+        queryClient.setQueryData(['folders', currentFolderId, debouncedSearchTerm, folderPage, FOLDER_PAGE_SIZE], (previous: any) => {
             if (!previous?.contents) return previous;
 
             return {
@@ -1716,13 +1867,18 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                         <div className="relative">
                             <input
                                 type="text"
-                                placeholder={t('search') || "Search in folder..."}
+                                placeholder={t('searchInFolder') || "Search by name or content..."}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="pl-9 pr-8 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#333] text-sm text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 outline-none w-48 transition-all focus:w-64"
                             />
                             <Image src="/search-icon.svg" alt="" width={16} height={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 opacity-60 dark:invert" />
-                            {searchTerm && (
+                            {isContentSearchFetching && (
+                                <div className="absolute right-8 top-1/2 transform -translate-y-1/2">
+                                    <Spinner size="xs" />
+                                </div>
+                            )}
+                            {searchTerm && !isContentSearchFetching && (
                                 <button
                                     onClick={() => { setSearchTerm(''); setDebouncedSearchTerm(''); }}
                                     className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
@@ -1892,6 +2048,10 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                         <div className="py-8">
                             <Spinner size="lg" center label={t('loading') || 'Loading...'} />
                         </div>
+                    ) : isViewerWaitingForStatus ? (
+                        <div className="py-8">
+                            <Spinner size="lg" center label={t('loading') || 'Loading...'} />
+                        </div>
                     ) : (
                         <div className="flex flex-col gap-8">
 
@@ -1930,7 +2090,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
 
                                 <div className="mb-4">
                                     {viewMode === 'grid' ? (
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2">
                                             {userItems.map((item) => {
                                                 const isFile = item.type === 'file';
                                                 const isSelected = selectedFileIds.has(item.id);
@@ -2007,7 +2167,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                                                                 // Stage the move — show confirmation dialog instead of moving immediately
                                                                 setPendingMoveConfirm({ fileIds: idsToMove, destination: item });
                                                             }}
-                                                            className={`group relative flex flex-col items-center p-4 rounded-xl cursor-pointer transition-all duration-200 border hover:bg-gray-50 hover:shadow-sm dark:hover:bg-[#2c2c2c] ${isDragOverTarget ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-500' : isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30' : 'border-transparent hover:border-gray-200 dark:hover:border-gray-700'} ${isFocused ? 'ring-2 ring-blue-400 ring-offset-1 dark:ring-offset-[#1e1e1e]' : ''}`}
+                                                            className={`group relative flex flex-col items-center p-2 rounded-xl cursor-pointer transition-all duration-200 border hover:bg-gray-50 hover:shadow-sm dark:hover:bg-[#2c2c2c] ${isDragOverTarget ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-500' : isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30' : 'border-transparent hover:border-gray-200 dark:hover:border-gray-700'} ${isFocused ? 'ring-2 ring-blue-400 ring-offset-1 dark:ring-offset-[#1e1e1e]' : ''}`}
                                                         >
                                                             {/* Downloading overlay (ZIP download) */}
                                                             {downloadingItemIds.has(item.id) && (
@@ -2040,8 +2200,23 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                                                                     />
                                                                 </label>
                                                             )}
-                                                            <div className="mb-3 transform group-hover:scale-105 transition-transform duration-200 text-gray-400 group-hover:text-blue-500">
-                                                                <FolderIcon item={item} apiURL={apiURL} isStandard={false} renderDefaultIcon={renderIcon} />
+                                                            <div className="mb-2 transform group-hover:scale-105 transition-transform duration-200 text-gray-400 group-hover:text-blue-500 relative">
+                                                                <FolderIcon item={item} apiURL={apiURL} isStandard={false} renderDefaultIcon={renderIcon} thumbnailRefreshKey={thumbnailRefreshKey} />
+                                                                {(() => {
+                                                                    const ps = folderProcessingSummaries[String(item.id)];
+                                                                    if (ps && ps.processing > 0) {
+                                                                        const label = (t('processingXOfY') || '{{done}}/{{total}}')
+                                                                            .replace('{{done}}', String(ps.done))
+                                                                            .replace('{{total}}', String(ps.total));
+                                                                        return (
+                                                                            <div className="absolute -top-1 -right-1 z-10 flex items-center gap-1 bg-blue-500 text-white text-[10px] font-medium px-1.5 py-0.5 rounded-full shadow-sm">
+                                                                                <span className="inline-block w-2 h-2 rounded-full bg-white animate-pulse"></span>
+                                                                                {label}
+                                                                            </div>
+                                                                        );
+                                                                    }
+                                                                    return null;
+                                                                })()}
                                                             </div>
                                                             {itemToRename?.id === item.id ? (
                                                                 <form onSubmit={handleRenameSubmit} className="w-full px-1" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
@@ -2100,7 +2275,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                                                             }
                                                         }}
                                                         onDragEnd={() => setDragOverFolderId(null)}
-                                                        className={`group relative flex flex-col items-center p-4 rounded-xl cursor-pointer transition-all duration-200 border hover:bg-gray-50 hover:border-gray-200 hover:shadow-sm dark:hover:bg-[#2c2c2c] dark:hover:border-gray-700 ${isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30' : 'border-transparent'} ${isFocused ? 'ring-2 ring-blue-400 ring-offset-1 dark:ring-offset-[#1e1e1e]' : ''}`}
+                                                        className={`group relative flex flex-col items-center p-2 rounded-xl cursor-pointer transition-all duration-200 border hover:bg-gray-50 hover:border-gray-200 hover:shadow-sm dark:hover:bg-[#2c2c2c] dark:hover:border-gray-700 ${isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30' : 'border-transparent'} ${isFocused ? 'ring-2 ring-blue-400 ring-offset-1 dark:ring-offset-[#1e1e1e]' : ''}`}
                                                     >
                                                         {/* Downloading overlay */}
                                                         {downloadingItemIds.has(item.id) && (
@@ -2118,8 +2293,8 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                                                                 </svg>
                                                             </div>
                                                         )}
-                                                        {/* Review Status Badge */}
-                                                        {isEditor && reviewStatuses[item.id] && (
+                                                        {/* Review Status Badge — editors only; viewers never see badges */}
+                                                        {reviewStatuses[item.id] && isEditor && (
                                                             <ReviewStatusBadge status={reviewStatuses[item.id]} t={t} />
                                                         )}
                                                         {/* Checkbox on selected */}
@@ -2137,7 +2312,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                                                                 />
                                                             </label>
                                                         )}
-                                                        <div className={`mb-3 transform group-hover:scale-105 transition-transform duration-200 ${isFile ? getFileColorClass(item) : 'text-gray-400 group-hover:text-blue-500'}`}>
+                                                        <div className={`mb-2 transform group-hover:scale-105 transition-transform duration-200 ${isFile ? getFileColorClass(item) : 'text-gray-400 group-hover:text-blue-500'}`}>
                                                             {renderIcon(item, false)}
                                                         </div>
                                                         {itemToRename?.id === item.id ? (
@@ -2305,7 +2480,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                                                                             <span className="font-medium text-gray-800 dark:text-gray-200 truncate" title={item.name}>
                                                                                 {item.name}
                                                                             </span>
-                                                                            {isEditor && reviewStatuses[item.id] && (
+                                                                            {reviewStatuses[item.id] && isEditor && (
                                                                                 <div className="flex-shrink-0 flex items-center">
                                                                                     <ReviewStatusBadge status={reviewStatuses[item.id]} t={t} absolute={false} />
                                                                                 </div>
@@ -2331,9 +2506,22 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                                     )}
                                 </div>
 
+                                {/* Folder pagination — only shown when browsing (not searching),
+                                    since search merges results from two endpoints. */}
+                                {!debouncedSearchTerm && totalFolderPages > 1 && (
+                                    <Pagination
+                                        currentPage={folderPage}
+                                        totalPages={totalFolderPages}
+                                        onPageChange={setFolderPage}
+                                        t={t}
+                                    />
+                                )}
+
                                 {items.length === 0 && (
                                     <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-                                        <p>{searchTerm ? t('noDocumentsFound') : (t('emptyFolder') || "This folder is empty.")}</p>
+                                        <p>{isViewerFilteredEmpty
+                                            ? (t('noCompletedDocuments') || "No completed documents are available yet.")
+                                            : (searchTerm ? t('noDocumentsFound') : (t('emptyFolder') || "This folder is empty."))}</p>
                                     </div>
                                 )}
                             </div>
@@ -2455,7 +2643,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                         </div>
                     )}
 
-                    {!contextMenu.item && (
+                    {!contextMenu.item && isEditor && (
                         <>
                             <button
                                 onClick={() => handleContextMenuAction('upload')}
@@ -2474,7 +2662,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                         </>
                     )}
 
-                    {contextMenu.item?.type === 'folder' && (
+                    {isEditor && contextMenu.item?.type === 'folder' && (
                         <button
                             onClick={() => handleContextMenuAction('createChild')}
                             className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center gap-2"
@@ -2490,20 +2678,20 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                                 onClick={() => handleContextMenuAction('markFolderVerified')}
                                 className="w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 flex items-center gap-2"
                             >
-                                <Image src="/icons/select.svg" width={16} height={16} className="dark:invert opacity-70" alt="" />
+                                <Image src="/icons/status-completed.svg" width={16} height={16} alt="" />
                                 {t('markFolderVerified') || 'Mark all Verified'}
                             </button>
                             <button
                                 onClick={() => handleContextMenuAction('markFolderPending')}
                                 className="w-full text-left px-4 py-2 text-sm text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 flex items-center gap-2"
                             >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-70"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                <Image src="/icons/status-pending.svg" width={16} height={16} alt="" />
                                 {t('markFolderPending') || 'Mark all Pending'}
                             </button>
                         </>
                     )}
 
-                    {contextMenu.item?.type === 'folder' && (
+                    {isEditor && contextMenu.item?.type === 'folder' && (
                         <button
                             onClick={() => handleContextMenuAction('downloadZip')}
                             className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center gap-2"
@@ -2517,7 +2705,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
 
                     {contextMenu.item && (
                         <>
-                            {contextMenu.item.type === 'file' && (
+                            {isEditor && contextMenu.item.type === 'file' && (
                                 <button
                                     onClick={() => handleContextMenuAction(selectedFileIds.has(contextMenu.item!.id) ? 'deselect' : 'select')}
                                     className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center gap-2"
@@ -2554,7 +2742,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                                 </>
                             )}
 
-                            {contextMenu.item.type !== 'folder' && (
+                            {isEditor && contextMenu.item.type !== 'folder' && (
                                 <>
                                     <button
                                         onClick={() => handleContextMenuAction('moveFile')}
@@ -2576,14 +2764,14 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                                                 onClick={() => handleContextMenuAction('markVerified')}
                                                 className="w-full text-left px-4 py-2 text-sm text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 flex items-center gap-2"
                                             >
-                                                <Image src="/icons/select.svg" width={16} height={16} className="dark:invert opacity-70" alt="" />
+                                                <Image src="/icons/status-completed.svg" width={16} height={16} alt="" />
                                                 {t('markVerified') || 'Mark as Verified'}
                                             </button>
                                             <button
                                                 onClick={() => handleContextMenuAction('markPending')}
                                                 className="w-full text-left px-4 py-2 text-sm text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 flex items-center gap-2"
                                             >
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-70"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                                <Image src="/icons/status-pending.svg" width={16} height={16} alt="" />
                                                 {t('markPending') || 'Mark as Pending'}
                                             </button>
                                             <button
@@ -2598,37 +2786,45 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                                 </>
                             )}
 
-                            <button
-                                onClick={() => handleContextMenuAction('share')}
-                                className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center gap-2"
-                            >
-                                <Image src="/icons/share.svg" width={16} height={16} className="dark:invert" alt="" />
-                                {t('share') || 'Share'}
-                            </button>
+                            {isEditor && (
+                                <button
+                                    onClick={() => handleContextMenuAction('share')}
+                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center gap-2"
+                                >
+                                    <Image src="/icons/share.svg" width={16} height={16} className="dark:invert" alt="" />
+                                    {t('share') || 'Share'}
+                                </button>
+                            )}
 
-                            <button
-                                onClick={() => handleContextMenuAction('rename')}
-                                className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center gap-2"
-                            >
-                                <Image src="/icons/rename.svg" width={16} height={16} className="dark:invert" alt="" />
-                                {t('rename') || 'Rename'}
-                            </button>
+                            {isEditor && (
+                                <button
+                                    onClick={() => handleContextMenuAction('rename')}
+                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center gap-2"
+                                >
+                                    <Image src="/icons/rename.svg" width={16} height={16} className="dark:invert" alt="" />
+                                    {t('rename') || 'Rename'}
+                                </button>
+                            )}
 
-                            <button
-                                onClick={() => handleContextMenuAction('security')}
-                                className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center gap-2"
-                            >
-                                <Image src="/icons/lock.svg" width={16} height={16} className="dark:invert" alt="" />
-                                {t('permissions') || 'Permissions'}
-                            </button>
+                            {isEditor && (
+                                <button
+                                    onClick={() => handleContextMenuAction('security')}
+                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center gap-2"
+                                >
+                                    <Image src="/icons/lock.svg" width={16} height={16} className="dark:invert" alt="" />
+                                    {t('permissions') || 'Permissions'}
+                                </button>
+                            )}
 
-                            <button
-                                onClick={() => handleContextMenuAction('delete')}
-                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 flex items-center gap-2"
-                            >
-                                <Image src="/icons/trash.svg" width={16} height={16} className="dark:invert" alt="" />
-                                {t('delete') || 'Delete'}
-                            </button>
+                            {isEditor && (
+                                <button
+                                    onClick={() => handleContextMenuAction('delete')}
+                                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 flex items-center gap-2"
+                                >
+                                    <Image src="/icons/trash.svg" width={16} height={16} className="dark:invert" alt="" />
+                                    {t('delete') || 'Delete'}
+                                </button>
+                            )}
 
                             {hasAdminAccess && (
                                 <button

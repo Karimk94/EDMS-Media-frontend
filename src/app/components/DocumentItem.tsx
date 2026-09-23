@@ -14,6 +14,7 @@ export const DocumentItem: React.FC<DocumentItemProps> = ({
   itemTags = [],
   isTagsLoading = false,
   showFavoriteButton = true,
+  thumbnailRefreshKey = 0,
   lang,
   t
 }) => {
@@ -31,6 +32,14 @@ export const DocumentItem: React.FC<DocumentItemProps> = ({
   useEffect(() => {
     setIsFavorite(doc.is_favorite);
   }, [doc.is_favorite]);
+
+  // Reset imageError when thumbnailRefreshKey changes so the thumbnail
+  // is retried after processing completes (cache-bust).
+  useEffect(() => {
+    if (thumbnailRefreshKey > 0) {
+      setImageError(false);
+    }
+  }, [thumbnailRefreshKey]);
 
   const handleFavoriteClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -164,6 +173,9 @@ export const DocumentItem: React.FC<DocumentItemProps> = ({
   const thumbnailUrl = doc.thumbnail_url && doc.thumbnail_url.trim() 
     ? (doc.thumbnail_url.startsWith('http') ? doc.thumbnail_url : `${apiURL}/${doc.thumbnail_url}`)
     : `${apiURL}/cache/${doc.doc_id}.jpg`;
+  // Append cache-busting query param so the browser re-requests the thumbnail
+  // after processing completes (thumbnailRefreshKey).
+  const finalThumbnailUrl = thumbnailRefreshKey > 0 ? `${thumbnailUrl}?v=${thumbnailRefreshKey}` : thumbnailUrl;
   const cleanDocName = doc.docname ? doc.docname.replace(/\.[^/.]+$/, "") : "";
   const typeIcon = getFileTypeIcon();
 
@@ -180,7 +192,7 @@ export const DocumentItem: React.FC<DocumentItemProps> = ({
       <div className="relative aspect-w-16 aspect-h-9 mb-2">
         {thumbnailUrl && !imageError ? (
           <Image
-            src={thumbnailUrl}
+            src={finalThumbnailUrl}
             alt="Thumbnail"
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

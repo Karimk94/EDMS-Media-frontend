@@ -18,6 +18,10 @@ export interface FolderItem {
 interface FoldersResponse {
     contents: FolderItem[];
     breadcrumbs?: { id: string | null; name: string }[];
+    page?: number;
+    page_size?: number;
+    total_items?: number;
+    total_pages?: number;
 }
 
 interface UseFolderContentsParams {
@@ -25,21 +29,27 @@ interface UseFolderContentsParams {
     searchTerm: string;
     apiURL: string;
     isEnabled?: boolean;
+    page?: number;
+    pageSize?: number;
 }
 
 export function useFolderContents({
     parentId,
     searchTerm,
     apiURL = '/api',
-    isEnabled = true
+    isEnabled = true,
+    page = 1,
+    pageSize = 60
 }: UseFolderContentsParams) {
     return useQuery({
-        queryKey: ['folders', parentId, searchTerm],
+        queryKey: ['folders', parentId, searchTerm, page, pageSize],
         queryFn: async (): Promise<FoldersResponse> => {
             const params = new URLSearchParams();
             if (parentId) params.append('parent_id', String(parentId));
 
             params.append('scope', 'folders');
+            params.append('page', String(page));
+            params.append('page_size', String(pageSize));
 
             if (parentId === 'images') params.append('media_type', 'image');
             else if (parentId === 'videos') params.append('media_type', 'video');

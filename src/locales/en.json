@@ -2,6 +2,7 @@
   "recentlyAdded": "Recently Added",
   "favorites": "Favorites",
   "search": "Search...",
+  "searchInFolder": "Search by name or content...",
   "upload": "Upload",
   "logout": "Logout",
   "tags": "Tags",
@@ -55,6 +56,8 @@
   "analyzeForFaces": "Analyze for Faces",
   "noTitle": "No title available.",
   "processing": "Processing...",
+  "processingXOfY": "{{done}}/{{total}}",
+  "processingFolder": "Processing folder...",
   "quotaUsed": "Used",
   "quotaRemaining": "Remaining",
   "quotaTotal": "Total",
@@ -510,5 +513,9 @@
   "markFolderVerified": "Mark contents Completed",
   "markFolderPending": "Mark contents Not Analysed",
   "statusUpdated": "Status updated successfully",
-  "errorUpdatingStatus": "Error updating status"
+  "errorUpdatingStatus": "Error updating status",
+  "noCompletedDocuments": "No completed documents are available yet. Documents will appear here once an editor marks them as completed.",
+  "viewerReadonlyNotice": "You are viewing in read-only mode. Editing is available to editors only.",
+    "folderUploadInfo": "A new folder and event will be created with this name, and all files will be uploaded to it."
+
 }

@@ -33,6 +33,9 @@ const TAB_KEY_MAP: Record<string, TranslationKey> = {
   ems_admin: 'tabEmsAdmin',
 };
 
+// Tabs that do not exist in this project and should be hidden from the user access badge.
+const HIDDEN_TAB_KEYS = new Set<string>(['profilesearch', 'ems_admin']);
+
 export const UserAccessBadge: React.FC<UserAccessBadgeProps> = ({
   user,
   lang = 'en',
@@ -143,12 +146,12 @@ export const UserAccessBadge: React.FC<UserAccessBadgeProps> = ({
             {/* Tab Access */}
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-1">{t('tabAccess')}</p>
-              {tabPermissions.filter((p) => p.can_read || p.can_write).length === 0 ? (
+              {tabPermissions.filter((p) => (p.can_read || p.can_write) && !HIDDEN_TAB_KEYS.has(p.tab_key)).length === 0 ? (
                 <p className="text-gray-700 dark:text-gray-300">{t('noTabPermissions')}</p>
               ) : (
                 <ul className="space-y-1 max-h-48 overflow-auto pr-1">
                   {tabPermissions
-                    .filter((p) => p.can_read || p.can_write)
+                    .filter((p) => (p.can_read || p.can_write) && !HIDDEN_TAB_KEYS.has(p.tab_key))
                     .map((permission) => (
                       <li
                         key={permission.tab_key}

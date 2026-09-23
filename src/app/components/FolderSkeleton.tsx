@@ -26,10 +26,10 @@ export function FolderSkeleton({ count = 6 }: { count?: number }) {
             {/* Folder grid skeleton */}
             <div>
                 <div className="h-3 bg-gray-300 dark:bg-gray-700 rounded w-20 mb-3 mx-1"></div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2">
                     {Array.from({ length: count }).map((_, i) => (
-                        <div key={i} className="flex flex-col items-center p-4 rounded-xl bg-gray-100 dark:bg-[#222]">
-                            <div className="w-12 h-12 bg-gray-300 dark:bg-gray-600 rounded-lg mb-3"></div>
+                        <div key={i} className="flex flex-col items-center p-2 rounded-xl bg-gray-100 dark:bg-[#222]">
+                            <div className="w-12 h-12 bg-gray-300 dark:bg-gray-600 rounded-lg mb-2"></div>
                             <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-16 mb-1"></div>
                             <div className="h-3 bg-gray-300 dark:bg-gray-600 rounded w-10"></div>
                         </div>

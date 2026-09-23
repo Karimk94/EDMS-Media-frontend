@@ -326,6 +326,8 @@ export interface DocumentItemProps {
     itemTags?: TagObject[];
     isTagsLoading?: boolean;
     showFavoriteButton?: boolean;
+    /** Incremented to bust browser-cached thumbnails after processing completes. */
+    thumbnailRefreshKey?: number;
 
     lang: 'en' | 'ar';
     t: Function;

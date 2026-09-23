@@ -5,11 +5,9 @@ import { HeaderProps } from '../../interfaces/PropsInterfaces';
 
 import { useAuth } from '../../hooks/useAuth';
 import { useUserPreferences } from '../../hooks/useUserPreferences';
-import { useQuota } from '../../hooks/useQuota';
 import Image from 'next/image';
 import { Spinner } from './Spinner';
 import { UserAccessBadge } from './UserAccessBadge';
-import { QuotaAccessBadge } from './QuotaAccessBadge';
 
 export const Header: React.FC<HeaderProps> = ({
   onSearch,
@@ -26,12 +24,9 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const { user, logout, isLoggingOut } = useAuth();
   const { updateLanguage, updateTheme } = useUserPreferences();
-  const { data: quotaData } = useQuota({ enabled: activeSection === 'folders' });
 
   const lang = user?.lang || 'en';
   const theme = user?.theme || 'light';
-  const quota = quotaData?.total ?? user?.quota;
-  const remainingQuota = quotaData?.remaining ?? user?.remaining_quota;
 
   const handleLanguageChange = async () => {
     const newLang = lang === 'en' ? 'ar' : 'en';
@@ -99,9 +94,6 @@ export const Header: React.FC<HeaderProps> = ({
         <div
           className={`flex items-center gap-4 ${searchBarMargin} ${rtlClass}`}
         >
-          {activeSection === 'folders' && quota !== undefined && remainingQuota !== undefined && (
-            <QuotaAccessBadge total={quota} remaining={remainingQuota} t={t} />
-          )}
           {isProcessing && (
             <div className="flex items-center gap-2 text-gray-900 dark:text-white text-sm">
               <Spinner size="xs" />

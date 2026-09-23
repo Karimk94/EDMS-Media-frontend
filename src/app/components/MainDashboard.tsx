@@ -10,6 +10,7 @@ import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useDocumentModals } from '../../hooks/useDocumentModals';
 import { useDocuments } from '../../hooks/useDocuments';
 import { useProcessingStatus } from '../../hooks/useProcessingStatus';
+import { useReviewStatus } from '../../hooks/useReviewStatus';
 import { useClearCache, useProcessDocuments } from '../../hooks/useSystemOperations';
 import { UploadableFile } from '../../interfaces';
 import { PersonOption } from '../../models/PersonOption';
@@ -128,6 +129,50 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
     const isLoading = isDocumentsLoading;
     const isFetchingDocuments = isDocumentsFetching;
     const error = documentsError instanceof Error ? documentsError.message : (documentsError ? String(documentsError) : null);
+
+    // Whether the current section grants write (editor) access to this user.
+    const sectionIsWritable = isSectionWritable(activeSection);
+
+    // A "Viewer" by security level may only ever see documents that an editor
+    // has marked as "Completed" (review status === 'verified'), regardless of
+    // any per-tab can_write permission. This guarantees that incomplete
+    // documents — which are already hidden from a viewer in the Folders section
+    // — are also hidden from the Recent and Favorites sections, so a viewer
+    // never sees a document before it is finished by the editors.
+    const isViewer = (user?.security_level || '').trim().toLowerCase() === 'viewer';
+    // Apply the completed-only filter whenever the user is a Viewer OR the
+    // current section is not writable (e.g. an editor with read-only access).
+    const mustFilterCompleted = isViewer || !sectionIsWritable;
+
+    // Fetch review statuses for the documents currently in view. Editors use
+    // these to render status badges; viewers use them to filter the grid so
+    // only "Completed" (verified) documents are visible.
+    const visibleDocIds = React.useMemo(() => documents.map(d => d.doc_id), [documents]);
+    const { statuses: reviewStatuses, isLoading: isReviewStatusLoading, isError: isReviewStatusError } = useReviewStatus(
+        visibleDocIds,
+        API_PROXY_URL,
+        sectionIsWritable
+    );
+
+    // Viewers (or read-only sections) may only see documents that an editor has
+    // marked as "Completed" (review status === 'verified'). Editors see all.
+    // If the review-status request fails, fail open (show documents) rather than
+    // leaving the viewer stuck on a loading skeleton forever.
+    const visibleDocuments = React.useMemo(() => {
+        if (!mustFilterCompleted) return documents;
+        // While review statuses are still loading for a viewer, show nothing yet
+        // so unverified documents never flash on screen.
+        if (visibleDocIds.length > 0 && Object.keys(reviewStatuses).length === 0 && !isReviewStatusError) return [];
+        // If we couldn't load review statuses, fail open so the viewer is not
+        // left with an empty grid / permanent skeleton.
+        if (isReviewStatusError) return documents;
+        return documents.filter(doc => reviewStatuses[doc.doc_id] === 'verified');
+    }, [documents, mustFilterCompleted, reviewStatuses, visibleDocIds.length, isReviewStatusError]);
+
+    // When a viewer's section is filtered, there may be pages whose verified
+    // documents have all been filtered out. We keep the server's totalPages for
+    // pagination but rely on the empty-state message to guide the viewer.
+    const isViewerFilteredEmpty = mustFilterCompleted && visibleDocIds.length > 0 && visibleDocuments.length === 0;
 
     // --- Upload & Cache ---
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -280,8 +325,12 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
     const renderContent = () => {
         if (!isClient) return <div className="min-h-screen bg-gray-50 dark:bg-gray-900" />;
 
-        // Show skeleton loader during initial load, or during search/page change when fetching
-        if (isLoading || (isFetchingDocuments && (isSearching || isPageChanging))) {
+        // Show skeleton loader during initial load, or during search/page change when fetching.
+        // For viewers (or read-only sections), also wait for review statuses to load so
+        // unverified documents never flash on screen before filtering completes.
+        const isWaitingForReviewStatus = mustFilterCompleted && visibleDocIds.length > 0
+            && Object.keys(reviewStatuses).length === 0 && !documentsError && !isReviewStatusError;
+        if (isLoading || (isFetchingDocuments && (isSearching || isPageChanging)) || isWaitingForReviewStatus) {
             return (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-8">
                     {Array.from({ length: 15 }).map((_, index) => (
@@ -330,7 +379,18 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
             </div>
         );
 
-        if (documents.length === 0) {
+        // Viewers: if all documents on this page were filtered out because they
+        // are not yet "Completed", show an explanatory empty state.
+        if (isViewerFilteredEmpty) {
+            return (
+                <>
+                    {backButton}
+                    <p className="text-center text-gray-500 dark:text-gray-400 py-10">{t('noCompletedDocuments')}</p>
+                </>
+            );
+        }
+
+        if (visibleDocuments.length === 0) {
             return (
                 <>
                     {backButton}
@@ -343,7 +403,7 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
             <>
                 {backButton}
                 <DocumentList
-                    documents={documents}
+                    documents={visibleDocuments}
                     onDocumentClick={documentModals.handleDocumentClick}
                     apiURL={API_PROXY_URL}
                     onTagSelect={handleTagSelect}

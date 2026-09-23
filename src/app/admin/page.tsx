@@ -22,13 +22,11 @@ const THEMES = [
     { code: 'dark', name: 'Dark' }
 ];
 
-type AdminTabKey = 'recent' | 'folders' | 'profilesearch' | 'ems_admin';
+type AdminTabKey = 'recent' | 'folders';
 
 const TAB_PERMISSION_ITEMS: { key: AdminTabKey; label: string }[] = [
     { key: 'recent', label: 'Smart EDMS & Favorites' },
     { key: 'folders', label: 'Folders' },
-    { key: 'profilesearch', label: 'Profile Search' },
-    { key: 'ems_admin', label: 'EMS Admin' },
 ];
 
 type TabToggleState = { can_read: boolean; can_write: boolean };
@@ -37,9 +35,19 @@ type AddTabPermissionsState = Record<AdminTabKey, TabToggleState>;
 const createDefaultAddTabPermissions = (): AddTabPermissionsState => ({
     recent: { can_read: true, can_write: false },
     folders: { can_read: true, can_write: false },
-    profilesearch: { can_read: true, can_write: false },
-    ems_admin: { can_read: false, can_write: false },
 });
+
+// Returns true when the given security level id corresponds to the "Viewer"
+// role (case-insensitive name match). Viewers cannot have editor (can_write)
+// access on any tab — all editor toggles are disabled for them.
+const isViewerSecurityLevel = (
+    securityLevels: { id: number; name: string }[],
+    levelId: number | null
+): boolean => {
+    if (levelId == null) return false;
+    const level = securityLevels.find((l) => l.id === levelId);
+    return !!level && level.name.trim().toLowerCase() === 'viewer';
+};
 
 export default function AdminPage() {
     const [isLoading, setIsLoading] = useState(true);
@@ -124,6 +132,51 @@ export default function AdminPage() {
     const { data: editUserTabPerms = [] } = useTabPermissions(
         editTarget?.people_system_id ?? null, !!editTarget
     );
+
+    // When the selected security level is "Viewer", editor (can_write) access is
+    // not allowed on any tab. These derived flags drive the toggle disabling and
+    // force can_write back to false whenever Viewer is chosen.
+    const isAddUserViewer = isViewerSecurityLevel(securityLevels, selectedSecurityLevel);
+    const isEditUserViewer = isViewerSecurityLevel(securityLevels, editSecurityLevel);
+
+    // Reset all editor toggles to false in the Add User modal whenever Viewer is
+    // selected, so a Viewer can never be created with can_write permissions.
+    useEffect(() => {
+        if (isAddUserViewer) {
+            setAddTabPermissions((prev) => {
+                const next = { ...prev };
+                let changed = false;
+                (Object.keys(next) as AdminTabKey[]).forEach((k) => {
+                    if (next[k].can_write) {
+                        next[k] = { ...next[k], can_write: false };
+                        changed = true;
+                    }
+                });
+                return changed ? next : prev;
+            });
+        }
+    }, [isAddUserViewer]);
+
+    // In the Edit User modal, when the admin switches the security level to
+    // Viewer, persist can_write = false for every tab that currently has editor
+    // access. This keeps the server-side permissions in sync with the Viewer
+    // restriction (Viewers cannot be editors on any tab).
+    useEffect(() => {
+        if (!isEditUserViewer || !editTarget) return;
+        const tabsToDisable = editUserTabPerms.filter(
+            (p) => p.can_write && TAB_PERMISSION_ITEMS.some((t) => t.key === p.tab_key)
+        );
+        if (tabsToDisable.length === 0) return;
+        tabsToDisable.forEach((p) => {
+            upsertTabPermission({
+                user_id: editTarget.people_system_id,
+                tab_key: p.tab_key,
+                can_read: p.can_read,
+                can_write: false,
+            });
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isEditUserViewer]);
 
     // Format quota helper
     const formatQuota = (bytes: number) => {
@@ -931,11 +984,11 @@ export default function AdminPage() {
                                                                 ...prev,
                                                                 [key]: {
                                                                     can_read: canRead,
-                                                                    can_write: !canWrite,
+                                                                    can_write: isAddUserViewer ? false : !canWrite,
                                                                 }
                                                             }))}
-                                                            disabled={!canRead}
-                                                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${canWrite ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'} ${!canRead ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'}`}
+                                                            disabled={!canRead || isAddUserViewer}
+                                                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${canWrite ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'} ${(!canRead || isAddUserViewer) ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'}`}
                                                         >
                                                             <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${canWrite ? 'translate-x-4' : 'translate-x-0.5'}`} />
                                                         </button>
@@ -945,9 +998,15 @@ export default function AdminPage() {
                                         );
                                     })}
                                 </div>
-                                <p className="text-xs text-gray-500 mt-2">
-                                    Users in group EMS_ADMIN are automatically granted EMS Admin tab access.
-                                </p>
+                                {isAddUserViewer ? (
+                                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                                        Viewers are read-only — editor access is disabled for all tabs.
+                                    </p>
+                                ) : (
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        Toggle Visible to show a tab, and Editor to allow write access.
+                                    </p>
+                                )}
                             </div>
                         </div>
 
@@ -1111,7 +1170,7 @@ export default function AdminPage() {
                                     <div className="space-y-3">
                                         {TAB_PERMISSION_ITEMS.map(({ key, label }) => {
                                             const perm = editUserTabPerms.find(p => p.tab_key === key);
-                                            const canRead = perm?.can_read ?? (key === 'ems_admin' ? false : true);
+                                            const canRead = perm?.can_read ?? true;
                                             const canWrite = perm?.can_write ?? false;
 
                                             return (
@@ -1126,7 +1185,7 @@ export default function AdminPage() {
                                                                     user_id: editTarget.people_system_id,
                                                                     tab_key: key,
                                                                     can_read: !canRead,
-                                                                    can_write: canRead ? false : canWrite,
+                                                                    can_write: isEditUserViewer ? false : (canRead ? false : canWrite),
                                                                 })}
                                                                 disabled={isUpsertingTabPermission}
                                                                 className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${canRead ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
@@ -1144,11 +1203,11 @@ export default function AdminPage() {
                                                                     user_id: editTarget.people_system_id,
                                                                     tab_key: key,
                                                                     can_read: canRead,
-                                                                    can_write: !canWrite,
+                                                                    can_write: isEditUserViewer ? false : !canWrite,
                                                                 })}
-                                                                disabled={!canRead || isUpsertingTabPermission}
+                                                                disabled={!canRead || isEditUserViewer || isUpsertingTabPermission}
                                                                 className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${canWrite ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
-                                                                    } ${!canRead ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'}`}
+                                                                    } ${(!canRead || isEditUserViewer) ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'}`}
                                                             >
                                                                 <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${canWrite ? 'translate-x-4' : 'translate-x-0.5'
                                                                     }`} />
@@ -1159,6 +1218,11 @@ export default function AdminPage() {
                                             );
                                         })}
                                     </div>
+                                    {isEditUserViewer && (
+                                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                                            Viewers are read-only — editor access is disabled for all tabs.
+                                        </p>
+                                    )}
                                 </div>
                             )}
                             {editTarget.security_level === 'Admin' && (
