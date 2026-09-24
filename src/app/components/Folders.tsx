@@ -138,23 +138,31 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
         : currentFolderId === 'files' ? 'pdf'
         : null;
 
+    // During search, folder-name matches are only shown on page 1 (prepended
+    // before the content/embedding results). On later pages only the content
+    // search results are used, so we keep the folder query on page 1 to avoid
+    // fetching folder-name matches we would discard.
     const { data, isLoading: isInitialLoading, isFetching } = useFolderContents({
         parentId: currentFolderId,
         searchTerm: debouncedSearchTerm,
         apiURL,
-        page: folderPage,
+        page: debouncedSearchTerm ? 1 : folderPage,
         pageSize: FOLDER_PAGE_SIZE,
     });
 
     // Parallel content + embedding search (reuses the global /api/documents
     // engine that powers the Recents search). Only runs when there is a search
-    // term. Results are merged with the folder-name matches below.
+    // term. The backend now performs a full hybrid search (vector + SQL text +
+    // events) across the entire folder hierarchy with proper server-side
+    // pagination — identical to the Recents tab. Results are merged with the
+    // folder-name matches from useFolderContents below.
     const { data: contentSearchData, isFetching: isContentSearchFetching } = useFolderContentSearch({
         searchTerm: debouncedSearchTerm,
         apiURL,
-        page: 1,
-        pageSize: 40,
+        page: folderPage,
+        pageSize: FOLDER_PAGE_SIZE,
         mediaType: contentSearchMediaType,
+        lang: (user?.lang as 'en' | 'ar') || 'en',
         isEnabled: !!debouncedSearchTerm,
     });
 
@@ -162,8 +170,13 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
 
     // Merge folder-name matches (from /api/folders) with content/embedding
     // matches (from /api/documents?scope=folders). When there is no search term
-    // only the folder contents are shown. Duplicate files (matched by both name
-    // and content) are deduplicated, keeping the folder-name match first.
+    // only the folder contents are shown. During search the content/embedding
+    // results are the primary paginated set (they now use the same hybrid vector
+    // + SQL text + event engine as the Recents tab, with proper server-side
+    // pagination). Folder-name matches from /api/folders are prepended on page 1
+    // only (folders don't paginate through /api/documents). Duplicate files
+    // (matched by both name and content) are deduplicated, keeping the
+    // folder-name match first.
     const rawItems: FolderItem[] = React.useMemo(() => {
         const folderContents = data?.contents || [];
         if (!debouncedSearchTerm) return folderContents;
@@ -172,12 +185,17 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
         const seenIds = new Set<string | number>();
         const merged: FolderItem[] = [];
 
-        for (const item of folderContents) {
-            if (!seenIds.has(item.id)) {
-                seenIds.add(item.id);
-                merged.push(item);
+        // On page 1, folder-name matches (folders + files matched by filename)
+        // are shown first so users can navigate into matching folders.
+        if (folderPage === 1) {
+            for (const item of folderContents) {
+                if (!seenIds.has(item.id)) {
+                    seenIds.add(item.id);
+                    merged.push(item);
+                }
             }
         }
+        // Content/embedding matches fill the rest of the page.
         for (const item of contentMatches) {
             if (!seenIds.has(item.id)) {
                 seenIds.add(item.id);
@@ -185,9 +203,14 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
             }
         }
         return merged;
-    }, [data, contentSearchData, debouncedSearchTerm]);
+    }, [data, contentSearchData, debouncedSearchTerm, folderPage]);
 
-    const totalFolderPages = data?.total_pages || 1;
+    // When searching, pagination is driven by the content/embedding search
+    // (which now returns correct total_pages from the server). When browsing,
+    // pagination is driven by the folder contents query.
+    const totalFolderPages = debouncedSearchTerm
+        ? (contentSearchData?.total_pages || 1)
+        : (data?.total_pages || 1);
 
     // Derive document IDs from the raw folder contents so review statuses can be
     // fetched regardless of the viewer/editor role.
@@ -791,8 +814,11 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
         } else {
             setIsRefreshing(true);
         }
-        // Force refetch from server, bypassing stale time cache
-        queryClient.refetchQueries({ queryKey: ['folders', currentFolderId, debouncedSearchTerm, folderPage, FOLDER_PAGE_SIZE] });
+        // Force refetch from server, bypassing stale time cache.
+        // NOTE: during search the folder-name query is pinned to page 1 (folder
+        // matches are only shown on page 1), so the key must match.
+        const folderQueryPage = debouncedSearchTerm ? 1 : folderPage;
+        queryClient.refetchQueries({ queryKey: ['folders', currentFolderId, debouncedSearchTerm, folderQueryPage, FOLDER_PAGE_SIZE] });
         queryClient.invalidateQueries({ queryKey: ['folder-content-search'] });
         queryClient.invalidateQueries({ queryKey: ['documents'] });
         // Also refresh review statuses, folder previews, and processing-related caches
@@ -807,7 +833,8 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
     };
 
     const updateItemsInCurrentView = (updater: (item: FolderItem) => FolderItem) => {
-        queryClient.setQueryData(['folders', currentFolderId, debouncedSearchTerm, folderPage, FOLDER_PAGE_SIZE], (previous: any) => {
+        const folderQueryPage = debouncedSearchTerm ? 1 : folderPage;
+        queryClient.setQueryData(['folders', currentFolderId, debouncedSearchTerm, folderQueryPage, FOLDER_PAGE_SIZE], (previous: any) => {
             if (!previous?.contents) return previous;
 
             return {
@@ -827,7 +854,8 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
             return next;
         });
 
-        queryClient.setQueryData(['folders', currentFolderId, debouncedSearchTerm, folderPage, FOLDER_PAGE_SIZE], (previous: any) => {
+        const folderQueryPage = debouncedSearchTerm ? 1 : folderPage;
+        queryClient.setQueryData(['folders', currentFolderId, debouncedSearchTerm, folderQueryPage, FOLDER_PAGE_SIZE], (previous: any) => {
             if (!previous?.contents) return previous;
 
             return {
@@ -2506,9 +2534,10 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                                     )}
                                 </div>
 
-                                {/* Folder pagination — only shown when browsing (not searching),
-                                    since search merges results from two endpoints. */}
-                                {!debouncedSearchTerm && totalFolderPages > 1 && (
+                                {/* Pagination — shown when browsing (folder contents) or
+                                    searching (content/embedding results). Both paths now use
+                                    server-side pagination with correct total_pages. */}
+                                {totalFolderPages > 1 && (
                                     <Pagination
                                         currentPage={folderPage}
                                         totalPages={totalFolderPages}

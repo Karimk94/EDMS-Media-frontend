@@ -24,6 +24,8 @@ interface UseFolderContentSearchParams {
     pageSize: number;
     /** Media-type filter for the standard folders (images/videos/files). */
     mediaType?: 'image' | 'video' | 'pdf' | null;
+    /** UI language — controls Arabic/English tag & person column selection on the backend. */
+    lang?: 'en' | 'ar';
     isEnabled?: boolean;
 }
 
@@ -50,10 +52,11 @@ export function useFolderContentSearch({
     page = 1,
     pageSize = 20,
     mediaType = null,
+    lang = 'en',
     isEnabled = true,
 }: UseFolderContentSearchParams) {
     return useQuery({
-        queryKey: ['folder-content-search', searchTerm, page, pageSize, mediaType],
+        queryKey: ['folder-content-search', searchTerm, page, pageSize, mediaType, lang],
         queryFn: async (): Promise<FolderContentSearchResponse> => {
             if (!searchTerm) {
                 return { contents: [], total_pages: 1, total_documents: 0 };
@@ -64,6 +67,7 @@ export function useFolderContentSearch({
             params.append('pageSize', String(pageSize));
             params.append('scope', 'folders');
             params.append('search', searchTerm);
+            params.append('lang', lang);
 
             if (mediaType) params.append('media_type', mediaType);
 
