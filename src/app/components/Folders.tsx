@@ -22,6 +22,7 @@ import { useRerunAnalysis } from '../../hooks/useSystemOperations';
 import { ReviewStatusBadge } from './ReviewStatusBadge';
 import { useFolderProcessingStatus } from '../../hooks/useFolderProcessingStatus';
 import { useFolderProcessingSummary } from '../../hooks/useFolderProcessingSummary';
+import { PersonOption } from '../../models/PersonOption';
 
 // Lazy-loaded modals — only loaded when user opens them via context menu
 const CreateFolderModal = React.lazy(() => import('./CreateFolderModal').then(m => ({ default: m.CreateFolderModal })));
@@ -42,6 +43,21 @@ interface FoldersProps {
     externalRefreshTrigger?: number;
     /** Global list of doc IDs being tracked for AI processing (from useProcessingStatus). */
     processingDocs?: number[];
+
+    /** Search bar props when managed externally (e.g. from FilterBar) */
+    folderSearchTerm?: string;
+    onFolderSearchChange?: (term: string) => void;
+    onFolderSearchFetchingChange?: (fetching: boolean) => void;
+
+    /** Filter props passed down from FilterBar */
+    selectedTags?: string[];
+    selectedYears?: number[];
+    dateFrom?: Date | null;
+    dateTo?: Date | null;
+    selectedPerson?: PersonOption[] | null;
+    personCondition?: 'any' | 'all';
+    filterMediaType?: 'image' | 'video' | 'pdf' | null;
+    lang?: 'en' | 'ar';
 }
 
 interface ContextMenuState {
@@ -69,7 +85,28 @@ function formatDate(dateStr?: string): string {
     }).format(date);
 }
 
-export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick, onUploadClick, t, apiURL, isEditor: isEditorProp, initialFolderId, externalRefreshTrigger, processingDocs = [] }) => {
+export const Folders: React.FC<FoldersProps> = ({
+    onFolderClick,
+    onDocumentClick,
+    onUploadClick,
+    t,
+    apiURL,
+    isEditor: isEditorProp,
+    initialFolderId,
+    externalRefreshTrigger,
+    processingDocs = [],
+    folderSearchTerm,
+    onFolderSearchChange,
+    onFolderSearchFetchingChange,
+    selectedTags = [],
+    selectedYears = [],
+    dateFrom = null,
+    dateTo = null,
+    selectedPerson = null,
+    personCondition = 'any',
+    filterMediaType = null,
+    lang = 'en'
+}) => {
     const searchParams = useSearchParams();
     const queryClient = useQueryClient();
 
@@ -116,24 +153,36 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
         { id: null, name: t('home') || 'Home' }
     ]);
 
-    const [searchTerm, setSearchTerm] = useState('');
+    const [internalSearchTerm, setInternalSearchTerm] = useState('');
+    const searchTerm = folderSearchTerm !== undefined ? folderSearchTerm : internalSearchTerm;
+    const setSearchTerm = onFolderSearchChange || setInternalSearchTerm;
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
 
-    // Pagination state for the folder grid. Reset to 1 whenever the folder or
-    // the search term changes so the user always starts from the first page.
+    const hasActiveFilters = Boolean(
+        (selectedTags && selectedTags.length > 0) ||
+        (selectedYears && selectedYears.length > 0) ||
+        dateFrom ||
+        dateTo ||
+        (selectedPerson && selectedPerson.length > 0) ||
+        filterMediaType
+    );
+
+    // Pagination state for the folder grid. Reset to 1 whenever the folder,
+    // the search term, or filters change so the user always starts from the first page.
     const FOLDER_PAGE_SIZE = 60;
     const [folderPage, setFolderPage] = useState(1);
 
     // Reset to first page when navigating into a different folder or when the
-    // (debounced) search term changes.
+    // (debounced) search term or filters change.
     useEffect(() => {
         setFolderPage(1);
-    }, [currentFolderId, debouncedSearchTerm]);
+    }, [currentFolderId, debouncedSearchTerm, selectedTags, selectedYears, dateFrom, dateTo, selectedPerson, personCondition, filterMediaType]);
 
     // Determine the media-type filter for the standard folders so the content
     // search is scoped correctly (e.g. only videos when inside the Videos folder).
     const contentSearchMediaType: 'image' | 'video' | 'pdf' | null =
-        currentFolderId === 'images' ? 'image'
+        filterMediaType ? filterMediaType
+        : currentFolderId === 'images' ? 'image'
         : currentFolderId === 'videos' ? 'video'
         : currentFolderId === 'files' ? 'pdf'
         : null;
@@ -151,8 +200,8 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
     });
 
     // Parallel content + embedding search (reuses the global /api/documents
-    // engine that powers the Recents search). Only runs when there is a search
-    // term. The backend now performs a full hybrid search (vector + SQL text +
+    // engine that powers the Recents search). Runs when there is a search term
+    // or active filters. The backend now performs a full hybrid search (vector + SQL text +
     // events) across the entire folder hierarchy with proper server-side
     // pagination — identical to the Recents tab. Results are merged with the
     // folder-name matches from useFolderContents below.
@@ -162,15 +211,26 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
         page: folderPage,
         pageSize: FOLDER_PAGE_SIZE,
         mediaType: contentSearchMediaType,
-        lang: (user?.lang as 'en' | 'ar') || 'en',
-        isEnabled: !!debouncedSearchTerm,
+        lang: lang || (user?.lang as 'en' | 'ar') || 'en',
+        isEnabled: !!debouncedSearchTerm || hasActiveFilters,
+        selectedTags,
+        selectedYears,
+        dateFrom,
+        dateTo,
+        selectedPerson,
+        personCondition,
     });
+
+    // Notify parent about search fetching state for loading indicators
+    useEffect(() => {
+        onFolderSearchFetchingChange?.(isContentSearchFetching);
+    }, [isContentSearchFetching, onFolderSearchFetchingChange]);
 
     const [hiddenItemIds, setHiddenItemIds] = useState<Set<string | number>>(new Set());
 
     // Merge folder-name matches (from /api/folders) with content/embedding
     // matches (from /api/documents?scope=folders). When there is no search term
-    // only the folder contents are shown. During search the content/embedding
+    // and no filters only the folder contents are shown. During search the content/embedding
     // results are the primary paginated set (they now use the same hybrid vector
     // + SQL text + event engine as the Recents tab, with proper server-side
     // pagination). Folder-name matches from /api/folders are prepended on page 1
@@ -179,15 +239,15 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
     // folder-name match first.
     const rawItems: FolderItem[] = React.useMemo(() => {
         const folderContents = data?.contents || [];
-        if (!debouncedSearchTerm) return folderContents;
+        if (!debouncedSearchTerm && !hasActiveFilters) return folderContents;
 
         const contentMatches = contentSearchData?.contents || [];
         const seenIds = new Set<string | number>();
         const merged: FolderItem[] = [];
 
         // On page 1, folder-name matches (folders + files matched by filename)
-        // are shown first so users can navigate into matching folders.
-        if (folderPage === 1) {
+        // are shown first when searching by name so users can navigate into matching folders.
+        if (folderPage === 1 && debouncedSearchTerm) {
             for (const item of folderContents) {
                 if (!seenIds.has(item.id)) {
                     seenIds.add(item.id);
@@ -195,7 +255,7 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                 }
             }
         }
-        // Content/embedding matches fill the rest of the page.
+        // Content/embedding/filter matches fill the rest of the page.
         for (const item of contentMatches) {
             if (!seenIds.has(item.id)) {
                 seenIds.add(item.id);
@@ -203,12 +263,12 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
             }
         }
         return merged;
-    }, [data, contentSearchData, debouncedSearchTerm, folderPage]);
+    }, [data, contentSearchData, debouncedSearchTerm, hasActiveFilters, folderPage]);
 
-    // When searching, pagination is driven by the content/embedding search
+    // When searching or filtering, pagination is driven by the content/embedding search
     // (which now returns correct total_pages from the server). When browsing,
     // pagination is driven by the folder contents query.
-    const totalFolderPages = debouncedSearchTerm
+    const totalFolderPages = (debouncedSearchTerm || hasActiveFilters)
         ? (contentSearchData?.total_pages || 1)
         : (data?.total_pages || 1);
 
@@ -767,8 +827,8 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
 
                 const doc = new Document({
                     doc_id: parseInt(String(folder.id), 10),
-                    docname: folder.name,
-                    title: (folder as any).title || (folder as any).abstract || '',
+                    docname: (folder as any).docname || folder.name,
+                    title: (folder as any).title || '',
                     abstract: (folder as any).abstract || '',
                     media_type: mediaType,
                     date: (folder as any).date || new Date().toISOString(),
@@ -1892,31 +1952,6 @@ export const Folders: React.FC<FoldersProps> = ({ onFolderClick, onDocumentClick
                     </div>
 
                     <div className="flex items-center space-x-3 ml-4">
-                        <div className="relative">
-                            <input
-                                type="text"
-                                placeholder={t('searchInFolder') || "Search by name or content..."}
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-9 pr-8 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#333] text-sm text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-blue-500 outline-none w-48 transition-all focus:w-64"
-                            />
-                            <Image src="/search-icon.svg" alt="" width={16} height={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 opacity-60 dark:invert" />
-                            {isContentSearchFetching && (
-                                <div className="absolute right-8 top-1/2 transform -translate-y-1/2">
-                                    <Spinner size="xs" />
-                                </div>
-                            )}
-                            {searchTerm && !isContentSearchFetching && (
-                                <button
-                                    onClick={() => { setSearchTerm(''); setDebouncedSearchTerm(''); }}
-                                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-                                    aria-label="Clear search"
-                                >
-                                    <Image src="/icons/close.svg" alt="" width={16} height={16} className="dark:invert" />
-                                </button>
-                            )}
-                        </div>
-
                         <button
                             onClick={() => refreshCurrentView()}
                             disabled={isRefreshing || isFetching}

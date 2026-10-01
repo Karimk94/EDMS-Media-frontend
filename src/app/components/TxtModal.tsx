@@ -64,8 +64,8 @@ export const TxtModal: React.FC<TxtModalProps> = ({
   const [initialDate, setInitialDate] = useState<Date | null>(safeParseDate(doc.date));
 
   const [isEditingAbstract, setIsEditingAbstract] = useState(false);
-  const [abstract, setAbstract] = useState(doc.title || '');
-  const [initialAbstract, setInitialAbstract] = useState(doc.title || '');
+  const [abstract, setAbstract] = useState(doc.abstract || doc.title || '');
+  const [initialAbstract, setInitialAbstract] = useState(doc.abstract || doc.title || '');
 
   const [isFavorite, setIsFavorite] = useState(doc.is_favorite);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -77,14 +77,14 @@ export const TxtModal: React.FC<TxtModalProps> = ({
   }, [doc.is_favorite]);
 
   useEffect(() => {
-    setAbstract(doc.title || '');
-    setInitialAbstract(doc.title || '');
+    setAbstract(doc.abstract || doc.title || '');
+    setInitialAbstract(doc.abstract || doc.title || '');
     const newDate = safeParseDate(doc.date);
     setDocumentDate(newDate);
     setInitialDate(newDate);
     setIsEditingAbstract(false);
     setIsEditingDate(false);
-  }, [doc.title, doc.date]);
+  }, [doc.abstract, doc.title, doc.date]);
 
   const { data: fetchedContent, isLoading: isFetchingContent } = useDocumentContent(doc.doc_id, {
     responseType: 'text',

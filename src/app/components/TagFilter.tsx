@@ -19,6 +19,10 @@ export const TagFilter: React.FC<TagFilterProps> = ({ apiURL, selectedTags, setS
   const TAG_CHUNK_SIZE = 50;
   const [visibleTagCount, setVisibleTagCount] = useState(TAG_CHUNK_SIZE);
 
+  useEffect(() => {
+    setVisibleTagCount(TAG_CHUNK_SIZE);
+  }, [searchTerm, isOpen]);
+
   const handleOpen = () => {
     setIsOpen(true);
   };

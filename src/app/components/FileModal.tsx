@@ -66,8 +66,8 @@ export const FileModal: React.FC<FileModalProps> = ({
   const [initialDate, setInitialDate] = useState<Date | null>(safeParseDate(doc.date));
 
   const [isEditingAbstract, setIsEditingAbstract] = useState(false);
-  const [abstract, setAbstract] = useState(doc.title || '');
-  const [initialAbstract, setInitialAbstract] = useState(doc.title || '');
+  const [abstract, setAbstract] = useState(doc.abstract || doc.title || '');
+  const [initialAbstract, setInitialAbstract] = useState(doc.abstract || doc.title || '');
 
   const [isFavorite, setIsFavorite] = useState(doc.is_favorite);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -79,8 +79,8 @@ export const FileModal: React.FC<FileModalProps> = ({
   }, [doc.is_favorite]);
 
   useEffect(() => {
-    setAbstract(doc.title || '');
-    setInitialAbstract(doc.title || '');
+    setAbstract(doc.abstract || doc.title || '');
+    setInitialAbstract(doc.abstract || doc.title || '');
     const newDate = safeParseDate(doc.date);
     setDocumentDate(newDate);
     setInitialDate(newDate);
@@ -93,7 +93,7 @@ export const FileModal: React.FC<FileModalProps> = ({
     const isText = (ext && textExtensions.includes(ext)) || !hasExtension;
 
     setIsTextFile(!!isText);
-  }, [doc.title, doc.date, doc.docname]);
+  }, [doc.abstract, doc.title, doc.date, doc.docname]);
 
   const ext = doc.docname.split('.').pop()?.toLowerCase();
   const textExtensions = ['txt', 'csv', 'json', 'xml', 'log', 'md', 'yml', 'yaml', 'ini', 'conf'];

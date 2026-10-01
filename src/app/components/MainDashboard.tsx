@@ -85,6 +85,8 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [selectedYears, setSelectedYears] = useState<number[]>([]);
     const [filterMediaType, setFilterMediaType] = useState<'image' | 'video' | 'pdf' | null>(null);
+    const [folderSearchTerm, setFolderSearchTerm] = useState<string>('');
+    const [isFolderSearchFetching, setIsFolderSearchFetching] = useState<boolean>(false);
 
     const lang = currentLang;
     const theme = currentTheme;
@@ -257,6 +259,7 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
     const handleClearFilters = () => {
         setDateFrom(null); setDateTo(null); setSelectedPerson(null);
         setSelectedTags([]); setSelectedYears([]); setFilterMediaType(null); setCurrentPage(1);
+        setFolderSearchTerm('');
     };
 
     const confirmClearCache = async () => {
@@ -318,7 +321,7 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
 
 
     const hasActiveFilters = Boolean(
-        dateFrom || dateTo || selectedPerson?.length || selectedTags.length || selectedYears.length
+        dateFrom || dateTo || selectedPerson?.length || selectedTags.length || selectedYears.length || filterMediaType || (activeSection === 'folders' && !activeFolder && folderSearchTerm)
     );
 
     // --- Render ---
@@ -363,6 +366,17 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
                         initialFolderId={initialFolderId}
                         externalRefreshTrigger={folderRefreshTrigger}
                         processingDocs={processingDocs}
+                        folderSearchTerm={folderSearchTerm}
+                        onFolderSearchChange={setFolderSearchTerm}
+                        onFolderSearchFetchingChange={setIsFolderSearchFetching}
+                        selectedTags={selectedTags}
+                        selectedYears={selectedYears}
+                        dateFrom={dateFrom}
+                        dateTo={dateTo}
+                        selectedPerson={selectedPerson}
+                        personCondition={personCondition}
+                        filterMediaType={filterMediaType}
+                        lang={lang}
                     />
                 </Suspense>
             );
@@ -457,21 +471,24 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
 
                     <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-[#1f1f1f] text-gray-900 dark:text-gray-100 p-4 sm:p-6 lg:p-8 min-w-0 relative">
                         
-                        {(activeSection !== 'folders' || activeFolder) && (
-                            <FilterBar
-                                apiURL={API_PROXY_URL}
-                                selectedTags={selectedTags} setSelectedTags={setSelectedTags}
-                                selectedYears={selectedYears} setSelectedYears={setSelectedYears}
-                                dateFrom={dateFrom} setDateFrom={setDateFrom}
-                                dateTo={dateTo} setDateTo={setDateTo}
-                                selectedPerson={selectedPerson} setSelectedPerson={setSelectedPerson}
-                                personCondition={personCondition} setPersonCondition={setPersonCondition}
-                                filterMediaType={filterMediaType} setFilterMediaType={setFilterMediaType}
-                                hasActiveFilters={hasActiveFilters} onClearFilters={handleClearFilters}
-                                onPageReset={() => setCurrentPage(1)}
-                                t={t} lang={lang} theme={theme}
-                            />
-                        )}
+                        <FilterBar
+                            apiURL={API_PROXY_URL}
+                            selectedTags={selectedTags} setSelectedTags={setSelectedTags}
+                            selectedYears={selectedYears} setSelectedYears={setSelectedYears}
+                            dateFrom={dateFrom} setDateFrom={setDateFrom}
+                            dateTo={dateTo} setDateTo={setDateTo}
+                            selectedPerson={selectedPerson} setSelectedPerson={setSelectedPerson}
+                            personCondition={personCondition} setPersonCondition={setPersonCondition}
+                            filterMediaType={filterMediaType} setFilterMediaType={setFilterMediaType}
+                            hasActiveFilters={hasActiveFilters} onClearFilters={handleClearFilters}
+                            onPageReset={() => setCurrentPage(1)}
+                            t={t} lang={lang} theme={theme}
+                            showSearch={activeSection === 'folders' && !activeFolder}
+                            searchValue={folderSearchTerm}
+                            onSearchChange={setFolderSearchTerm}
+                            isSearching={isFolderSearchFetching}
+                            searchPlaceholder={t('searchInFolder')}
+                        />
 
                         {renderContent()}
 
