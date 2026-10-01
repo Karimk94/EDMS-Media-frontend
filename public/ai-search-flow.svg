@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" role="img" aria-labelledby="title description">
+  <title id="title">Smart EDMS photo upload and intelligent search flow</title>
+  <desc id="description">Uploaded photos are captioned and their searchable text is embedded in ChromaDB. During search, Smart Search tokenizes a sentence into contextual terms for keyword and semantic search. The EDMS API combines both result sets.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f7faf8"/><stop offset="1" stop-color="#edf4f1"/></linearGradient>
+    <linearGradient id="api" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#183d51"/><stop offset="1" stop-color="#245c70"/></linearGradient>
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="145%"><feDropShadow dx="0" dy="5" stdDeviation="8" flood-color="#163649" flood-opacity=".1"/></filter>
+    <marker id="upload-arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto"><path d="M1 1 11 6 1 11Z" fill="#18866f"/></marker>
+    <marker id="search-arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto"><path d="M1 1 11 6 1 11Z" fill="#cf713b"/></marker>
+    <marker id="result-arrow" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto"><path d="M1 1 11 6 1 11Z" fill="#486779"/></marker>
+    <style>
+      text{font-family:"Segoe UI",Arial,sans-serif}.eyebrow{font-size:14px;font-weight:700;letter-spacing:1.2px}.title{font-size:21px;font-weight:700}.copy{font-size:15px}.label{font-size:14px;font-weight:600}.upload{fill:none;stroke:#18866f;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.search{fill:none;stroke:#cf713b;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.result{fill:none;stroke:#486779;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+    </style>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#background)"/><path d="M0 0H1600V12H0Z" fill="#18866f"/>
+  <text x="76" y="62" fill="#173a4b" font-size="34" font-weight="700">AI-powered media search</text>
+  <text x="78" y="94" fill="#58717c" font-size="17">From photo upload to context-aware results</text>
+  <g transform="translate(1110 52)"><path d="M0 0h34" class="upload" marker-end="url(#upload-arrow)"/><text x="45" y="5" fill="#355966" font-size="14">Upload and indexing</text><path d="M220 0h34" class="search" marker-end="url(#search-arrow)"/><text x="265" y="5" fill="#355966" font-size="14">Search request</text></g>
+
+  <rect x="64" y="125" width="1472" height="190" rx="16" fill="#fff" stroke="#d5e2df" stroke-width="1.5"/>
+  <text x="92" y="158" class="eyebrow" fill="#58717c">SMART EDMS PLATFORM</text>
+  <g filter="url(#shadow)"><rect x="102" y="184" width="280" height="92" rx="12" fill="#e8f4f0" stroke="#b5d8ce"/><rect x="1218" y="184" width="280" height="92" rx="12" fill="#fcf0e9" stroke="#ebcbb8"/><rect x="560" y="174" width="480" height="112" rx="14" fill="url(#api)"/></g>
+  <circle cx="139" cy="230" r="20" fill="#18866f"/><path d="m130 230 7 7 12-15" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="173" y="224" class="title" fill="#173a4b">Photo upload</text><text x="173" y="248" class="copy" fill="#58717c">Image added to EDMS</text>
+  <circle cx="1255" cy="230" r="20" fill="#cf713b"/><path d="M1248 230h14m-7-7v14" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="1289" y="224" class="title" fill="#173a4b">Search sentence</text><text x="1289" y="248" class="copy" fill="#58717c">A natural-language query</text>
+  <text x="800" y="221" fill="#fff" font-size="25" font-weight="700" text-anchor="middle">EDMS API</text><text x="800" y="250" fill="#d9e8e9" font-size="15" text-anchor="middle">Orchestrates upload processing and search</text>
+  <path d="M382 230h178" class="upload" marker-end="url(#upload-arrow)"/><path d="M1218 230h-178" class="search" marker-end="url(#search-arrow)"/>
+
+  <rect x="64" y="350" width="1472" height="310" rx="16" fill="#f4f8f7" stroke="#d5e2df" stroke-width="1.5"/><text x="92" y="384" class="eyebrow" fill="#58717c">AI SERVICES</text>
+  <g filter="url(#shadow)"><rect x="130" y="420" width="300" height="142" rx="12" fill="#fff" stroke="#b9dcd2"/><rect x="650" y="420" width="300" height="142" rx="12" fill="#fff" stroke="#edc8b2"/><rect x="1170" y="420" width="300" height="142" rx="12" fill="#fff" stroke="#b9dcd2"/></g>
+  <rect x="151" y="442" width="124" height="24" rx="12" fill="#e6f4ef"/><text x="213" y="459" text-anchor="middle" font-size="11" font-weight="700" fill="#16745f">ON UPLOAD</text>
+  <text x="151" y="496" class="title" fill="#173a4b">Image Captioning</text><text x="151" y="522" class="copy" fill="#58717c">OCR extracts readable text</text>
+  <rect x="671" y="442" width="148" height="24" rx="12" fill="#fcf0e9"/><text x="745" y="459" text-anchor="middle" font-size="11" font-weight="700" fill="#b75c2d">AT SEARCH TIME</text>
+  <text x="671" y="496" class="title" fill="#173a4b">Smart Search</text><text x="671" y="522" class="copy" fill="#58717c">Tokenizes sentence by context</text>
+  <rect x="1191" y="442" width="152" height="24" rx="12" fill="#e6f4ef"/><text x="1267" y="459" text-anchor="middle" font-size="11" font-weight="700" fill="#16745f">UPLOAD + SEARCH</text>
+  <text x="1191" y="496" class="title" fill="#173a4b">Embedding Service</text><text x="1191" y="522" class="copy" fill="#58717c">Creates content and query vectors</text>
+
+  <path d="M675 286C610 335 360 347 280 420" class="upload" marker-end="url(#upload-arrow)"/><rect x="393" y="332" width="175" height="28" rx="14" fill="#f4f8f7"/><text x="480" y="351" text-anchor="middle" class="label" fill="#16745f">Caption photo content</text>
+  <path d="M910 286C930 330 850 360 820 420" class="search" marker-end="url(#search-arrow)"/><rect x="854" y="334" width="146" height="28" rx="14" fill="#f4f8f7"/><text x="927" y="353" text-anchor="middle" class="label" fill="#b75c2d">Tokenize query</text>
+  <path d="M430 493C500 493 500 624 800 624c280 0 310-34 400-62" class="upload" marker-end="url(#upload-arrow)"/><rect x="633" y="606" width="220" height="28" rx="14" fill="#f4f8f7"/><text x="743" y="625" text-anchor="middle" class="label" fill="#16745f">Caption + extracted text</text>
+  <path d="M1000 286C1080 325 1260 340 1315 420" class="search" marker-end="url(#search-arrow)"/><rect x="1080" y="333" width="160" height="26" rx="13" fill="#f4f8f7"/><text x="1160" y="351" text-anchor="middle" class="label" fill="#b75c2d">Original sentence</text>
+
+  <rect x="64" y="694" width="1472" height="244" rx="16" fill="#fff" stroke="#d5e2df" stroke-width="1.5"/><text x="92" y="729" class="eyebrow" fill="#58717c">SEARCH INDEX AND RESULTS</text>
+  <g filter="url(#shadow)"><rect x="220" y="760" width="300" height="118" rx="12" fill="#fdf5ef" stroke="#edc8b2"/><rect x="650" y="760" width="300" height="118" rx="12" fill="#eff5f7" stroke="#bfd3da"/><rect x="1160" y="760" width="300" height="118" rx="12" fill="#183d51"/></g>
+  <text x="250" y="805" class="title" fill="#173a4b">Oracle keyword search</text><text x="250" y="834" class="copy" fill="#58717c">Requires declared concepts</text>
+  <text x="680" y="805" class="title" fill="#173a4b">ChromaDB vector index</text><text x="680" y="834" class="copy" fill="#58717c">Stores photo-content embeddings</text>
+  <text x="1190" y="805" class="title" fill="#fff">Relevant documents</text><text x="1190" y="834" class="copy" fill="#d9e8e9">Semantic + keyword matches</text>
+  <path d="M760 562C720 650 410 655 370 760" class="search" marker-end="url(#search-arrow)"/><rect x="450" y="654" width="170" height="26" rx="13" fill="#f4f8f7"/><text x="535" y="672" text-anchor="middle" class="label" fill="#b75c2d">Contextual concepts</text><path d="M1315 562v198" class="result" marker-end="url(#result-arrow)"/><rect x="1326" y="642" width="154" height="28" rx="14" fill="#f4f8f7"/><text x="1403" y="661" text-anchor="middle" class="label" fill="#355966">Index / find vectors</text>
+  <path d="M950 819h210" class="result" marker-end="url(#result-arrow)"/><path d="M370 878v30h940v-30" class="search" marker-end="url(#search-arrow)"/><rect x="572" y="892" width="205" height="28" rx="14" fill="#fff"/><text x="674" y="911" text-anchor="middle" class="label" fill="#b75c2d">Keyword matches</text>
+  <text x="800" y="975" text-anchor="middle" fill="#58717c" font-size="14">The EDMS API combines both result sets and returns the best-matching documents.</text>
+</svg>
