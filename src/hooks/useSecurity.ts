@@ -19,6 +19,7 @@ interface GenerateShareLinkParams {
     shareMode: 'open' | 'restricted';
     targetEmail?: string;
     targetEmails?: string[]; // Multiple emails
+    note?: string; // Optional note/message attached to the share link
 }
 
 interface GenerateShareLinkResponse {
@@ -50,7 +51,7 @@ export function useSecurityMutation() {
     });
 
     const generateShareLink = useMutation({
-        mutationFn: async ({ itemType, documentId, folderId, documentName, expiryDate, shareMode, targetEmail, targetEmails }: GenerateShareLinkParams) => {
+        mutationFn: async ({ itemType, documentId, folderId, documentName, expiryDate, shareMode, targetEmail, targetEmails, note }: GenerateShareLinkParams) => {
             const payload: any = {
                 expiry_date: expiryDate ? new Date(expiryDate).toISOString() : null,
                 share_type: itemType,
@@ -72,6 +73,11 @@ export function useSecurityMutation() {
                 if (targetEmails && targetEmails.length > 0) {
                     payload.target_emails = targetEmails.map(e => e.trim().toLowerCase());
                 }
+            }
+
+            // Optional note/message attached to the share link
+            if (note && note.trim()) {
+                payload.note = note.trim();
             }
 
             return apiClient.post('/api/share/generate', payload) as Promise<GenerateShareLinkResponse>;

@@ -97,9 +97,8 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
     const [isPageChanging, setIsPageChanging] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
     
-    // Refs to track if loading has started (to prevent premature reset)
-    const hasSearchLoadedRef = useRef(false);
-    const hasPageChangeLoadedRef = useRef(false);
+    // Track previous isFetching state to detect the falling edge (fetching → not fetching)
+    const wasFetchingRef = useRef(false);
 
     // --- Custom Hooks ---
     const API_PROXY_URL = '/api';
@@ -225,29 +224,26 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
         }
     }, [isDocumentsLoading, initialLoadDone]);
 
-    // Track when fetching starts (set refs to true)
+    // Reset searching/page-changing states when fetching completes.
+    // Detects the falling edge (wasFetching → notFetching) so it works
+    // reliably regardless of debounce timing or React Query cache hits.
     useEffect(() => {
-        if (isDocumentsFetching) {
-            if (isSearching) hasSearchLoadedRef.current = true;
-            if (isPageChanging) hasPageChangeLoadedRef.current = true;
+        if (wasFetchingRef.current && !isDocumentsFetching) {
+            // Fetch just finished — clear any active transition states
+            if (isSearching) setIsSearching(false);
+            if (isPageChanging) setIsPageChanging(false);
         }
+        wasFetchingRef.current = isDocumentsFetching;
     }, [isDocumentsFetching, isSearching, isPageChanging]);
 
-    // Reset page changing state when fetching completes (only if fetching had started)
+    // Safety net: if the debounced term has settled and there is no fetch
+    // in progress, reset isSearching. This covers cache-hit scenarios where
+    // isFetching never goes true at all (e.g. re-searching the same term).
     useEffect(() => {
-        if (!isDocumentsFetching && isPageChanging && hasPageChangeLoadedRef.current) {
-            setIsPageChanging(false);
-            hasPageChangeLoadedRef.current = false;
-        }
-    }, [isDocumentsFetching, isPageChanging]);
-
-    // Reset searching state when fetching completes (only if fetching had started)
-    useEffect(() => {
-        if (!isDocumentsFetching && isSearching && hasSearchLoadedRef.current) {
+        if (isSearching && !isDocumentsFetching && debouncedSearchTerm === searchTerm) {
             setIsSearching(false);
-            hasSearchLoadedRef.current = false;
         }
-    }, [isDocumentsFetching, isSearching]);
+    }, [isSearching, isDocumentsFetching, debouncedSearchTerm, searchTerm]);
 
     // --- Handlers ---
     const handleSearch = (newSearchTerm: string) => { 

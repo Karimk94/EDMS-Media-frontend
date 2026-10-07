@@ -420,6 +420,7 @@ export interface ShareInfo {
     expiry_date: string | null;
     share_type: 'file' | 'folder';
     skip_otp?: boolean; // true for restricted shares (specific email) - skip OTP verification
+    note?: string | null; // Optional note/message attached by the sharer
 }
 
 export interface FolderItem {

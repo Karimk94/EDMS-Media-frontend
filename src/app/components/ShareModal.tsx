@@ -29,6 +29,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
   const [targetEmail, setTargetEmail] = useState('');
   const [targetEmails, setTargetEmails] = useState<string[]>([]);
   const [generatedLinks, setGeneratedLinks] = useState<Array<{ email: string, link: string }>>([]);
+  const [note, setNote] = useState('');
 
   const [expiryDate, setExpiryDate] = useState<string>(() => {
     const d = new Date();
@@ -100,7 +101,8 @@ const ShareModal: React.FC<ShareModalProps> = ({
         documentName,
         expiryDate,
         shareMode,
-        targetEmails: emailsToProcess.length > 0 ? emailsToProcess : undefined
+        targetEmails: emailsToProcess.length > 0 ? emailsToProcess : undefined,
+        note: note.trim() ? note.trim() : undefined
       });
 
       if (data.links && data.links.length > 0) {
@@ -137,6 +139,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
     setShareMode('open');
     setTargetEmail('');
     setTargetEmails([]);
+    setNote('');
     onClose();
   };
 
@@ -269,6 +272,25 @@ const ShareModal: React.FC<ShareModalProps> = ({
                 onChange={(e) => setExpiryDate(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
               />
+            </div>
+
+            {/* Note (optional message to recipient) */}
+            <div className="mb-4">
+              <label htmlFor="share-note" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {t('note') || 'Note'} <span className="text-gray-400 text-xs">({t('optional') || 'optional'})</span>
+              </label>
+              <textarea
+                id="share-note"
+                rows={3}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                maxLength={1000}
+                placeholder={t('notePlaceholder') || 'Add a note for the recipient (optional)'}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm resize-none"
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                {note.length}/1000
+              </p>
             </div>
 
             {/* Folder share notice */}
