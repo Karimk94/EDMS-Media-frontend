@@ -85,8 +85,8 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [selectedYears, setSelectedYears] = useState<number[]>([]);
     const [filterMediaType, setFilterMediaType] = useState<'image' | 'video' | 'pdf' | null>(null);
-    const [folderSearchTerm, setFolderSearchTerm] = useState<string>('');
     const [isFolderSearchFetching, setIsFolderSearchFetching] = useState<boolean>(false);
+    const [folderSearchMeta, setFolderSearchMeta] = useState<{ tokens: string[], required_concepts: string[] } | null>(null);
 
     const lang = currentLang;
     const theme = currentTheme;
@@ -255,7 +255,6 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
     const handleClearFilters = () => {
         setDateFrom(null); setDateTo(null); setSelectedPerson(null);
         setSelectedTags([]); setSelectedYears([]); setFilterMediaType(null); setCurrentPage(1);
-        setFolderSearchTerm('');
     };
 
     const confirmClearCache = async () => {
@@ -317,7 +316,7 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
 
 
     const hasActiveFilters = Boolean(
-        dateFrom || dateTo || selectedPerson?.length || selectedTags.length || selectedYears.length || filterMediaType || (activeSection === 'folders' && !activeFolder && folderSearchTerm)
+        dateFrom || dateTo || selectedPerson?.length || selectedTags.length || selectedYears.length || filterMediaType || (activeSection === 'folders' && !activeFolder && searchTerm)
     );
 
     // --- Render ---
@@ -362,8 +361,8 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
                         initialFolderId={initialFolderId}
                         externalRefreshTrigger={folderRefreshTrigger}
                         processingDocs={processingDocs}
-                        folderSearchTerm={folderSearchTerm}
-                        onFolderSearchChange={setFolderSearchTerm}
+                        folderSearchTerm={searchTerm}
+                        onFolderSearchChange={setSearchTerm}
                         onFolderSearchFetchingChange={setIsFolderSearchFetching}
                         selectedTags={selectedTags}
                         selectedYears={selectedYears}
@@ -373,6 +372,7 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
                         personCondition={personCondition}
                         filterMediaType={filterMediaType}
                         lang={lang}
+                        onSearchMetaChange={setFolderSearchMeta}
                     />
                 </Suspense>
             );
@@ -479,11 +479,6 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
                             hasActiveFilters={hasActiveFilters} onClearFilters={handleClearFilters}
                             onPageReset={() => setCurrentPage(1)}
                             t={t} lang={lang} theme={theme}
-                            showSearch={activeSection === 'folders' && !activeFolder}
-                            searchValue={folderSearchTerm}
-                            onSearchChange={setFolderSearchTerm}
-                            isSearching={isFolderSearchFetching}
-                            searchPlaceholder={t('searchInFolder')}
                         />
 
                         {renderContent()}

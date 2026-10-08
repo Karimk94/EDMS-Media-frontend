@@ -24,6 +24,10 @@ interface UseDocumentsParams {
 interface DocumentsResponse {
     documents: Document[];
     total_pages: number;
+    search_meta?: {
+        tokens: string[];
+        required_concepts: string[];
+    };
 }
 
 const formatToApiDateTime = (date: Date | null): string => {
@@ -155,7 +159,8 @@ export function useDocuments({
 
             return {
                 documents: fetchedDocs,
-                total_pages: data.total_pages || 1
+                total_pages: data.total_pages || 1,
+                search_meta: data.search_meta
             };
         },
         enabled: isEnabled && (activeSection !== 'folders' || !!activeFolder),

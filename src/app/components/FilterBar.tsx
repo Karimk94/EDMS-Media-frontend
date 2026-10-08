@@ -30,13 +30,6 @@ interface FilterBarProps {
     t: Function;
     lang: 'en' | 'ar';
     theme: 'light' | 'dark';
-
-    /** Optional search bar props (rendered in Folders section) */
-    showSearch?: boolean;
-    searchValue?: string;
-    onSearchChange?: (val: string) => void;
-    isSearching?: boolean;
-    searchPlaceholder?: string;
 }
 
 /**
@@ -46,56 +39,13 @@ export function FilterBar({
     apiURL, selectedTags, setSelectedTags, selectedYears, setSelectedYears,
     dateFrom, setDateFrom, dateTo, setDateTo, selectedPerson, setSelectedPerson,
     personCondition, setPersonCondition, filterMediaType, setFilterMediaType,
-    hasActiveFilters, onClearFilters, onPageReset, t, lang, theme,
-    showSearch, searchValue, onSearchChange, isSearching, searchPlaceholder
+    hasActiveFilters, onClearFilters, onPageReset, t, lang, theme
 }: FilterBarProps) {
     const isRtl = lang === 'ar';
 
     return (
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-6 border-b border-gray-200 dark:border-gray-700">
-            {showSearch && onSearchChange ? (
-                <div className="relative flex-1 min-w-[220px] max-w-md">
-                    <input
-                        type="text"
-                        placeholder={searchPlaceholder || t('searchInFolder') || "Search by name or content..."}
-                        value={searchValue || ''}
-                        onChange={(e) => onSearchChange(e.target.value)}
-                        className={`w-full py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#252525] text-sm text-gray-900 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition shadow-sm ${
-                            isRtl ? 'pr-9 pl-9' : 'pl-9 pr-9'
-                        }`}
-                    />
-                    <Image
-                        src="/search-icon.svg"
-                        alt=""
-                        width={16}
-                        height={16}
-                        className={`absolute top-1/2 transform -translate-y-1/2 opacity-60 dark:invert pointer-events-none ${
-                            isRtl ? 'right-3' : 'left-3'
-                        }`}
-                    />
-                    {isSearching && (
-                        <div className={`absolute top-1/2 transform -translate-y-1/2 ${
-                            isRtl ? 'left-3' : 'right-3'
-                        }`}>
-                            <Spinner size="xs" />
-                        </div>
-                    )}
-                    {searchValue && !isSearching && (
-                        <button
-                            type="button"
-                            onClick={() => onSearchChange('')}
-                            className={`absolute top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                                isRtl ? 'left-2' : 'right-2'
-                            }`}
-                            aria-label="Clear search"
-                        >
-                            <Image src="/icons/close.svg" alt="" width={14} height={14} className="dark:invert" />
-                        </button>
-                    )}
-                </div>
-            ) : (
-                <div />
-            )}
+            <div />
 
             <div className="flex items-center gap-3 flex-wrap ml-auto">
                 <TagFilter

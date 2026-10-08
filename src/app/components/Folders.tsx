@@ -48,6 +48,7 @@ interface FoldersProps {
     folderSearchTerm?: string;
     onFolderSearchChange?: (term: string) => void;
     onFolderSearchFetchingChange?: (fetching: boolean) => void;
+    onSearchMetaChange?: (meta: { tokens: string[], required_concepts: string[] } | null) => void;
 
     /** Filter props passed down from FilterBar */
     selectedTags?: string[];
@@ -98,6 +99,7 @@ export const Folders: React.FC<FoldersProps> = ({
     folderSearchTerm,
     onFolderSearchChange,
     onFolderSearchFetchingChange,
+    onSearchMetaChange,
     selectedTags = [],
     selectedYears = [],
     dateFrom = null,
@@ -225,6 +227,14 @@ export const Folders: React.FC<FoldersProps> = ({
     useEffect(() => {
         onFolderSearchFetchingChange?.(isContentSearchFetching);
     }, [isContentSearchFetching, onFolderSearchFetchingChange]);
+
+    useEffect(() => {
+        if (contentSearchData?.search_meta) {
+            onSearchMetaChange?.(contentSearchData.search_meta as any);
+        } else {
+            onSearchMetaChange?.(null);
+        }
+    }, [contentSearchData?.search_meta, onSearchMetaChange]);
 
     const [hiddenItemIds, setHiddenItemIds] = useState<Set<string | number>>(new Set());
 

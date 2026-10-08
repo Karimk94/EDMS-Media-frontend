@@ -51,6 +51,10 @@ interface FolderContentSearchResponse {
     contents: FolderItem[];
     total_pages: number;
     total_documents: number;
+    search_meta?: {
+        tokens: string[];
+        required_concepts: string[];
+    };
 }
 
 /**
@@ -151,6 +155,10 @@ export function useFolderContentSearch({
                 documents: DocumentsResponseItem[];
                 total_pages?: number;
                 total_documents?: number;
+                search_meta?: {
+                    tokens: string[];
+                    required_concepts: string[];
+                };
             }>(`${apiURL}/documents?${params.toString()}`);
 
             const contents: FolderItem[] = (data.documents || []).map((doc) => ({
@@ -174,6 +182,7 @@ export function useFolderContentSearch({
                 contents,
                 total_pages: data.total_pages || 1,
                 total_documents: data.total_documents || 0,
+                search_meta: data.search_meta
             };
         },
         enabled: isEnabled && (!!searchTerm || hasFilters),

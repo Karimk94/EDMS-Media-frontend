@@ -13,13 +13,17 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, t, lang, isLoadi
     }
   };
 
-  const handleKeyUp = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleSearch();
-  };
+
 
   const handleClear = () => {
     setInput('');
     onSearch('');
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setInput(val);
+    onSearch(val);
   };
 
   return (
@@ -31,8 +35,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, t, lang, isLoadi
       <input
         type="text"
         value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyUp={handleKeyUp}
+        onChange={handleInputChange}
         placeholder={t('search')}
         className={`flex-1 py-2 bg-transparent text-gray-900 dark:text-gray-200 
                     border-none focus:ring-0 outline-none placeholder-gray-500
