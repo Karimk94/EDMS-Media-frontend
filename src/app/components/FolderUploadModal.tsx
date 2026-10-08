@@ -460,7 +460,15 @@ export const FolderUploadModal: React.FC<FolderUploadModalProps> = ({ onClose, a
   const pendingFilesCount = files.filter(f => f.status === 'pending').length;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 z-[60] flex flex-col p-4 md:p-8" role="dialog" aria-modal="true" aria-label={t('uploadToFolder')}>
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-90 z-[60] flex flex-col p-4 md:p-8" 
+      role="dialog" 
+      aria-modal="true" 
+      aria-label={t('uploadToFolder')}
+      onDrop={onDrop}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+    >
       {/* Distinct Header for Folder Upload */}
       <div className="flex-shrink-0 flex justify-between items-center mb-6 bg-blue-900/30 p-4 rounded-lg border border-blue-800">
         <div className="flex flex-col">
@@ -504,9 +512,6 @@ export const FolderUploadModal: React.FC<FolderUploadModalProps> = ({ onClose, a
       <div className="flex-1 flex flex-col md:flex-row gap-4 md:gap-8 overflow-hidden">
         <div className="w-full md:w-1/3 flex flex-col">
           <div
-            onDrop={onDrop}
-            onDragOver={onDragOver}
-            onDragLeave={onDragLeave}
             className={`flex-1 border-2 border-dashed rounded-xl flex flex-col justify-center items-center p-4 md:p-8 text-center transition-colors min-h-[150px] ${isDragOver ? 'border-blue-500 bg-[#222]' : 'border-gray-600'}`}>
             <Image src="/upload.svg" alt="Upload Icon" width={40} height={40} className="text-gray-400 mb-2 invert" />
             <p className="mt-2 text-lg text-gray-300">{t('dragAndDrop')}</p>

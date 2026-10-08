@@ -127,6 +127,7 @@ export const Folders: React.FC<FoldersProps> = ({
     const isViewer = (user?.security_level || '').trim().toLowerCase() === 'viewer';
     const isEditor = isEditorProp && !isViewer;
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [groupBy, setGroupBy] = useState<'none' | 'type'>('none');
     const [showDetailsSidebar, setShowDetailsSidebar] = useState(false);
 
     useEffect(() => {
@@ -154,6 +155,7 @@ export const Folders: React.FC<FoldersProps> = ({
     const [breadcrumbs, setBreadcrumbs] = useState<{ id: string | number | null; name: string }[]>([
         { id: null, name: t('home') || 'Home' }
     ]);
+    const [dragOverCrumbIndex, setDragOverCrumbIndex] = useState<number | null>(null);
 
     const [internalSearchTerm, setInternalSearchTerm] = useState('');
     const searchTerm = folderSearchTerm !== undefined ? folderSearchTerm : internalSearchTerm;
@@ -652,10 +654,10 @@ export const Folders: React.FC<FoldersProps> = ({
         return `/folder/${item.id}?breadcrumbs=${encodeURIComponent(json)}&name=${encodeURIComponent(item.name)}`;
     };
 
-    const renderIcon = (item: FolderItem, isStandard = false) => {
+    const renderIcon = (item: FolderItem, isStandard = false, customSize?: number) => {
         let iconSrc = '/folder-icon.svg';
         let altText = 'Folder';
-        let size = 56; // Maps to h-14 w-14
+        let size = customSize || 56; // Maps to h-14 w-14
         let invertClass = "";
 
         let type: string = 'folder';
@@ -1038,6 +1040,13 @@ export const Folders: React.FC<FoldersProps> = ({
             const activeTag = document.activeElement?.tagName;
             if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return;
             if (confirmModalOpen || itemToRename || isShareModalOpen || isMoveModalOpen || showCreateModal) return;
+
+            if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'r')) {
+                e.preventDefault();
+                refreshCurrentView(true);
+                return;
+            }
+
             if (userItems.length === 0) return;
 
             const cols = (() => {
@@ -1925,6 +1934,21 @@ export const Folders: React.FC<FoldersProps> = ({
         return colorMap[type] || 'text-yellow-500 dark:text-yellow-400';
     };
 
+    const groups = React.useMemo(() => {
+        if (groupBy === 'none') {
+            return [{ title: '', items: userItems }];
+        }
+        if (groupBy === 'type') {
+            const folders = userItems.filter((i) => i.type === 'folder');
+            const files = userItems.filter((i) => i.type === 'file');
+            return [
+                { title: t('folders') || 'Folders', items: folders },
+                { title: t('files') || 'Files', items: files }
+            ].filter(g => g.items.length > 0);
+        }
+        return [{ title: '', items: userItems }];
+    }, [groupBy, userItems, t]);
+
     return (
         <div ref={containerRef} className="flex flex-col h-full bg-white dark:bg-[#1e1e1e] rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden relative">
 
@@ -1951,8 +1975,31 @@ export const Folders: React.FC<FoldersProps> = ({
                                     {index > 0 && <span className="mx-2 text-gray-400">/</span>}
                                     <button
                                         onClick={() => handleBreadcrumbClick(index)}
-                                        className={`hover:text-blue-500 hover:underline transition-colors ${index === breadcrumbs.length - 1 ? 'font-bold text-gray-900 dark:text-white' : ''
-                                            }`}
+                                        onDragOver={(e) => {
+                                            if (!isEditor || index === breadcrumbs.length - 1) return;
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            e.dataTransfer.dropEffect = 'move';
+                                            setDragOverCrumbIndex(index);
+                                        }}
+                                        onDragLeave={() => setDragOverCrumbIndex(null)}
+                                        onDrop={(e) => {
+                                            setDragOverCrumbIndex(null);
+                                            if (!isEditor || index === breadcrumbs.length - 1) return;
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            try {
+                                                const payloadStr = e.dataTransfer.getData('text/plain');
+                                                if (!payloadStr) return;
+                                                const payload = JSON.parse(payloadStr);
+                                                if (payload && payload.source === 'edms-folders-grid' && payload.ids && payload.ids.length > 0) {
+                                                    moveFilesToFolder(payload.ids, crumb.id);
+                                                }
+                                            } catch (err) {
+                                                console.error("Error parsing drop payload", err);
+                                            }
+                                        }}
+                                        className={`hover:text-blue-500 hover:underline transition-colors px-2 py-1 rounded-md ${index === breadcrumbs.length - 1 ? 'font-bold text-gray-900 dark:text-white' : ''} ${dragOverCrumbIndex === index ? 'bg-blue-100 dark:bg-blue-900/50 outline-dashed outline-2 outline-blue-500' : ''}`}
                                     >
                                         {crumb.name}
                                     </button>
@@ -1973,6 +2020,18 @@ export const Folders: React.FC<FoldersProps> = ({
                         >
                             <Image src="/icons/refresh.svg" alt="" width={20} height={20} className={`${isRefreshing || isFetching ? 'animate-spin' : ''} dark:invert`} />
                         </button>
+
+                        <div className="flex items-center mx-2 gap-2">
+                            <span className="text-sm text-gray-500 dark:text-gray-400">{t('groupBy') || 'Group By:'}</span>
+                            <select
+                                value={groupBy}
+                                onChange={(e) => setGroupBy(e.target.value as 'none' | 'type')}
+                                className="bg-gray-100 dark:bg-gray-700 text-sm border-none rounded-md p-1 outline-none focus:ring-1 focus:ring-blue-500 text-gray-700 dark:text-gray-200"
+                            >
+                                <option value="none">{t('none') || 'None'}</option>
+                                <option value="type">{t('type') || 'Type'}</option>
+                            </select>
+                        </div>
 
                         <div className="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1 mx-2">
                             <button
@@ -2029,7 +2088,7 @@ export const Folders: React.FC<FoldersProps> = ({
                     </div>
                 </div>
 
-                {isSelectionMode && isEditor && selectedItemCount > 0 && (
+                {isSelectionMode && isEditor && selectedItemCount > 1 && (
                     <div className="absolute inset-0 z-10 flex items-center justify-between px-6 bg-blue-50 dark:bg-blue-950/90 border-b border-blue-200 dark:border-blue-800">
                         <span className="text-sm font-medium text-blue-900 dark:text-blue-200">
                             {(t('selectedFilesCount') || `${selectedItemCount} item(s) selected`).replace('{count}', String(selectedItemCount))}
@@ -2164,7 +2223,14 @@ export const Folders: React.FC<FoldersProps> = ({
                                 <div className="mb-4">
                                     {viewMode === 'grid' ? (
                                         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2">
-                                            {userItems.map((item) => {
+                                            {groups.map((group, gIdx) => (
+                                                <React.Fragment key={`grid-${gIdx}`}>
+                                                    {group.title && (
+                                                        <div className="col-span-full mt-2 mb-2 first:mt-0">
+                                                            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-1">{group.title}</h3>
+                                                        </div>
+                                                    )}
+                                                    {group.items.map((item) => {
                                                 const isFile = item.type === 'file';
                                                 const isSelected = selectedFileIds.has(item.id);
                                                 const isDragOverTarget = dragOverFolderId === item.id;
@@ -2411,6 +2477,8 @@ export const Folders: React.FC<FoldersProps> = ({
                                                     </div>
                                                 );
                                             })}
+                                                </React.Fragment>
+                                            ))}
                                         </div>
                                     ) : (
                                         <div className="flex flex-col border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-[#1a1a1a]">
@@ -2424,7 +2492,16 @@ export const Folders: React.FC<FoldersProps> = ({
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                                                    {userItems.map((item) => {
+                                                    {groups.map((group, gIdx) => (
+                                                        <React.Fragment key={`list-${gIdx}`}>
+                                                            {group.title && (
+                                                                <tr>
+                                                                    <td colSpan={6} className="px-4 py-2 bg-gray-50 dark:bg-[#252525] text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                                                        {group.title}
+                                                                    </td>
+                                                                </tr>
+                                                            )}
+                                                            {group.items.map((item) => {
                                                         const isFile = item.type === 'file';
                                                         const isSelected = selectedFileIds.has(item.id);
                                                         const isDragOverTarget = dragOverFolderId === item.id;
@@ -2529,7 +2606,7 @@ export const Folders: React.FC<FoldersProps> = ({
                                                                             />
                                                                         ) : (
                                                                             <span className={!isFile ? 'text-gray-400 dark:text-gray-500' : getFileColorClass(item)}>
-                                                                                {renderIcon(item, false)}
+                                                                                {renderIcon(item, false, 24)}
                                                                             </span>
                                                                         )}
                                                                     </div>
@@ -2573,6 +2650,8 @@ export const Folders: React.FC<FoldersProps> = ({
                                                             </tr>
                                                         );
                                                     })}
+                                                        </React.Fragment>
+                                                    ))}
                                                 </tbody>
                                             </table>
                                         </div>
