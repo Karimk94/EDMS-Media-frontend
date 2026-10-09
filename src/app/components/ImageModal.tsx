@@ -174,37 +174,30 @@ export const ImageModal: React.FC<ImageModalProps> = ({
   });
 
   useEffect(() => {
-    if (metaData) {
-      if (!isEditingAbstract) {
-        setAbstract(metaData.abstract || '');
-        setInitialAbstract(metaData.abstract || '');
-      }
-      if (!isEditingDate && metaData.date) {
-        const parsed = safeParseDate(metaData.date);
-        setDocumentDate(parsed);
-        setInitialDate(parsed);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [metaData]);
-
-  useEffect(() => {
-    // When the selected document changes, seed the abstract/date from the doc
-    // object passed in (e.g. from the folder grid) as an immediate placeholder.
-    // The authoritative values come from useDocumentMetadata above, whose effect
-    // will overwrite these once metaData is available. This effect intentionally
-    // only depends on doc.doc_id so it does NOT clobber the metadata-derived
-    // value when other doc fields change.
-    const initialText = doc.abstract !== undefined && doc.abstract !== null ? doc.abstract : (doc.title || '');
-    setAbstract(initialText);
-    setInitialAbstract(initialText);
-    const newDate = safeParseDate(doc.date);
-    setDocumentDate(newDate);
-    setInitialDate(newDate);
     setIsEditingAbstract(false);
     setIsEditingDate(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc.doc_id]);
+
+  useEffect(() => {
+    // Authoritative metadata from useDocumentMetadata takes precedence if matched to current doc
+    const hasAuthoritativeMeta = metaData && Number(metaData.doc_id) === Number(doc.doc_id);
+    const resolvedAbstract = hasAuthoritativeMeta
+      ? (metaData.abstract || '')
+      : (doc.abstract || doc.title || '');
+
+    const resolvedDate = hasAuthoritativeMeta && metaData.date
+      ? safeParseDate(metaData.date)
+      : safeParseDate(doc.date);
+
+    if (!isEditingAbstract) {
+      setAbstract(resolvedAbstract);
+      setInitialAbstract(resolvedAbstract);
+    }
+    if (!isEditingDate) {
+      setDocumentDate(resolvedDate);
+      setInitialDate(resolvedDate);
+    }
+  }, [doc.doc_id, doc.abstract, doc.title, doc.date, metaData, isEditingAbstract, isEditingDate]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -296,8 +289,15 @@ export const ImageModal: React.FC<ImageModalProps> = ({
     try {
       await updateMetadata(payload);
 
-      if (payload.abstract !== undefined) setInitialAbstract(payload.abstract);
-      if (payload.date_taken !== undefined) setInitialDate(documentDate);
+      if (payload.abstract !== undefined) {
+        setInitialAbstract(payload.abstract);
+        setAbstract(payload.abstract);
+        doc.abstract = payload.abstract;
+      }
+      if (payload.date_taken !== undefined) {
+        setInitialDate(documentDate);
+        if (payload.date_taken) doc.date = payload.date_taken;
+      }
 
       setIsEditingDate(false);
       setIsEditingAbstract(false);

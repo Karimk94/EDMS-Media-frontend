@@ -310,7 +310,6 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
         if (activeSection === 'folders') {
             queryClient.invalidateQueries({ queryKey: ['folders'] });
         }
-        documentModals.closeAll();
     };
 
 

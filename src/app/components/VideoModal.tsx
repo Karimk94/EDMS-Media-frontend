@@ -89,29 +89,29 @@ export const VideoModal: React.FC<VideoModalProps> = ({
   });
 
   useEffect(() => {
-    if (metaData) {
-      if (!isEditingAbstract) {
-        setAbstract(metaData.abstract || '');
-        setInitialAbstract(metaData.abstract || '');
-      }
-      if (!isEditingDate && metaData.date) {
-        const parsed = safeParseDate(metaData.date);
-        setDocumentDate(parsed);
-        setInitialDate(parsed);
-      }
-    }
-  }, [metaData, isEditingAbstract, isEditingDate]);
-
-  useEffect(() => {
-    const initialText = doc.abstract !== undefined && doc.abstract !== null ? doc.abstract : (doc.title || '');
-    setAbstract(initialText);
-    setInitialAbstract(initialText);
-    const newDate = safeParseDate(doc.date);
-    setDocumentDate(newDate);
-    setInitialDate(newDate);
     setIsEditingAbstract(false);
     setIsEditingDate(false);
-  }, [doc.doc_id, doc.abstract, doc.title, doc.date]);
+  }, [doc.doc_id]);
+
+  useEffect(() => {
+    const hasAuthoritativeMeta = metaData && Number(metaData.doc_id) === Number(doc.doc_id);
+    const resolvedAbstract = hasAuthoritativeMeta
+      ? (metaData.abstract || '')
+      : (doc.abstract || doc.title || '');
+
+    const resolvedDate = hasAuthoritativeMeta && metaData.date
+      ? safeParseDate(metaData.date)
+      : safeParseDate(doc.date);
+
+    if (!isEditingAbstract) {
+      setAbstract(resolvedAbstract);
+      setInitialAbstract(resolvedAbstract);
+    }
+    if (!isEditingDate) {
+      setDocumentDate(resolvedDate);
+      setInitialDate(resolvedDate);
+    }
+  }, [doc.doc_id, doc.abstract, doc.title, doc.date, metaData, isEditingAbstract, isEditingDate]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -182,8 +182,15 @@ export const VideoModal: React.FC<VideoModalProps> = ({
     try {
       await updateMetadata(payload);
 
-      if (payload.abstract !== undefined) setInitialAbstract(payload.abstract);
-      if (payload.date_taken !== undefined) setInitialDate(documentDate);
+      if (payload.abstract !== undefined) {
+        setInitialAbstract(payload.abstract);
+        setAbstract(payload.abstract);
+        doc.abstract = payload.abstract;
+      }
+      if (payload.date_taken !== undefined) {
+        setInitialDate(documentDate);
+        if (payload.date_taken) doc.date = payload.date_taken;
+      }
 
       setIsEditingDate(false);
       setIsEditingAbstract(false);

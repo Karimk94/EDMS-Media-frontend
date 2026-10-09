@@ -841,7 +841,7 @@ export const Folders: React.FC<FoldersProps> = ({
                     doc_id: parseInt(String(folder.id), 10),
                     docname: (folder as any).docname || folder.name,
                     title: (folder as any).title || '',
-                    abstract: (folder as any).abstract || '',
+                    abstract: (folder as any).abstract || undefined,
                     media_type: mediaType,
                     date: (folder as any).date || new Date().toISOString(),
                     thumbnail_url: folder.thumbnail_url || `cache/${folder.id}.jpg`
