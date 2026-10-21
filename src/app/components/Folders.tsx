@@ -759,8 +759,8 @@ export const Folders: React.FC<FoldersProps> = ({
         }
 
         const ext = item.name.split('.').pop()?.toLowerCase();
-        if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext || '')) return 'image';
-        if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext || '')) return 'video';
+        if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'heic', 'heif'].includes(ext || '')) return 'image';
+        if (['mp4', 'mov', 'avi', 'mkv', 'webm', 'hevc', 'm4v'].includes(ext || '')) return 'video';
         if (['pdf'].includes(ext || '')) return 'pdf';
         if (['doc', 'docx'].includes(ext || '')) return 'word';
         if (['zip'].includes(ext || '')) return 'zip';

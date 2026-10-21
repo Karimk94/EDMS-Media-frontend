@@ -11,9 +11,9 @@ interface DownloadParams {
 
 const WATERMARKED_MEDIA_TYPES = new Set(['image', 'pdf', 'video']);
 const WATERMARKED_EXTENSIONS = new Set([
-    'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg',
+    'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'heic', 'heif',
     'pdf',
-    'mp4', 'mov', 'avi', 'mkv', 'webm'
+    'mp4', 'mov', 'avi', 'mkv', 'webm', 'hevc', 'm4v'
 ]);
 
 function shouldUseWatermarkedDownload(docname: string, mediaType?: string) {

@@ -60,6 +60,26 @@ const formatToApiDate = (date: Date | null): string | null => {
   return `${year} -${month} -${day} ${hours}:${minutes}:${seconds} `;
 };
 
+const getVideoMimeType = (docname: string): string => {
+  const ext = docname?.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'mov':
+      return 'video/quicktime';
+    case 'webm':
+      return 'video/webm';
+    case 'hevc':
+      return 'video/mp4; codecs="hevc"';
+    case 'm4v':
+      return 'video/mp4';
+    case 'avi':
+      return 'video/x-msvideo';
+    case 'mkv':
+      return 'video/x-matroska';
+    default:
+      return 'video/mp4';
+  }
+};
+
 export const VideoModal: React.FC<VideoModalProps> = ({
   doc, onClose, apiURL, onUpdateAbstractSuccess, isEditor, t, lang, theme,
   currentDocIndex, totalInGroup, isGrouped, onNavigateNext, onNavigatePrevious,
@@ -294,7 +314,8 @@ export const VideoModal: React.FC<VideoModalProps> = ({
         <div className="p-6">
           <div className={`relative ${isFullScreen ? 'fixed inset-0 z-[60] bg-black flex items-center justify-center' : ''} `}>
             <video ref={videoRef} controls autoPlay className={isFullScreen ? 'w-full h-full' : 'w-full max-h-[70vh] rounded-lg bg-black'}>
-              <source src={`${apiURL}/video/${doc.doc_id}`} type="video/mp4" />
+              <source src={`${apiURL}/video/${doc.doc_id}`} type={getVideoMimeType(doc.docname)} />
+              <source src={`${apiURL}/video/${doc.doc_id}`} />
               Your browser does not support the video tag.
             </video>
             {isFullScreen && (

@@ -20,22 +20,25 @@ export function useDocumentModals() {
     const handleDocumentClick = useCallback((doc: Document) => {
         if (doc.media_type === 'zip') return;
 
-        if (doc.media_type === 'video') {
+        const ext = doc.docname.split('.').pop()?.toLowerCase();
+        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'heic', 'heif'];
+        const videoExtensions = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'hevc', 'm4v'];
+
+        if (doc.media_type === 'video' || (ext && videoExtensions.includes(ext))) {
             setSelectedVideo(doc);
-        } else if (doc.media_type === 'image') {
+        } else if (doc.media_type === 'image' || (ext && imageExtensions.includes(ext))) {
             setSelectedDoc(doc);
-        } else if (doc.media_type === 'pdf') {
+        } else if (doc.media_type === 'pdf' || ext === 'pdf') {
             setSelectedPdf(doc);
         } else if (doc.media_type === 'text') {
             setSelectedTxt(doc);
-        } else if (doc.media_type === 'excel') {
+        } else if (doc.media_type === 'excel' || (ext && ['xls', 'xlsx', 'ods', 'xlsm'].includes(ext))) {
             setSelectedExcel(doc);
-        } else if (doc.media_type === 'powerpoint') {
+        } else if (doc.media_type === 'powerpoint' || (ext && ['ppt', 'pptx', 'odp', 'pps', 'ppsx'].includes(ext))) {
             setSelectedPPT(doc);
-        } else if (doc.media_type === 'word') {
+        } else if (doc.media_type === 'word' || (ext && ['doc', 'docx'].includes(ext))) {
             setSelectedWord(doc);
         } else {
-            const ext = doc.docname.split('.').pop()?.toLowerCase();
             const textExtensions = ['txt', 'csv', 'json', 'xml', 'log', 'md', 'yml', 'yaml', 'ini', 'conf'];
 
             if ((ext && textExtensions.includes(ext)) || !ext) {

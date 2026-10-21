@@ -149,6 +149,16 @@ export const ImageModal: React.FC<ImageModalProps> = ({
     enabled: !!doc.doc_id
   });
 
+  const getFallbackThumbnailUrl = () => {
+    if (doc.thumbnail_url && doc.thumbnail_url.trim()) {
+      if (doc.thumbnail_url.startsWith('http')) return doc.thumbnail_url;
+      const clean = doc.thumbnail_url.replace(/^\//, '');
+      return apiURL ? `${apiURL.replace(/\/+$/, '')}/${clean}` : `/${clean}`;
+    }
+    const cleanCache = `cache/${doc.doc_id}.jpg`;
+    return apiURL ? `${apiURL.replace(/\/+$/, '')}/${cleanCache}` : `/${cleanCache}`;
+  };
+
   useEffect(() => {
     setIsLoading(isFetchingImage);
     if (imageError) {
@@ -156,14 +166,84 @@ export const ImageModal: React.FC<ImageModalProps> = ({
     }
     if (imageBlob) {
       originalImageBlob.current = imageBlob as Blob;
-      const newUrl = URL.createObjectURL(imageBlob as Blob);
-      lastImageSrcRef.current = newUrl;
-      setImageSrc(newUrl);
+      let isCancelled = false;
+
+      const blobType = (imageBlob as Blob).type?.toLowerCase() || '';
+      // If already a browser-supported image format (e.g. backend converted to image/jpeg or native png/webp/gif)
+      if (blobType === 'image/jpeg' || blobType === 'image/png' || blobType === 'image/webp' || blobType === 'image/gif') {
+        const newUrl = URL.createObjectURL(imageBlob as Blob);
+        lastImageSrcRef.current = newUrl;
+        setImageSrc(newUrl);
+        setIsLoading(false);
+        return () => {
+          isCancelled = true;
+          if (lastImageSrcRef.current) {
+            URL.revokeObjectURL(lastImageSrcRef.current);
+            lastImageSrcRef.current = null;
+          }
+        };
+      }
+
+      const isHeicOrHeif =
+        blobType.includes('heic') ||
+        blobType.includes('heif') ||
+        /\.(heic|heif)$/i.test(doc.docname || '');
+
+      if (isHeicOrHeif) {
+        setIsLoading(true);
+        (async () => {
+          try {
+            const heic2anyModule = await import('heic2any');
+            const heic2any: any =
+              typeof heic2anyModule === 'function'
+                ? heic2anyModule
+                : typeof heic2anyModule.default === 'function'
+                ? heic2anyModule.default
+                : typeof (heic2anyModule.default as any)?.default === 'function'
+                ? (heic2anyModule.default as any).default
+                : null;
+
+            if (!heic2any) {
+              throw new Error('heic2any decoder is not available');
+            }
+
+            const converted = await heic2any({
+              blob: imageBlob as Blob,
+              toType: 'image/jpeg',
+              quality: 0.92,
+              multiple: false,
+            });
+            if (isCancelled) return;
+            const finalBlob = Array.isArray(converted) ? converted[0] : converted;
+            const newUrl = URL.createObjectURL(finalBlob);
+            lastImageSrcRef.current = newUrl;
+            setImageSrc(newUrl);
+          } catch (err) {
+            console.warn('HEIC/HEIF client conversion failed, falling back to server preview/thumbnail:', err);
+            if (isCancelled) return;
+            lastImageSrcRef.current = null;
+            setImageSrc(getFallbackThumbnailUrl());
+          } finally {
+            if (!isCancelled) {
+              setIsLoading(false);
+            }
+          }
+        })();
+      } else {
+        const newUrl = URL.createObjectURL(imageBlob as Blob);
+        lastImageSrcRef.current = newUrl;
+        setImageSrc(newUrl);
+      }
+
       return () => {
-        URL.revokeObjectURL(newUrl);
+        isCancelled = true;
+        if (lastImageSrcRef.current) {
+          URL.revokeObjectURL(lastImageSrcRef.current);
+          lastImageSrcRef.current = null;
+        }
       };
     }
-  }, [isFetchingImage, imageError, imageBlob]);
+  }, [isFetchingImage, imageError, imageBlob, doc.docname, doc.doc_id, doc.thumbnail_url, apiURL]);
 
   useEffect(() => {
     setIsFavorite(doc.is_favorite);
@@ -442,7 +522,13 @@ export const ImageModal: React.FC<ImageModalProps> = ({
                     fill
                     className="object-contain"
                     draggable={false}
-                    unoptimized={true} />
+                    unoptimized={true}
+                    onError={() => {
+                      const fallback = getFallbackThumbnailUrl();
+                      if (imageSrc !== fallback) {
+                        setImageSrc(fallback);
+                      }
+                    }} />
                 </div>
                 {isFullScreen && (
                   <button
