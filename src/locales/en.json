@@ -525,5 +525,7 @@
     "folderUploadInfo": "A new folder and event will be created with this name, and all files will be uploaded to it.",
     "groupBy": "Group By:",
     "none": "None",
-    "type": "Type"
+    "type": "Type",
+    "gridView": "Grid View",
+    "listView": "List View"
 }
