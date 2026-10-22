@@ -16,6 +16,7 @@ interface DocumentsResponseItem {
     date?: string;
     thumbnail_url?: string;
     media_type?: string;
+    event_name?: string;
 }
 
 const formatToApiDateTime = (date: Date | null): string => {
@@ -170,6 +171,7 @@ export function useFolderContentSearch({
                 date: doc.date,
                 thumbnail_url: doc.thumbnail_url,
                 is_standard: false,
+                event_name: doc.event_name,
                 // Preserve the original document fields so the modal opened on
                 // click can show the correct title (docname) and abstract
                 // instead of collapsing them into a single `name` value.

@@ -1,4 +1,5 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { apiClient } from '../../lib/apiClient';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
@@ -128,6 +129,7 @@ export const Folders: React.FC<FoldersProps> = ({
     const isEditor = isEditorProp && !isViewer;
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [groupBy, setGroupBy] = useState<'none' | 'type'>('none');
+    const [filterBy, setFilterBy] = useState<'none' | 'files' | 'folders' | 'events'>('none');
     const [showDetailsSidebar, setShowDetailsSidebar] = useState(false);
 
     useEffect(() => {
@@ -1934,20 +1936,54 @@ export const Folders: React.FC<FoldersProps> = ({
         return colorMap[type] || 'text-yellow-500 dark:text-yellow-400';
     };
 
+    const { data: eventsList } = useQuery({
+        queryKey: ['events-names-filter', apiURL],
+        queryFn: async () => {
+            try {
+                const res = await apiClient.get<{ events?: { id: number; name: string }[] }>(`${apiURL}/events?fetch_all=true`);
+                return res.events || [];
+            } catch (err) {
+                return [];
+            }
+        },
+        staleTime: 5 * 60 * 1000,
+    });
+
+    const eventNamesSet = React.useMemo(() => {
+        const set = new Set<string>();
+        if (eventsList) {
+            for (const ev of eventsList) {
+                if (ev.name) set.add(ev.name.trim().toLowerCase());
+            }
+        }
+        return set;
+    }, [eventsList]);
+
+    // Apply filterBy to userItems before grouping
+    const filteredUserItems = React.useMemo(() => {
+        if (filterBy === 'none') return userItems;
+        if (filterBy === 'folders') return userItems.filter(i => i.type === 'folder');
+        if (filterBy === 'files') return userItems.filter(i => i.type === 'file');
+        if (filterBy === 'events') {
+            return userItems.filter(i => !!(i as any).event_name || eventNamesSet.has((i.name || '').trim().toLowerCase()));
+        }
+        return userItems;
+    }, [filterBy, userItems, eventNamesSet]);
+
     const groups = React.useMemo(() => {
         if (groupBy === 'none') {
-            return [{ title: '', items: userItems }];
+            return [{ title: '', items: filteredUserItems }];
         }
         if (groupBy === 'type') {
-            const folders = userItems.filter((i) => i.type === 'folder');
-            const files = userItems.filter((i) => i.type === 'file');
+            const folders = filteredUserItems.filter((i) => i.type === 'folder');
+            const files = filteredUserItems.filter((i) => i.type === 'file');
             return [
                 { title: t('folders') || 'Folders', items: folders },
                 { title: t('files') || 'Files', items: files }
             ].filter(g => g.items.length > 0);
         }
-        return [{ title: '', items: userItems }];
-    }, [groupBy, userItems, t]);
+        return [{ title: '', items: filteredUserItems }];
+    }, [groupBy, filteredUserItems, t]);
 
     return (
         <div ref={containerRef} className="flex flex-col h-full bg-white dark:bg-[#1e1e1e] rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden relative">
@@ -2030,6 +2066,20 @@ export const Folders: React.FC<FoldersProps> = ({
                             >
                                 <option value="none">{t('none') || 'None'}</option>
                                 <option value="type">{t('type') || 'Type'}</option>
+                            </select>
+                        </div>
+
+                        <div className="flex items-center mx-2 gap-2">
+                            <span className="text-sm text-gray-500 dark:text-gray-400">{t('filterBy') || 'Filter By:'}</span>
+                            <select
+                                value={filterBy}
+                                onChange={(e) => setFilterBy(e.target.value as 'none' | 'files' | 'folders' | 'events')}
+                                className="bg-gray-100 dark:bg-gray-700 text-sm border-none rounded-md p-1 outline-none focus:ring-1 focus:ring-blue-500 text-gray-700 dark:text-gray-200"
+                            >
+                                <option value="none">{t('none') || 'None'}</option>
+                                <option value="files">{t('files') || 'Files'}</option>
+                                <option value="folders">{t('folders') || 'Folders'}</option>
+                                <option value="events">{t('events') || 'Events'}</option>
                             </select>
                         </div>
 
@@ -2187,38 +2237,9 @@ export const Folders: React.FC<FoldersProps> = ({
                     ) : (
                         <div className="flex flex-col gap-8">
 
-                            {standardItems.length > 0 && !searchTerm && (
-                                <div className="animate-fade-in">
-                                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-1">
-                                        {t('libraries') || 'Quick Access'}
-                                    </h3>
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                        {standardItems.map((item) => (
-                                            <div
-                                                key={item.id}
-                                                onClick={() => handleNavigate(item)}
-                                                className={`group flex items-center p-4 rounded-xl cursor-pointer transition-all duration-200 hover:shadow-md ${getStandardFolderColor(item.id)}`}
-                                            >
-                                                <div className="flex-shrink-0 p-2 bg-white dark:bg-[#333] rounded-lg shadow-sm group-hover:scale-110 transition-transform">
-                                                    {renderIcon(item, true)}
-                                                </div>
-                                                <div className="ml-4 flex-1 min-w-0">
-                                                    <p className="text-sm font-bold text-gray-800 dark:text-white truncate">{t(item.id)}</p>
-                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{item.count !== undefined ? `${item.count} ${t('items')}` : ''}</p>
-                                                </div>
-                                                <div className="text-gray-300 dark:text-gray-600">
-                                                    <Image src="/icons/chevron-right.svg" alt="" width={20} height={20} className="dark:invert" />
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+
 
                             <div className="flex-1">
-                                {(standardItems.length > 0 && userItems.length > 0 && !searchTerm) && (
-                                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-1">{t('folders') || 'Folders'}</h3>
-                                )}
 
                                 <div className="mb-4">
                                     {viewMode === 'grid' ? (

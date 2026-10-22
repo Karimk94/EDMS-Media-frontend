@@ -10,6 +10,7 @@ import { LoadingButton } from './LoadingButton';
 import { ModalNavigationBar } from './ModalNavigationBar';
 import { ReadOnlyTagDisplay } from './ReadOnlyTagDisplay';
 import { TagEditor } from './TagEditor';
+import { DocumentEventSection } from './DocumentEventSection';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 
 const safeParseDate = (dateString: string): Date | null => {
@@ -392,6 +393,19 @@ export const VideoModal: React.FC<VideoModalProps> = ({
                   </p>
                 )}
               </div>
+
+              <DocumentEventSection
+                docId={doc.doc_id}
+                initialEventName={doc.event_name}
+                apiURL={apiURL}
+                isEditor={isEditor}
+                theme={theme}
+                t={t}
+                onEventUpdated={(newName) => {
+                  doc.event_name = newName || undefined;
+                }}
+              />
+
               {isEditor ? (
                 <TagEditor docId={doc.doc_id} apiURL={apiURL} lang={lang} theme={theme} t={t} />
               ) : (

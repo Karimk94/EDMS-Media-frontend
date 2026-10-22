@@ -13,6 +13,7 @@ import { LoadingButton } from './LoadingButton';
 import { ModalNavigationBar } from './ModalNavigationBar';
 import { ReadOnlyTagDisplay } from './ReadOnlyTagDisplay';
 import { TagEditor } from './TagEditor';
+import { DocumentEventSection } from './DocumentEventSection';
 import { useReviewStatus } from '../../hooks/useReviewStatus';
 import { useRerunAnalysis } from '../../hooks/useSystemOperations';
 import { useToast } from '../context/ToastContext';
@@ -604,6 +605,18 @@ export const ImageModal: React.FC<ImageModalProps> = ({
                       </p>
                     )}
                   </div>
+
+                  <DocumentEventSection
+                    docId={doc.doc_id}
+                    initialEventName={doc.event_name}
+                    apiURL={apiURL}
+                    isEditor={isEditor}
+                    theme={theme}
+                    t={t}
+                    onEventUpdated={(newName) => {
+                      doc.event_name = newName || undefined;
+                    }}
+                  />
 
                   {isEditor ? (
                     <TagEditor docId={doc.doc_id} apiURL={apiURL} lang={lang} theme={theme} t={t} />

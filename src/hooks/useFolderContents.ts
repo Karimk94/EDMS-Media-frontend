@@ -13,6 +13,7 @@ export interface FolderItem {
     size?: number;
     date?: string;
     thumbnail_url?: string;
+    event_name?: string;
 }
 
 interface FoldersResponse {
