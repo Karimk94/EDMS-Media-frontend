@@ -188,10 +188,10 @@ export const Folders: React.FC<FoldersProps> = ({
     // search is scoped correctly (e.g. only videos when inside the Videos folder).
     const contentSearchMediaType: 'image' | 'video' | 'pdf' | null =
         filterMediaType ? filterMediaType
-        : currentFolderId === 'images' ? 'image'
-        : currentFolderId === 'videos' ? 'video'
-        : currentFolderId === 'files' ? 'pdf'
-        : null;
+            : currentFolderId === 'images' ? 'image'
+                : currentFolderId === 'videos' ? 'video'
+                    : currentFolderId === 'files' ? 'pdf'
+                        : null;
 
     // During search, folder-name matches are only shown on page 1 (prepended
     // before the content/embedding results). On later pages only the content
@@ -227,10 +227,18 @@ export const Folders: React.FC<FoldersProps> = ({
         personCondition,
     });
 
+    // True while any search-related query is still in flight.
+    // Both the folder-name query AND the content/embedding query must settle
+    // before we consider the search "done" — this prevents partial results
+    // from appearing before the full merged list is ready.
+    const isSearchFetching = (!!debouncedSearchTerm || hasActiveFilters)
+        ? (isFetching || isContentSearchFetching)
+        : false;
+
     // Notify parent about search fetching state for loading indicators
     useEffect(() => {
-        onFolderSearchFetchingChange?.(isContentSearchFetching);
-    }, [isContentSearchFetching, onFolderSearchFetchingChange]);
+        onFolderSearchFetchingChange?.(isSearchFetching);
+    }, [isSearchFetching, onFolderSearchFetchingChange]);
 
     useEffect(() => {
         if (contentSearchData?.search_meta) {
@@ -2230,6 +2238,10 @@ export const Folders: React.FC<FoldersProps> = ({
                         <div className="py-8">
                             <Spinner size="lg" center label={t('loading') || 'Loading...'} />
                         </div>
+                    ) : isSearchFetching ? (
+                        <div className="py-8">
+                            <Spinner size="lg" center label={t('searching') || 'Searching...'} />
+                        </div>
                     ) : isViewerWaitingForStatus ? (
                         <div className="py-8">
                             <Spinner size="lg" center label={t('loading') || 'Loading...'} />
@@ -2252,252 +2264,252 @@ export const Folders: React.FC<FoldersProps> = ({
                                                         </div>
                                                     )}
                                                     {group.items.map((item) => {
-                                                const isFile = item.type === 'file';
-                                                const isSelected = selectedFileIds.has(item.id);
-                                                const isDragOverTarget = dragOverFolderId === item.id;
+                                                        const isFile = item.type === 'file';
+                                                        const isSelected = selectedFileIds.has(item.id);
+                                                        const isDragOverTarget = dragOverFolderId === item.id;
 
-                                                if (!isFile && item.type === 'folder') {
-                                                    const isFocused = focusedItemIndex !== null && userItems[focusedItemIndex]?.id === item.id;
-                                                    return (
-                                                        <div
-                                                            ref={(el) => {
-                                                                fileTileRefs.current[item.id] = el;
-                                                            }}
-                                                            data-folder-item="true"
-                                                            key={item.id}
-                                                            onClick={(e) => handleItemClick(item, e)}
-                                                            onDoubleClick={() => handleItemDoubleClick(item)}
-                                                            onContextMenu={(e) => handleRightClick(e, item)}
-                                                            onDragOver={(e) => {
-                                                                if (!isEditor) return;
-                                                                e.preventDefault();
-                                                                setDragOverFolderId(item.id);
-                                                            }}
-                                                            onDragLeave={() => {
-                                                                if (dragOverFolderId === item.id) {
-                                                                    setDragOverFolderId(null);
-                                                                }
-                                                            }}
-                                                            onDrop={async (e) => {
-                                                                if (!isEditor) return;
-                                                                e.preventDefault();
-                                                                e.stopPropagation(); // prevent grid-level OS-drop handler firing
-                                                                setDragOverFolderId(null);
-
-                                                                // If this is an OS file drag, upload to this folder
-                                                                if (isOsDrag(e)) {
-                                                                    externalDragCounterRef.current = 0;
-                                                                    setIsExternalDragOver(false);
-
-                                                                    let collectedFiles: File[] = [];
-                                                                    const dragItems = Array.from(e.dataTransfer.items);
-                                                                    if (dragItems.length > 0 && typeof dragItems[0].webkitGetAsEntry === 'function') {
-                                                                        const entries = dragItems
-                                                                            .map((dragItem) => dragItem.webkitGetAsEntry())
-                                                                            .filter((entry): entry is FileSystemEntry => entry !== null);
-                                                                        const nested = await Promise.all(entries.map(readFilesFromEntry));
-                                                                        nested.forEach((f) => collectedFiles.push(...f));
-                                                                    } else {
-                                                                        collectedFiles = Array.from(e.dataTransfer.files);
-                                                                    }
-
-                                                                    if (collectedFiles.length > 0) {
-                                                                        onUploadClick(String(item.id), item.name, collectedFiles);
-                                                                    }
-                                                                    return;
-                                                                }
-
-                                                                // Only handle internal file drags
-                                                                let draggedIds: string[] = [];
-                                                                try {
-                                                                    const raw = e.dataTransfer.getData('application/json');
-                                                                    if (raw) {
-                                                                        const parsed = JSON.parse(raw);
-                                                                        if (Array.isArray(parsed?.fileIds)) {
-                                                                            draggedIds = parsed.fileIds;
+                                                        if (!isFile && item.type === 'folder') {
+                                                            const isFocused = focusedItemIndex !== null && userItems[focusedItemIndex]?.id === item.id;
+                                                            return (
+                                                                <div
+                                                                    ref={(el) => {
+                                                                        fileTileRefs.current[item.id] = el;
+                                                                    }}
+                                                                    data-folder-item="true"
+                                                                    key={item.id}
+                                                                    onClick={(e) => handleItemClick(item, e)}
+                                                                    onDoubleClick={() => handleItemDoubleClick(item)}
+                                                                    onContextMenu={(e) => handleRightClick(e, item)}
+                                                                    onDragOver={(e) => {
+                                                                        if (!isEditor) return;
+                                                                        e.preventDefault();
+                                                                        setDragOverFolderId(item.id);
+                                                                    }}
+                                                                    onDragLeave={() => {
+                                                                        if (dragOverFolderId === item.id) {
+                                                                            setDragOverFolderId(null);
                                                                         }
-                                                                    }
-                                                                } catch {
-                                                                    draggedIds = [];
-                                                                }
-
-                                                                const idsToMove = draggedIds.length > 0 ? draggedIds : Array.from(selectedFileIds);
-                                                                if (idsToMove.length === 0) return;
-
-                                                                // Stage the move — show confirmation dialog instead of moving immediately
-                                                                setPendingMoveConfirm({ fileIds: idsToMove, destination: item });
-                                                            }}
-                                                            className={`group relative flex flex-col items-center p-2 rounded-xl cursor-pointer transition-all duration-200 border hover:bg-gray-50 hover:shadow-sm dark:hover:bg-[#2c2c2c] ${isDragOverTarget ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-500' : isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30' : 'border-transparent hover:border-gray-200 dark:hover:border-gray-700'} ${isFocused ? 'ring-2 ring-blue-400 ring-offset-1 dark:ring-offset-[#1e1e1e]' : ''}`}
-                                                        >
-                                                            {/* Downloading overlay (ZIP download) */}
-                                                            {downloadingItemIds.has(item.id) && (
-                                                                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-xl bg-white/70 dark:bg-[#1e1e1e]/70 backdrop-blur-[1px]">
-                                                                    <Spinner size="sm" />
-                                                                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('downloading') || 'Downloading...'}</span>
-                                                                </div>
-                                                            )}
-                                                            {/* Grip / drag icon on selected folders */}
-                                                            {isSelected && isEditor && (
-                                                                <div className="absolute top-1 left-1/2 -translate-x-1/2 z-10 transition-opacity duration-200 cursor-grab active:cursor-grabbing select-none" title={t('dragToMove') || 'Drag to move'}>
-                                                                    <svg width="16" height="10" viewBox="0 0 16 10" fill="currentColor" className="text-gray-400 dark:text-gray-500">
-                                                                        <circle cx="4" cy="2" r="1.2" /><circle cx="8" cy="2" r="1.2" /><circle cx="12" cy="2" r="1.2" />
-                                                                        <circle cx="4" cy="7" r="1.2" /><circle cx="8" cy="7" r="1.2" /><circle cx="12" cy="7" r="1.2" />
-                                                                    </svg>
-                                                                </div>
-                                                            )}
-                                                            {/* Checkbox on selected */}
-                                                            {isEditor && isSelected && (
-                                                                <label className="absolute top-2 left-2 z-10 flex items-center justify-center w-5 h-5 rounded border border-blue-400 dark:border-blue-500 bg-blue-500 cursor-pointer" onClick={(e) => e.stopPropagation()}>
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={isSelected}
-                                                                        onChange={(e) => {
-                                                                            e.stopPropagation();
-                                                                            toggleFileSelection(item.id, e.target.checked);
-                                                                        }}
-                                                                        onClick={(e) => e.stopPropagation()}
-                                                                        className="h-3.5 w-3.5 accent-blue-500"
-                                                                    />
-                                                                </label>
-                                                            )}
-                                                            <div className="mb-2 transform group-hover:scale-105 transition-transform duration-200 text-gray-400 group-hover:text-blue-500 relative">
-                                                                <FolderIcon item={item} apiURL={apiURL} isStandard={false} renderDefaultIcon={renderIcon} thumbnailRefreshKey={thumbnailRefreshKey} />
-                                                                {(() => {
-                                                                    const ps = folderProcessingSummaries[String(item.id)];
-                                                                    if (ps && ps.processing > 0) {
-                                                                        const label = (t('processingXOfY') || '{{done}}/{{total}}')
-                                                                            .replace('{{done}}', String(ps.done))
-                                                                            .replace('{{total}}', String(ps.total));
-                                                                        return (
-                                                                            <div className="absolute -top-1 -right-1 z-10 flex items-center gap-1 bg-blue-500 text-white text-[10px] font-medium px-1.5 py-0.5 rounded-full shadow-sm">
-                                                                                <span className="inline-block w-2 h-2 rounded-full bg-white animate-pulse"></span>
-                                                                                {label}
-                                                                            </div>
-                                                                        );
-                                                                    }
-                                                                    return null;
-                                                                })()}
-                                                            </div>
-                                                            {itemToRename?.id === item.id ? (
-                                                                <form onSubmit={handleRenameSubmit} className="w-full px-1" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-                                                                    <input
-                                                                        type="text"
-                                                                        value={renameValue}
-                                                                        onChange={(e) => setRenameValue(e.target.value)}
-                                                                        onBlur={handleRenameSubmit}
-                                                                        onKeyDown={(e) => {
-                                                                            if (e.key === 'Escape') setItemToRename(null);
-                                                                        }}
-                                                                        className="w-full text-sm font-medium text-center text-gray-900 dark:text-white bg-white dark:bg-gray-800 border border-blue-500 rounded px-1 py-0.5 outline-none focus:ring-2 focus:ring-blue-500"
-                                                                        autoFocus
-                                                                        onFocus={(e) => e.target.select()}
-                                                                    />
-                                                                </form>
-                                                            ) : (
-                                                                <span className="text-sm font-medium text-center text-gray-700 dark:text-gray-300 break-words w-full line-clamp-2 px-1" title={item.name}>
-                                                                    {item.name}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                }
-
-                                                const isFocused = focusedItemIndex !== null && userItems[focusedItemIndex]?.id === item.id;
-                                                return (
-                                                    <div
-                                                        ref={(el) => {
-                                                            fileTileRefs.current[item.id] = el;
-                                                        }}
-                                                        data-select-item="true"
-                                                        key={item.id}
-                                                        onClick={(e) => handleItemClick(item, e)}
-                                                        onDoubleClick={() => handleItemDoubleClick(item)}
-                                                        onContextMenu={(e) => handleRightClick(e, item)}
-                                                        draggable={isEditor}
-                                                        onDragStart={(e) => {
-                                                            const payloadIds = isSelected && selectedItemCount > 1
-                                                                ? Array.from(selectedFileIds)
-                                                                : [item.id];
-                                                            e.dataTransfer.setData('application/json', JSON.stringify({ fileIds: payloadIds }));
-                                                            e.dataTransfer.effectAllowed = 'move';
-
-                                                            // Custom drag ghost with count badge
-                                                            if (payloadIds.length > 1 && dragGhostRef.current) {
-                                                                const ghost = dragGhostRef.current;
-                                                                ghost.textContent = `${payloadIds.length} items`;
-                                                                ghost.style.display = 'flex';
-                                                                document.body.appendChild(ghost);
-                                                                e.dataTransfer.setDragImage(ghost, 40, 20);
-                                                                requestAnimationFrame(() => {
-                                                                    ghost.style.display = 'none';
-                                                                    if (ghost.parentNode) ghost.parentNode.removeChild(ghost);
-                                                                });
-                                                            }
-                                                        }}
-                                                        onDragEnd={() => setDragOverFolderId(null)}
-                                                        className={`group relative flex flex-col items-center p-2 rounded-xl cursor-pointer transition-all duration-200 border hover:bg-gray-50 hover:border-gray-200 hover:shadow-sm dark:hover:bg-[#2c2c2c] dark:hover:border-gray-700 ${isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30' : 'border-transparent'} ${isFocused ? 'ring-2 ring-blue-400 ring-offset-1 dark:ring-offset-[#1e1e1e]' : ''}`}
-                                                    >
-                                                        {/* Downloading overlay */}
-                                                        {downloadingItemIds.has(item.id) && (
-                                                            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-xl bg-white/70 dark:bg-[#1e1e1e]/70 backdrop-blur-[1px]">
-                                                                <Spinner size="sm" />
-                                                                <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('downloading') || 'Downloading...'}</span>
-                                                            </div>
-                                                        )}
-                                                        {/* Grip / drag icon on selected items */}
-                                                        {isSelected && isEditor && (
-                                                            <div className="absolute top-1 left-1/2 -translate-x-1/2 z-10 transition-opacity duration-200 cursor-grab active:cursor-grabbing select-none" title={t('dragToMove') || 'Drag to move'}>
-                                                                <svg width="16" height="10" viewBox="0 0 16 10" fill="currentColor" className="text-gray-400 dark:text-gray-500">
-                                                                    <circle cx="4" cy="2" r="1.2" /><circle cx="8" cy="2" r="1.2" /><circle cx="12" cy="2" r="1.2" />
-                                                                    <circle cx="4" cy="7" r="1.2" /><circle cx="8" cy="7" r="1.2" /><circle cx="12" cy="7" r="1.2" />
-                                                                </svg>
-                                                            </div>
-                                                        )}
-                                                        {/* Review Status Badge — editors only; viewers never see badges */}
-                                                        {reviewStatuses[item.id] && isEditor && (
-                                                            <ReviewStatusBadge status={reviewStatuses[item.id]} t={t} />
-                                                        )}
-                                                        {/* Checkbox on selected */}
-                                                        {isEditor && isSelected && (
-                                                            <label className="absolute top-2 left-2 z-10 flex items-center justify-center w-5 h-5 rounded border border-blue-400 dark:border-blue-500 bg-blue-500 cursor-pointer" onClick={(e) => e.stopPropagation()}>
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={isSelected}
-                                                                    onChange={(e) => {
-                                                                        e.stopPropagation();
-                                                                        toggleFileSelection(item.id, e.target.checked);
                                                                     }}
-                                                                    onClick={(e) => e.stopPropagation()}
-                                                                    className="h-3.5 w-3.5 accent-blue-500"
-                                                                />
-                                                            </label>
-                                                        )}
-                                                        <div className={`mb-2 transform group-hover:scale-105 transition-transform duration-200 ${isFile ? getFileColorClass(item) : 'text-gray-400 group-hover:text-blue-500'}`}>
-                                                            {renderIcon(item, false)}
-                                                        </div>
-                                                        {itemToRename?.id === item.id ? (
-                                                            <form onSubmit={handleRenameSubmit} className="w-full px-1" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-                                                                <input
-                                                                    type="text"
-                                                                    value={renameValue}
-                                                                    onChange={(e) => setRenameValue(e.target.value)}
-                                                                    onBlur={handleRenameSubmit}
-                                                                    onKeyDown={(e) => {
-                                                                        if (e.key === 'Escape') setItemToRename(null);
+                                                                    onDrop={async (e) => {
+                                                                        if (!isEditor) return;
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation(); // prevent grid-level OS-drop handler firing
+                                                                        setDragOverFolderId(null);
+
+                                                                        // If this is an OS file drag, upload to this folder
+                                                                        if (isOsDrag(e)) {
+                                                                            externalDragCounterRef.current = 0;
+                                                                            setIsExternalDragOver(false);
+
+                                                                            let collectedFiles: File[] = [];
+                                                                            const dragItems = Array.from(e.dataTransfer.items);
+                                                                            if (dragItems.length > 0 && typeof dragItems[0].webkitGetAsEntry === 'function') {
+                                                                                const entries = dragItems
+                                                                                    .map((dragItem) => dragItem.webkitGetAsEntry())
+                                                                                    .filter((entry): entry is FileSystemEntry => entry !== null);
+                                                                                const nested = await Promise.all(entries.map(readFilesFromEntry));
+                                                                                nested.forEach((f) => collectedFiles.push(...f));
+                                                                            } else {
+                                                                                collectedFiles = Array.from(e.dataTransfer.files);
+                                                                            }
+
+                                                                            if (collectedFiles.length > 0) {
+                                                                                onUploadClick(String(item.id), item.name, collectedFiles);
+                                                                            }
+                                                                            return;
+                                                                        }
+
+                                                                        // Only handle internal file drags
+                                                                        let draggedIds: string[] = [];
+                                                                        try {
+                                                                            const raw = e.dataTransfer.getData('application/json');
+                                                                            if (raw) {
+                                                                                const parsed = JSON.parse(raw);
+                                                                                if (Array.isArray(parsed?.fileIds)) {
+                                                                                    draggedIds = parsed.fileIds;
+                                                                                }
+                                                                            }
+                                                                        } catch {
+                                                                            draggedIds = [];
+                                                                        }
+
+                                                                        const idsToMove = draggedIds.length > 0 ? draggedIds : Array.from(selectedFileIds);
+                                                                        if (idsToMove.length === 0) return;
+
+                                                                        // Stage the move — show confirmation dialog instead of moving immediately
+                                                                        setPendingMoveConfirm({ fileIds: idsToMove, destination: item });
                                                                     }}
-                                                                    className="w-full text-sm font-medium text-center text-gray-900 dark:text-white bg-white dark:bg-gray-800 border border-blue-500 rounded px-1 py-0.5 outline-none focus:ring-2 focus:ring-blue-500"
-                                                                    autoFocus
-                                                                    onFocus={(e) => e.target.select()}
-                                                                />
-                                                            </form>
-                                                        ) : (
-                                                            <span className="text-sm font-medium text-center text-gray-700 dark:text-gray-300 break-words w-full line-clamp-2 px-1" title={item.name}>
-                                                                {item.name}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
+                                                                    className={`group relative flex flex-col items-center p-2 rounded-xl cursor-pointer transition-all duration-200 border hover:bg-gray-50 hover:shadow-sm dark:hover:bg-[#2c2c2c] ${isDragOverTarget ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-500' : isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30' : 'border-transparent hover:border-gray-200 dark:hover:border-gray-700'} ${isFocused ? 'ring-2 ring-blue-400 ring-offset-1 dark:ring-offset-[#1e1e1e]' : ''}`}
+                                                                >
+                                                                    {/* Downloading overlay (ZIP download) */}
+                                                                    {downloadingItemIds.has(item.id) && (
+                                                                        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-xl bg-white/70 dark:bg-[#1e1e1e]/70 backdrop-blur-[1px]">
+                                                                            <Spinner size="sm" />
+                                                                            <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('downloading') || 'Downloading...'}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    {/* Grip / drag icon on selected folders */}
+                                                                    {isSelected && isEditor && (
+                                                                        <div className="absolute top-1 left-1/2 -translate-x-1/2 z-10 transition-opacity duration-200 cursor-grab active:cursor-grabbing select-none" title={t('dragToMove') || 'Drag to move'}>
+                                                                            <svg width="16" height="10" viewBox="0 0 16 10" fill="currentColor" className="text-gray-400 dark:text-gray-500">
+                                                                                <circle cx="4" cy="2" r="1.2" /><circle cx="8" cy="2" r="1.2" /><circle cx="12" cy="2" r="1.2" />
+                                                                                <circle cx="4" cy="7" r="1.2" /><circle cx="8" cy="7" r="1.2" /><circle cx="12" cy="7" r="1.2" />
+                                                                            </svg>
+                                                                        </div>
+                                                                    )}
+                                                                    {/* Checkbox on selected */}
+                                                                    {isEditor && isSelected && (
+                                                                        <label className="absolute top-2 left-2 z-10 flex items-center justify-center w-5 h-5 rounded border border-blue-400 dark:border-blue-500 bg-blue-500 cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={isSelected}
+                                                                                onChange={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    toggleFileSelection(item.id, e.target.checked);
+                                                                                }}
+                                                                                onClick={(e) => e.stopPropagation()}
+                                                                                className="h-3.5 w-3.5 accent-blue-500"
+                                                                            />
+                                                                        </label>
+                                                                    )}
+                                                                    <div className="mb-2 transform group-hover:scale-105 transition-transform duration-200 text-gray-400 group-hover:text-blue-500 relative">
+                                                                        <FolderIcon item={item} apiURL={apiURL} isStandard={false} renderDefaultIcon={renderIcon} thumbnailRefreshKey={thumbnailRefreshKey} />
+                                                                        {(() => {
+                                                                            const ps = folderProcessingSummaries[String(item.id)];
+                                                                            if (ps && ps.processing > 0) {
+                                                                                const label = (t('processingXOfY') || '{{done}}/{{total}}')
+                                                                                    .replace('{{done}}', String(ps.done))
+                                                                                    .replace('{{total}}', String(ps.total));
+                                                                                return (
+                                                                                    <div className="absolute -top-1 -right-1 z-10 flex items-center gap-1 bg-blue-500 text-white text-[10px] font-medium px-1.5 py-0.5 rounded-full shadow-sm">
+                                                                                        <span className="inline-block w-2 h-2 rounded-full bg-white animate-pulse"></span>
+                                                                                        {label}
+                                                                                    </div>
+                                                                                );
+                                                                            }
+                                                                            return null;
+                                                                        })()}
+                                                                    </div>
+                                                                    {itemToRename?.id === item.id ? (
+                                                                        <form onSubmit={handleRenameSubmit} className="w-full px-1" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+                                                                            <input
+                                                                                type="text"
+                                                                                value={renameValue}
+                                                                                onChange={(e) => setRenameValue(e.target.value)}
+                                                                                onBlur={handleRenameSubmit}
+                                                                                onKeyDown={(e) => {
+                                                                                    if (e.key === 'Escape') setItemToRename(null);
+                                                                                }}
+                                                                                className="w-full text-sm font-medium text-center text-gray-900 dark:text-white bg-white dark:bg-gray-800 border border-blue-500 rounded px-1 py-0.5 outline-none focus:ring-2 focus:ring-blue-500"
+                                                                                autoFocus
+                                                                                onFocus={(e) => e.target.select()}
+                                                                            />
+                                                                        </form>
+                                                                    ) : (
+                                                                        <span className="text-sm font-medium text-center text-gray-700 dark:text-gray-300 break-words w-full line-clamp-2 px-1" title={item.name}>
+                                                                            {item.name}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        }
+
+                                                        const isFocused = focusedItemIndex !== null && userItems[focusedItemIndex]?.id === item.id;
+                                                        return (
+                                                            <div
+                                                                ref={(el) => {
+                                                                    fileTileRefs.current[item.id] = el;
+                                                                }}
+                                                                data-select-item="true"
+                                                                key={item.id}
+                                                                onClick={(e) => handleItemClick(item, e)}
+                                                                onDoubleClick={() => handleItemDoubleClick(item)}
+                                                                onContextMenu={(e) => handleRightClick(e, item)}
+                                                                draggable={isEditor}
+                                                                onDragStart={(e) => {
+                                                                    const payloadIds = isSelected && selectedItemCount > 1
+                                                                        ? Array.from(selectedFileIds)
+                                                                        : [item.id];
+                                                                    e.dataTransfer.setData('application/json', JSON.stringify({ fileIds: payloadIds }));
+                                                                    e.dataTransfer.effectAllowed = 'move';
+
+                                                                    // Custom drag ghost with count badge
+                                                                    if (payloadIds.length > 1 && dragGhostRef.current) {
+                                                                        const ghost = dragGhostRef.current;
+                                                                        ghost.textContent = `${payloadIds.length} items`;
+                                                                        ghost.style.display = 'flex';
+                                                                        document.body.appendChild(ghost);
+                                                                        e.dataTransfer.setDragImage(ghost, 40, 20);
+                                                                        requestAnimationFrame(() => {
+                                                                            ghost.style.display = 'none';
+                                                                            if (ghost.parentNode) ghost.parentNode.removeChild(ghost);
+                                                                        });
+                                                                    }
+                                                                }}
+                                                                onDragEnd={() => setDragOverFolderId(null)}
+                                                                className={`group relative flex flex-col items-center p-2 rounded-xl cursor-pointer transition-all duration-200 border hover:bg-gray-50 hover:border-gray-200 hover:shadow-sm dark:hover:bg-[#2c2c2c] dark:hover:border-gray-700 ${isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30' : 'border-transparent'} ${isFocused ? 'ring-2 ring-blue-400 ring-offset-1 dark:ring-offset-[#1e1e1e]' : ''}`}
+                                                            >
+                                                                {/* Downloading overlay */}
+                                                                {downloadingItemIds.has(item.id) && (
+                                                                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-xl bg-white/70 dark:bg-[#1e1e1e]/70 backdrop-blur-[1px]">
+                                                                        <Spinner size="sm" />
+                                                                        <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('downloading') || 'Downloading...'}</span>
+                                                                    </div>
+                                                                )}
+                                                                {/* Grip / drag icon on selected items */}
+                                                                {isSelected && isEditor && (
+                                                                    <div className="absolute top-1 left-1/2 -translate-x-1/2 z-10 transition-opacity duration-200 cursor-grab active:cursor-grabbing select-none" title={t('dragToMove') || 'Drag to move'}>
+                                                                        <svg width="16" height="10" viewBox="0 0 16 10" fill="currentColor" className="text-gray-400 dark:text-gray-500">
+                                                                            <circle cx="4" cy="2" r="1.2" /><circle cx="8" cy="2" r="1.2" /><circle cx="12" cy="2" r="1.2" />
+                                                                            <circle cx="4" cy="7" r="1.2" /><circle cx="8" cy="7" r="1.2" /><circle cx="12" cy="7" r="1.2" />
+                                                                        </svg>
+                                                                    </div>
+                                                                )}
+                                                                {/* Review Status Badge — editors only; viewers never see badges */}
+                                                                {reviewStatuses[item.id] && isEditor && (
+                                                                    <ReviewStatusBadge status={reviewStatuses[item.id]} t={t} />
+                                                                )}
+                                                                {/* Checkbox on selected */}
+                                                                {isEditor && isSelected && (
+                                                                    <label className="absolute top-2 left-2 z-10 flex items-center justify-center w-5 h-5 rounded border border-blue-400 dark:border-blue-500 bg-blue-500 cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={isSelected}
+                                                                            onChange={(e) => {
+                                                                                e.stopPropagation();
+                                                                                toggleFileSelection(item.id, e.target.checked);
+                                                                            }}
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                            className="h-3.5 w-3.5 accent-blue-500"
+                                                                        />
+                                                                    </label>
+                                                                )}
+                                                                <div className={`mb-2 transform group-hover:scale-105 transition-transform duration-200 ${isFile ? getFileColorClass(item) : 'text-gray-400 group-hover:text-blue-500'}`}>
+                                                                    {renderIcon(item, false)}
+                                                                </div>
+                                                                {itemToRename?.id === item.id ? (
+                                                                    <form onSubmit={handleRenameSubmit} className="w-full px-1" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+                                                                        <input
+                                                                            type="text"
+                                                                            value={renameValue}
+                                                                            onChange={(e) => setRenameValue(e.target.value)}
+                                                                            onBlur={handleRenameSubmit}
+                                                                            onKeyDown={(e) => {
+                                                                                if (e.key === 'Escape') setItemToRename(null);
+                                                                            }}
+                                                                            className="w-full text-sm font-medium text-center text-gray-900 dark:text-white bg-white dark:bg-gray-800 border border-blue-500 rounded px-1 py-0.5 outline-none focus:ring-2 focus:ring-blue-500"
+                                                                            autoFocus
+                                                                            onFocus={(e) => e.target.select()}
+                                                                        />
+                                                                    </form>
+                                                                ) : (
+                                                                    <span className="text-sm font-medium text-center text-gray-700 dark:text-gray-300 break-words w-full line-clamp-2 px-1" title={item.name}>
+                                                                        {item.name}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </React.Fragment>
                                             ))}
                                         </div>
@@ -2523,154 +2535,154 @@ export const Folders: React.FC<FoldersProps> = ({
                                                                 </tr>
                                                             )}
                                                             {group.items.map((item) => {
-                                                        const isFile = item.type === 'file';
-                                                        const isSelected = selectedFileIds.has(item.id);
-                                                        const isDragOverTarget = dragOverFolderId === item.id;
-                                                        const isFocused = focusedItemIndex !== null && userItems[focusedItemIndex]?.id === item.id;
+                                                                const isFile = item.type === 'file';
+                                                                const isSelected = selectedFileIds.has(item.id);
+                                                                const isDragOverTarget = dragOverFolderId === item.id;
+                                                                const isFocused = focusedItemIndex !== null && userItems[focusedItemIndex]?.id === item.id;
 
-                                                        return (
-                                                            <tr
-                                                                ref={(el) => {
-                                                                    fileTileRefs.current[item.id] = el;
-                                                                }}
-                                                                data-folder-item={!isFile ? "true" : undefined}
-                                                                data-select-item={isFile ? "true" : undefined}
-                                                                key={item.id}
-                                                                onClick={(e) => handleItemClick(item, e)}
-                                                                onDoubleClick={() => handleItemDoubleClick(item)}
-                                                                onContextMenu={(e) => handleRightClick(e, item)}
-                                                                draggable={isEditor}
-                                                                onDragOver={!isFile ? (e) => {
-                                                                    if (!isEditor) return;
-                                                                    e.preventDefault();
-                                                                    setDragOverFolderId(item.id);
-                                                                } : undefined}
-                                                                onDragLeave={!isFile ? () => {
-                                                                    if (dragOverFolderId === item.id) setDragOverFolderId(null);
-                                                                } : undefined}
-                                                                onDrop={!isFile ? async (e) => {
-                                                                    if (!isEditor) return;
-                                                                    e.preventDefault(); e.stopPropagation();
-                                                                    setDragOverFolderId(null);
+                                                                return (
+                                                                    <tr
+                                                                        ref={(el) => {
+                                                                            fileTileRefs.current[item.id] = el;
+                                                                        }}
+                                                                        data-folder-item={!isFile ? "true" : undefined}
+                                                                        data-select-item={isFile ? "true" : undefined}
+                                                                        key={item.id}
+                                                                        onClick={(e) => handleItemClick(item, e)}
+                                                                        onDoubleClick={() => handleItemDoubleClick(item)}
+                                                                        onContextMenu={(e) => handleRightClick(e, item)}
+                                                                        draggable={isEditor}
+                                                                        onDragOver={!isFile ? (e) => {
+                                                                            if (!isEditor) return;
+                                                                            e.preventDefault();
+                                                                            setDragOverFolderId(item.id);
+                                                                        } : undefined}
+                                                                        onDragLeave={!isFile ? () => {
+                                                                            if (dragOverFolderId === item.id) setDragOverFolderId(null);
+                                                                        } : undefined}
+                                                                        onDrop={!isFile ? async (e) => {
+                                                                            if (!isEditor) return;
+                                                                            e.preventDefault(); e.stopPropagation();
+                                                                            setDragOverFolderId(null);
 
-                                                                    // If this is an OS file drag, upload to this folder
-                                                                    if (isOsDrag(e)) {
-                                                                        externalDragCounterRef.current = 0;
-                                                                        setIsExternalDragOver(false);
+                                                                            // If this is an OS file drag, upload to this folder
+                                                                            if (isOsDrag(e)) {
+                                                                                externalDragCounterRef.current = 0;
+                                                                                setIsExternalDragOver(false);
 
-                                                                        let collectedFiles: File[] = [];
-                                                                        const dragItems = Array.from(e.dataTransfer.items);
-                                                                        if (dragItems.length > 0 && typeof dragItems[0].webkitGetAsEntry === 'function') {
-                                                                            const entries = dragItems
-                                                                                .map((dragItem) => dragItem.webkitGetAsEntry())
-                                                                                .filter((entry): entry is FileSystemEntry => entry !== null);
-                                                                            const nested = await Promise.all(entries.map(readFilesFromEntry));
-                                                                            nested.forEach((f) => collectedFiles.push(...f));
-                                                                        } else {
-                                                                            collectedFiles = Array.from(e.dataTransfer.files);
-                                                                        }
+                                                                                let collectedFiles: File[] = [];
+                                                                                const dragItems = Array.from(e.dataTransfer.items);
+                                                                                if (dragItems.length > 0 && typeof dragItems[0].webkitGetAsEntry === 'function') {
+                                                                                    const entries = dragItems
+                                                                                        .map((dragItem) => dragItem.webkitGetAsEntry())
+                                                                                        .filter((entry): entry is FileSystemEntry => entry !== null);
+                                                                                    const nested = await Promise.all(entries.map(readFilesFromEntry));
+                                                                                    nested.forEach((f) => collectedFiles.push(...f));
+                                                                                } else {
+                                                                                    collectedFiles = Array.from(e.dataTransfer.files);
+                                                                                }
 
-                                                                        if (collectedFiles.length > 0) {
-                                                                            onUploadClick(String(item.id), item.name, collectedFiles);
-                                                                        }
-                                                                        return;
-                                                                    }
+                                                                                if (collectedFiles.length > 0) {
+                                                                                    onUploadClick(String(item.id), item.name, collectedFiles);
+                                                                                }
+                                                                                return;
+                                                                            }
 
-                                                                    let draggedIds: string[] = [];
-                                                                    try {
-                                                                        const raw = e.dataTransfer.getData('application/json');
-                                                                        if (raw) {
-                                                                            const parsed = JSON.parse(raw);
-                                                                            if (Array.isArray(parsed?.fileIds)) draggedIds = parsed.fileIds;
-                                                                        }
-                                                                    } catch { draggedIds = []; }
-                                                                    const idsToMove = draggedIds.length > 0 ? draggedIds : Array.from(selectedFileIds);
-                                                                    if (idsToMove.length === 0) return;
-                                                                    setPendingMoveConfirm({ fileIds: idsToMove, destination: item });
-                                                                } : undefined}
-                                                                onDragStart={(e) => {
-                                                                    const payloadIds = isSelected && selectedItemCount > 1 ? Array.from(selectedFileIds) : [item.id];
-                                                                    e.dataTransfer.setData('application/json', JSON.stringify({ fileIds: payloadIds }));
-                                                                    e.dataTransfer.effectAllowed = 'move';
-                                                                    if (payloadIds.length > 1 && dragGhostRef.current) {
-                                                                        const ghost = dragGhostRef.current;
-                                                                        ghost.textContent = `${payloadIds.length} items`;
-                                                                        ghost.style.display = 'flex';
-                                                                        document.body.appendChild(ghost);
-                                                                        e.dataTransfer.setDragImage(ghost, 40, 20);
-                                                                        requestAnimationFrame(() => { ghost.style.display = 'none'; if (ghost.parentNode) ghost.parentNode.removeChild(ghost); });
-                                                                    }
-                                                                }}
-                                                                onDragEnd={() => setDragOverFolderId(null)}
-                                                                className={`group cursor-pointer transition-colors ${isDragOverTarget ? 'bg-blue-50 dark:bg-blue-900/30' : isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-[#2c2c2c]'} ${isFocused ? 'ring-2 ring-inset ring-blue-400' : ''}`}
-                                                            >
-                                                                <td className="px-4 py-3 relative">
-                                                                    {downloadingItemIds.has(item.id) && (
-                                                                        <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 dark:bg-[#1a1a1a]/60 backdrop-blur-[1px] rounded">
-                                                                            <Spinner size="xs" />
-                                                                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">{t('downloading') || 'Downloading...'}</span>
-                                                                        </div>
-                                                                    )}
-                                                                    {isSelected && isEditor && (
-                                                                        <div className="absolute left-1 cursor-grab active:cursor-grabbing text-gray-400" title={t('dragToMove') || 'Drag to move'}>
-                                                                            <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor"><circle cx="2" cy="4" r="1.2" /><circle cx="2" cy="8" r="1.2" /><circle cx="2" cy="12" r="1.2" /><circle cx="7" cy="4" r="1.2" /><circle cx="7" cy="8" r="1.2" /><circle cx="7" cy="12" r="1.2" /></svg>
-                                                                        </div>
-                                                                    )}
-                                                                    <div className="flex-shrink-0 w-6 h-6 flex justify-center items-center ml-2">
-                                                                        {isEditor && isSelected ? (
-                                                                            <input
-                                                                                type="checkbox"
-                                                                                checked={isSelected}
-                                                                                onChange={(e) => { e.stopPropagation(); toggleFileSelection(item.id, e.target.checked); }}
-                                                                                onClick={(e) => e.stopPropagation()}
-                                                                                className="h-4 w-4 accent-blue-500 rounded cursor-pointer"
-                                                                            />
-                                                                        ) : (
-                                                                            <span className={!isFile ? 'text-gray-400 dark:text-gray-500' : getFileColorClass(item)}>
-                                                                                {renderIcon(item, false, 24)}
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                    {itemToRename?.id === item.id ? (
-                                                                        <form onSubmit={handleRenameSubmit} className="flex-1 min-w-0" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-                                                                            <input
-                                                                                type="text"
-                                                                                value={renameValue}
-                                                                                onChange={(e) => setRenameValue(e.target.value)}
-                                                                                onBlur={handleRenameSubmit}
-                                                                                onKeyDown={(e) => {
-                                                                                    if (e.key === 'Escape') setItemToRename(null);
-                                                                                }}
-                                                                                className="w-full text-sm font-medium text-gray-900 dark:text-white bg-white dark:bg-gray-800 border border-blue-500 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-blue-500"
-                                                                                autoFocus
-                                                                                onFocus={(e) => e.target.select()}
-                                                                            />
-                                                                        </form>
-                                                                    ) : (
-                                                                        <div className="flex items-center gap-2 flex-1 min-w-0 ml-1">
-                                                                            <span className="font-medium text-gray-800 dark:text-gray-200 truncate" title={item.name}>
-                                                                                {item.name}
-                                                                            </span>
-                                                                            {reviewStatuses[item.id] && isEditor && (
-                                                                                <div className="flex-shrink-0 flex items-center">
-                                                                                    <ReviewStatusBadge status={reviewStatuses[item.id]} t={t} absolute={false} />
+                                                                            let draggedIds: string[] = [];
+                                                                            try {
+                                                                                const raw = e.dataTransfer.getData('application/json');
+                                                                                if (raw) {
+                                                                                    const parsed = JSON.parse(raw);
+                                                                                    if (Array.isArray(parsed?.fileIds)) draggedIds = parsed.fileIds;
+                                                                                }
+                                                                            } catch { draggedIds = []; }
+                                                                            const idsToMove = draggedIds.length > 0 ? draggedIds : Array.from(selectedFileIds);
+                                                                            if (idsToMove.length === 0) return;
+                                                                            setPendingMoveConfirm({ fileIds: idsToMove, destination: item });
+                                                                        } : undefined}
+                                                                        onDragStart={(e) => {
+                                                                            const payloadIds = isSelected && selectedItemCount > 1 ? Array.from(selectedFileIds) : [item.id];
+                                                                            e.dataTransfer.setData('application/json', JSON.stringify({ fileIds: payloadIds }));
+                                                                            e.dataTransfer.effectAllowed = 'move';
+                                                                            if (payloadIds.length > 1 && dragGhostRef.current) {
+                                                                                const ghost = dragGhostRef.current;
+                                                                                ghost.textContent = `${payloadIds.length} items`;
+                                                                                ghost.style.display = 'flex';
+                                                                                document.body.appendChild(ghost);
+                                                                                e.dataTransfer.setDragImage(ghost, 40, 20);
+                                                                                requestAnimationFrame(() => { ghost.style.display = 'none'; if (ghost.parentNode) ghost.parentNode.removeChild(ghost); });
+                                                                            }
+                                                                        }}
+                                                                        onDragEnd={() => setDragOverFolderId(null)}
+                                                                        className={`group cursor-pointer transition-colors ${isDragOverTarget ? 'bg-blue-50 dark:bg-blue-900/30' : isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-[#2c2c2c]'} ${isFocused ? 'ring-2 ring-inset ring-blue-400' : ''}`}
+                                                                    >
+                                                                        <td className="px-4 py-3 relative">
+                                                                            {downloadingItemIds.has(item.id) && (
+                                                                                <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 dark:bg-[#1a1a1a]/60 backdrop-blur-[1px] rounded">
+                                                                                    <Spinner size="xs" />
+                                                                                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">{t('downloading') || 'Downloading...'}</span>
                                                                                 </div>
                                                                             )}
-                                                                        </div>
-                                                                    )}
-                                                                </td>
-                                                                <td className="px-4 py-3 text-gray-500 dark:text-gray-400 capitalize">
-                                                                    {!isFile ? 'Folder' : getMediaType(item)}
-                                                                </td>
-                                                                <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                                                                    {!isFile ? '--' : formatBytes(item.size)}
-                                                                </td>
-                                                                <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                                                                    {formatDate(item.date)}
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
+                                                                            {isSelected && isEditor && (
+                                                                                <div className="absolute left-1 cursor-grab active:cursor-grabbing text-gray-400" title={t('dragToMove') || 'Drag to move'}>
+                                                                                    <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor"><circle cx="2" cy="4" r="1.2" /><circle cx="2" cy="8" r="1.2" /><circle cx="2" cy="12" r="1.2" /><circle cx="7" cy="4" r="1.2" /><circle cx="7" cy="8" r="1.2" /><circle cx="7" cy="12" r="1.2" /></svg>
+                                                                                </div>
+                                                                            )}
+                                                                            <div className="flex-shrink-0 w-6 h-6 flex justify-center items-center ml-2">
+                                                                                {isEditor && isSelected ? (
+                                                                                    <input
+                                                                                        type="checkbox"
+                                                                                        checked={isSelected}
+                                                                                        onChange={(e) => { e.stopPropagation(); toggleFileSelection(item.id, e.target.checked); }}
+                                                                                        onClick={(e) => e.stopPropagation()}
+                                                                                        className="h-4 w-4 accent-blue-500 rounded cursor-pointer"
+                                                                                    />
+                                                                                ) : (
+                                                                                    <span className={!isFile ? 'text-gray-400 dark:text-gray-500' : getFileColorClass(item)}>
+                                                                                        {renderIcon(item, false, 24)}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                            {itemToRename?.id === item.id ? (
+                                                                                <form onSubmit={handleRenameSubmit} className="flex-1 min-w-0" onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        value={renameValue}
+                                                                                        onChange={(e) => setRenameValue(e.target.value)}
+                                                                                        onBlur={handleRenameSubmit}
+                                                                                        onKeyDown={(e) => {
+                                                                                            if (e.key === 'Escape') setItemToRename(null);
+                                                                                        }}
+                                                                                        className="w-full text-sm font-medium text-gray-900 dark:text-white bg-white dark:bg-gray-800 border border-blue-500 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-blue-500"
+                                                                                        autoFocus
+                                                                                        onFocus={(e) => e.target.select()}
+                                                                                    />
+                                                                                </form>
+                                                                            ) : (
+                                                                                <div className="flex items-center gap-2 flex-1 min-w-0 ml-1">
+                                                                                    <span className="font-medium text-gray-800 dark:text-gray-200 truncate" title={item.name}>
+                                                                                        {item.name}
+                                                                                    </span>
+                                                                                    {reviewStatuses[item.id] && isEditor && (
+                                                                                        <div className="flex-shrink-0 flex items-center">
+                                                                                            <ReviewStatusBadge status={reviewStatuses[item.id]} t={t} absolute={false} />
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            )}
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-gray-500 dark:text-gray-400 capitalize">
+                                                                            {!isFile ? 'Folder' : getMediaType(item)}
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                                                            {!isFile ? '--' : formatBytes(item.size)}
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                                                            {formatDate(item.date)}
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
                                                         </React.Fragment>
                                                     ))}
                                                 </tbody>

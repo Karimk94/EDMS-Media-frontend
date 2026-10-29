@@ -107,7 +107,7 @@ export function useFolderContentSearch({
             JSON.stringify(selectedPerson || []),
             personCondition,
         ],
-        queryFn: async (): Promise<FolderContentSearchResponse> => {
+        queryFn: async ({ signal }): Promise<FolderContentSearchResponse> => {
             if (!searchTerm && !hasFilters) {
                 return { contents: [], total_pages: 1, total_documents: 0 };
             }
@@ -160,7 +160,7 @@ export function useFolderContentSearch({
                     tokens: string[];
                     required_concepts: string[];
                 };
-            }>(`${apiURL}/documents?${params.toString()}`);
+            }>(`${apiURL}/documents?${params.toString()}`, { signal });
 
             const contents: FolderItem[] = (data.documents || []).map((doc) => ({
                 id: doc.doc_id,

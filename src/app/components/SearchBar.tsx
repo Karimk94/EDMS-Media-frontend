@@ -13,17 +13,21 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, t, lang, isLoadi
     }
   };
 
-
-
   const handleClear = () => {
     setInput('');
     onSearch('');
   };
 
+  /** Only updates local state — does NOT fire a search on every keystroke */
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setInput(val);
-    onSearch(val);
+    setInput(e.target.value);
+  };
+
+  /** Trigger search on Enter key */
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
   };
 
   return (
@@ -36,6 +40,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, t, lang, isLoadi
         type="text"
         value={input}
         onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
         placeholder={t('search')}
         className={`flex-1 py-2 bg-transparent text-gray-900 dark:text-gray-200 
                     border-none focus:ring-0 outline-none placeholder-gray-500

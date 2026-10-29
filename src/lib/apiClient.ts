@@ -21,14 +21,19 @@ export class ApiError extends Error {
 
 // --- Retry Configuration ---
 
-/** HTTP status codes that are safe to retry (transient server/network errors) */
-const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
+/** HTTP status codes that are safe to retry (transient server/network errors).
+ *  Note: 504 (Gateway Timeout) is intentionally excluded — retrying a timed-out
+ *  request immediately would just queue another slow request and compound the
+ *  problem. The backend should be fixed instead of relying on client-side retry. */
+const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503]);
 
-/** Default retry counts by HTTP method */
+/** Default retry counts by HTTP method.
+ *  GET retries are kept low (1) so a slow backend isn't hammered with
+ *  redundant requests when search queries take long. */
 const DEFAULT_RETRIES: Record<string, number> = {
-    GET: 3,
-    HEAD: 3,
-    OPTIONS: 3,
+    GET: 1,
+    HEAD: 1,
+    OPTIONS: 1,
     POST: 1,
     PUT: 1,
     DELETE: 1,

@@ -71,7 +71,7 @@ export function useDocuments({
             filterMediaType,
             lang
         ],
-        queryFn: async (): Promise<DocumentsResponse> => {
+        queryFn: async ({ signal }): Promise<DocumentsResponse> => {
             // Folders section logic handled separately unless inside standard folders
             if (activeSection === 'folders' && !activeFolder) {
                 return { documents: [], total_pages: 1 };
@@ -144,7 +144,7 @@ export function useDocuments({
 
             if (!endpoint) return { documents: [], total_pages: 1 };
 
-            const data = await apiClient.get(`${endpoint}?${params.toString()}`);
+            const data = await apiClient.get(`${endpoint}?${params.toString()}`, { signal });
             let fetchedDocs = data[dataKey] || [];
 
             // Client-side filtering for folders (mirrors existing logic)

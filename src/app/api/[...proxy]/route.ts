@@ -13,8 +13,10 @@ const MAX_PROXY_RETRIES = 2;
 /** Base delay between proxy retries (500ms → 1000ms) */
 const PROXY_RETRY_BASE_DELAY_MS = 500;
 
-/** Status codes that warrant a server-side proxy retry */
-const PROXY_RETRYABLE_STATUSES = new Set([502, 503, 504]);
+/** Status codes that warrant a server-side proxy retry.
+ *  504 (Gateway Timeout) is intentionally excluded — retrying a timed-out
+ *  request just queues another slow request and compounds the load on the backend. */
+const PROXY_RETRYABLE_STATUSES = new Set([502, 503]);
 
 /** Routes that should get extended timeouts (uploads, AI processing) */
 const LONG_TIMEOUT_ROUTES = ['/upload_document', '/analyze_image', '/add_face', '/recognize_faces', '/analyze_image_stream'];
