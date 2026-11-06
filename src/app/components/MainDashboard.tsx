@@ -105,7 +105,7 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
 
     const documentModals = useDocumentModals();
 
-    const { processingDocs, addProcessingDocs, removeProcessingDocs, isProcessing } =
+    const { processingDocs, addProcessingDocs, removeProcessingDocs, clearProcessingDocs, isProcessing } =
         useProcessingStatus({ user, activeSection, activeFolder, apiURL: API_PROXY_URL });
 
     // Debounce search term to reduce API calls during typing
@@ -441,6 +441,7 @@ export function MainDashboard({ initialSection = 'recent', initialFolderId = nul
                     apiURL={API_PROXY_URL}
                     onOpenUploadModal={() => setIsUploadModalOpen(true)}
                     isProcessing={isProcessing}
+                    onClearProcessing={clearProcessingDocs}
                     isEditor={isSectionWritable(activeSection)}
                     t={t}
                     isSidebarOpen={isSidebarOpen}

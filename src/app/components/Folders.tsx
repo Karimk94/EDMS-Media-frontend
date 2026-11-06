@@ -2,7 +2,7 @@ import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../lib/apiClient';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
-import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { useAdmin } from '../../hooks/useAdmin';
 import { useDownload } from '../../hooks/useDownload';
 import { FolderItem, useFolderContents } from '../../hooks/useFolderContents';
@@ -130,7 +130,32 @@ export const Folders: React.FC<FoldersProps> = ({
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [groupBy, setGroupBy] = useState<'none' | 'type'>('none');
     const [filterBy, setFilterBy] = useState<'none' | 'files' | 'folders' | 'events'>('none');
+    const [isFilterPending, startFilterTransition] = useTransition();
+    const [isGroupPending, startGroupTransition] = useTransition();
     const [showDetailsSidebar, setShowDetailsSidebar] = useState(false);
+
+    const { data: eventsList, isLoading: isEventsListLoading, isFetching: isEventsListFetching } = useQuery({
+        queryKey: ['events-names-filter', apiURL],
+        queryFn: async () => {
+            try {
+                const res = await apiClient.get<{ events?: { id: number; name: string }[] }>(`${apiURL}/events?fetch_all=true`);
+                return res.events || [];
+            } catch (err) {
+                return [];
+            }
+        },
+        staleTime: 5 * 60 * 1000,
+    });
+
+    const eventNamesSet = React.useMemo(() => {
+        const set = new Set<string>();
+        if (eventsList) {
+            for (const ev of eventsList) {
+                if (ev.name) set.add(ev.name.trim().toLowerCase());
+            }
+        }
+        return set;
+    }, [eventsList]);
 
     useEffect(() => {
         if (user?.view_mode) {
@@ -297,7 +322,7 @@ export const Folders: React.FC<FoldersProps> = ({
     // Derive document IDs from the raw folder contents so review statuses can be
     // fetched regardless of the viewer/editor role.
     const docIds = React.useMemo(() => rawItems.filter(item => item.type === 'file').map(item => item.id), [rawItems]);
-    const { statuses: reviewStatuses, setDocumentStatus, setFolderStatus, isError: isReviewStatusError } = useReviewStatus(docIds, apiURL, isEditor);
+    const { statuses: reviewStatuses, isLoading: isReviewStatusLoading, setDocumentStatus, setFolderStatus, isError: isReviewStatusError } = useReviewStatus(docIds, apiURL, isEditor);
     const { mutateAsync: rerunAnalysis } = useRerunAnalysis();
 
     // Viewers may only see file documents that have been marked "Completed"
@@ -310,27 +335,26 @@ export const Folders: React.FC<FoldersProps> = ({
         if (isEditor) return visibleItems;
         // Wait until review statuses have loaded before filtering, otherwise
         // viewers would briefly see unverified documents on every navigation.
-        if (docIds.length > 0 && Object.keys(reviewStatuses).length === 0 && !isReviewStatusError) return [];
+        if (docIds.length > 0 && isReviewStatusLoading) return [];
         if (isReviewStatusError) return visibleItems;
         return visibleItems.filter((item) => {
             if (item.type !== 'file') return true; // keep folders/sub-folders
             return reviewStatuses[item.id] === 'verified';
         });
-    }, [rawItems, hiddenItemIds, isEditor, reviewStatuses, docIds.length, isReviewStatusError]);
+    }, [rawItems, hiddenItemIds, isEditor, reviewStatuses, docIds.length, isReviewStatusLoading, isReviewStatusError]);
 
     // True when a viewer is waiting on review-status data before the filtered
     // file list can be shown. Used to keep the spinner visible (instead of an
     // empty/incorrect grid) until filtering is complete.
     const isViewerWaitingForStatus = !isEditor
         && docIds.length > 0
-        && Object.keys(reviewStatuses).length === 0
-        && !isReviewStatusError;
+        && isReviewStatusLoading;
 
     // True when a viewer's folder has file items but none are verified — used to
     // show an explanatory empty state instead of "This folder is empty".
     const isViewerFilteredEmpty = !isEditor
         && docIds.length > 0
-        && Object.keys(reviewStatuses).length > 0
+        && !isReviewStatusLoading
         && items.filter(i => i.type === 'file').length === 0
         && items.filter(i => i.type !== 'file').length === 0;
 
@@ -358,12 +382,59 @@ export const Folders: React.FC<FoldersProps> = ({
 
             return a.name.localeCompare(b.name);
         });
+
+    // Apply filterBy to userItems before grouping and interactions
+    const filteredUserItems = React.useMemo(() => {
+        if (filterBy === 'none') return userItems;
+        if (filterBy === 'folders') return userItems.filter(i => i.type === 'folder');
+        if (filterBy === 'files') return userItems.filter(i => i.type === 'file');
+        if (filterBy === 'events') {
+            const term = (debouncedSearchTerm || '').trim().toLowerCase();
+            return userItems.filter(i => {
+                const itemEventName = ((i as any).event_name || '').trim().toLowerCase();
+                const itemName = (i.name || '').trim().toLowerCase();
+
+                const isEvent = Boolean(itemEventName || eventNamesSet.has(itemName));
+                if (!isEvent) return false;
+
+                // When searching by name, show ONLY events that contain the searched name:
+                if (term) {
+                    const matchesEventName = Boolean(itemEventName && itemEventName.includes(term));
+                    const matchesFolderEventName = Boolean(eventNamesSet.has(itemName) && itemName.includes(term));
+                    return matchesEventName || matchesFolderEventName;
+                }
+
+                return true;
+            });
+        }
+        return userItems;
+    }, [filterBy, userItems, eventNamesSet, debouncedSearchTerm]);
     const [isOperationLoading, setIsOperationLoading] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isNavigating, setIsNavigating] = useState(false);
     // Incremented to bust browser-cached thumbnails after processing completes
     const [thumbnailRefreshKey, setThumbnailRefreshKey] = useState(0);
     const isLoading = isInitialLoading || isOperationLoading;
+
+    const isSearchDebouncing = (searchTerm || '').trim() !== (debouncedSearchTerm || '').trim();
+    const isEventsFetching = filterBy === 'events' && (isEventsListLoading || isEventsListFetching);
+    const isAnyFetching = isFetching || isContentSearchFetching || isReviewStatusLoading || isEventsFetching || isSearchDebouncing || isFilterPending || isGroupPending;
+
+    const fetchingMessage = React.useMemo(() => {
+        if (isSearchDebouncing || isSearchFetching) {
+            return t('searchingDocuments') || 'Searching documents...';
+        }
+        if (isEventsFetching) {
+            return t('loadingEvents') || 'Loading events...';
+        }
+        if (isFilterPending || filterBy !== 'none') {
+            return t('filteringDocuments') || 'Filtering documents...';
+        }
+        if (isGroupPending || groupBy !== 'none') {
+            return t('updatingGrouping') || 'Updating grouping...';
+        }
+        return t('fetchingDocuments') || 'Fetching documents...';
+    }, [isSearchDebouncing, isSearchFetching, isEventsFetching, isFilterPending, filterBy, isGroupPending, groupBy, t]);
 
     // Auto-clear operation loading, refreshing & navigation when fetch settles
     useEffect(() => {
@@ -378,8 +449,8 @@ export const Folders: React.FC<FoldersProps> = ({
     // Used to poll the batch processing-summary endpoint so we can detect when an
     // uploaded event folder finishes processing all its photos.
     const visibleFolderIds = React.useMemo(
-        () => userItems.filter(item => item.type === 'folder').map(item => item.id),
-        [userItems]
+        () => filteredUserItems.filter(item => item.type === 'folder').map(item => item.id),
+        [filteredUserItems]
     );
 
     const handleFolderProcessingComplete = useCallback(() => {
@@ -997,7 +1068,7 @@ export const Folders: React.FC<FoldersProps> = ({
             return;
         }
 
-        const itemIndex = userItems.findIndex((i) => i.id === item.id);
+        const itemIndex = filteredUserItems.findIndex((i) => i.id === item.id);
 
         if (e.shiftKey && lastClickedIndex !== null && isEditor) {
             // Shift+Click → range selection
@@ -1008,7 +1079,7 @@ export const Folders: React.FC<FoldersProps> = ({
             setSelectedFileIds((prev) => {
                 const next = new Set(prev);
                 for (let i = start; i <= end; i++) {
-                    next.add(userItems[i].id);
+                    next.add(filteredUserItems[i].id);
                 }
                 return next;
             });
@@ -1057,7 +1128,7 @@ export const Folders: React.FC<FoldersProps> = ({
                 return;
             }
 
-            if (userItems.length === 0) return;
+            if (filteredUserItems.length === 0) return;
 
             const cols = (() => {
                 const gridEl = gridAreaRef.current?.querySelector('.grid');
@@ -1071,38 +1142,38 @@ export const Folders: React.FC<FoldersProps> = ({
 
             if (e.key === 'ArrowRight') {
                 e.preventDefault();
-                const next = Math.min(currentIdx + 1, userItems.length - 1);
+                const next = Math.min(currentIdx + 1, filteredUserItems.length - 1);
                 setFocusedItemIndex(next);
                 if (!e.shiftKey) {
-                    setSelectedFileIds(new Set([userItems[next].id]));
+                    setSelectedFileIds(new Set([filteredUserItems[next].id]));
                     setLastClickedIndex(next);
                     if (!isSelectionMode) setIsSelectionMode(true);
                 } else {
-                    setSelectedFileIds((prev) => { const n = new Set(prev); n.add(userItems[next].id); return n; });
+                    setSelectedFileIds((prev) => { const n = new Set(prev); n.add(filteredUserItems[next].id); return n; });
                 }
             } else if (e.key === 'ArrowLeft') {
                 e.preventDefault();
                 const next = Math.max(currentIdx - 1, 0);
                 setFocusedItemIndex(next);
                 if (!e.shiftKey) {
-                    setSelectedFileIds(new Set([userItems[next].id]));
+                    setSelectedFileIds(new Set([filteredUserItems[next].id]));
                     setLastClickedIndex(next);
                     if (!isSelectionMode) setIsSelectionMode(true);
                 } else {
-                    setSelectedFileIds((prev) => { const n = new Set(prev); n.add(userItems[next].id); return n; });
+                    setSelectedFileIds((prev) => { const n = new Set(prev); n.add(filteredUserItems[next].id); return n; });
                 }
             } else if (e.key === 'ArrowDown') {
                 e.preventDefault();
-                const next = Math.min(currentIdx + cols, userItems.length - 1);
+                const next = Math.min(currentIdx + cols, filteredUserItems.length - 1);
                 setFocusedItemIndex(next);
                 if (!e.shiftKey) {
-                    setSelectedFileIds(new Set([userItems[next].id]));
+                    setSelectedFileIds(new Set([filteredUserItems[next].id]));
                     setLastClickedIndex(next);
                     if (!isSelectionMode) setIsSelectionMode(true);
                 } else {
                     setSelectedFileIds((prev) => {
                         const n = new Set(prev);
-                        for (let i = currentIdx + 1; i <= next; i++) n.add(userItems[i].id);
+                        for (let i = currentIdx + 1; i <= next; i++) n.add(filteredUserItems[i].id);
                         return n;
                     });
                 }
@@ -1111,22 +1182,22 @@ export const Folders: React.FC<FoldersProps> = ({
                 const next = Math.max(currentIdx - cols, 0);
                 setFocusedItemIndex(next);
                 if (!e.shiftKey) {
-                    setSelectedFileIds(new Set([userItems[next].id]));
+                    setSelectedFileIds(new Set([filteredUserItems[next].id]));
                     setLastClickedIndex(next);
                     if (!isSelectionMode) setIsSelectionMode(true);
                 } else {
                     setSelectedFileIds((prev) => {
                         const n = new Set(prev);
-                        for (let i = next; i < currentIdx; i++) n.add(userItems[i].id);
+                        for (let i = next; i < currentIdx; i++) n.add(filteredUserItems[i].id);
                         return n;
                     });
                 }
             } else if (e.key === 'Enter' && focusedItemIndex !== null && focusedItemIndex >= 0) {
                 e.preventDefault();
-                handleNavigate(userItems[focusedItemIndex]);
+                handleNavigate(filteredUserItems[focusedItemIndex]);
             } else if (e.key === ' ' && focusedItemIndex !== null && focusedItemIndex >= 0) {
                 e.preventDefault();
-                toggleFileSelection(userItems[focusedItemIndex].id);
+                toggleFileSelection(filteredUserItems[focusedItemIndex].id);
             } else if (e.key === 'Delete' && selectedFileIds.size > 0 && isEditor) {
                 e.preventDefault();
                 handleBatchDelete();
@@ -1944,40 +2015,6 @@ export const Folders: React.FC<FoldersProps> = ({
         return colorMap[type] || 'text-yellow-500 dark:text-yellow-400';
     };
 
-    const { data: eventsList } = useQuery({
-        queryKey: ['events-names-filter', apiURL],
-        queryFn: async () => {
-            try {
-                const res = await apiClient.get<{ events?: { id: number; name: string }[] }>(`${apiURL}/events?fetch_all=true`);
-                return res.events || [];
-            } catch (err) {
-                return [];
-            }
-        },
-        staleTime: 5 * 60 * 1000,
-    });
-
-    const eventNamesSet = React.useMemo(() => {
-        const set = new Set<string>();
-        if (eventsList) {
-            for (const ev of eventsList) {
-                if (ev.name) set.add(ev.name.trim().toLowerCase());
-            }
-        }
-        return set;
-    }, [eventsList]);
-
-    // Apply filterBy to userItems before grouping
-    const filteredUserItems = React.useMemo(() => {
-        if (filterBy === 'none') return userItems;
-        if (filterBy === 'folders') return userItems.filter(i => i.type === 'folder');
-        if (filterBy === 'files') return userItems.filter(i => i.type === 'file');
-        if (filterBy === 'events') {
-            return userItems.filter(i => !!(i as any).event_name || eventNamesSet.has((i.name || '').trim().toLowerCase()));
-        }
-        return userItems;
-    }, [filterBy, userItems, eventNamesSet]);
-
     const groups = React.useMemo(() => {
         if (groupBy === 'none') {
             return [{ title: '', items: filteredUserItems }];
@@ -1998,6 +2035,12 @@ export const Folders: React.FC<FoldersProps> = ({
 
 
             <div className="relative border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#252525]">
+                {/* Indeterminate top progress bar */}
+                {isAnyFetching && (
+                    <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-blue-100 dark:bg-blue-950 overflow-hidden z-20">
+                        <div className="h-full bg-blue-600 dark:bg-blue-400 w-1/3 animate-indeterminate" />
+                    </div>
+                )}
                 <div className="flex items-center justify-between px-6 py-4">
                     <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar flex-grow">
                         {breadcrumbs.length > 1 && (
@@ -2050,6 +2093,17 @@ export const Folders: React.FC<FoldersProps> = ({
                                 </div>
                             ))}
                         </nav>
+                        <div className="flex items-center gap-2 shrink-0 ml-3">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-200/80 dark:bg-gray-700/80 text-gray-700 dark:text-gray-300">
+                                {filteredUserItems.length} {filteredUserItems.length === 1 ? (t('itemWord') || 'item') : (t('itemsWord') || 'items')}
+                            </span>
+                            {isAnyFetching && (
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-100/70 dark:bg-blue-900/40 border border-blue-200 dark:border-blue-800 animate-pulse shadow-sm">
+                                    <Spinner size="xs" />
+                                    <span>{fetchingMessage}</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     <div className="flex items-center space-x-3 ml-4">
@@ -2067,28 +2121,48 @@ export const Folders: React.FC<FoldersProps> = ({
 
                         <div className="flex items-center mx-2 gap-2">
                             <span className="text-sm text-gray-500 dark:text-gray-400">{t('groupBy') || 'Group By:'}</span>
-                            <select
-                                value={groupBy}
-                                onChange={(e) => setGroupBy(e.target.value as 'none' | 'type')}
-                                className="bg-gray-100 dark:bg-gray-700 text-sm border-none rounded-md p-1 outline-none focus:ring-1 focus:ring-blue-500 text-gray-700 dark:text-gray-200"
-                            >
-                                <option value="none">{t('none') || 'None'}</option>
-                                <option value="type">{t('type') || 'Type'}</option>
-                            </select>
+                            <div className="relative inline-flex items-center">
+                                <select
+                                    value={groupBy}
+                                    onChange={(e) => {
+                                        const val = e.target.value as 'none' | 'type';
+                                        startGroupTransition(() => {
+                                            setGroupBy(val);
+                                        });
+                                    }}
+                                    className="bg-gray-100 dark:bg-gray-700 text-sm border-none rounded-md p-1 outline-none focus:ring-1 focus:ring-blue-500 text-gray-700 dark:text-gray-200"
+                                >
+                                    <option value="none">{t('none') || 'None'}</option>
+                                    <option value="type">{t('type') || 'Type'}</option>
+                                </select>
+                                {isGroupPending && (
+                                    <span className="ml-1.5"><Spinner size="xs" /></span>
+                                )}
+                            </div>
                         </div>
 
                         <div className="flex items-center mx-2 gap-2">
                             <span className="text-sm text-gray-500 dark:text-gray-400">{t('filterBy') || 'Filter By:'}</span>
-                            <select
-                                value={filterBy}
-                                onChange={(e) => setFilterBy(e.target.value as 'none' | 'files' | 'folders' | 'events')}
-                                className="bg-gray-100 dark:bg-gray-700 text-sm border-none rounded-md p-1 outline-none focus:ring-1 focus:ring-blue-500 text-gray-700 dark:text-gray-200"
-                            >
-                                <option value="none">{t('none') || 'None'}</option>
-                                <option value="files">{t('files') || 'Files'}</option>
-                                <option value="folders">{t('folders') || 'Folders'}</option>
-                                <option value="events">{t('events') || 'Events'}</option>
-                            </select>
+                            <div className="relative inline-flex items-center">
+                                <select
+                                    value={filterBy}
+                                    onChange={(e) => {
+                                        const val = e.target.value as 'none' | 'files' | 'folders' | 'events';
+                                        startFilterTransition(() => {
+                                            setFilterBy(val);
+                                        });
+                                    }}
+                                    className="bg-gray-100 dark:bg-gray-700 text-sm border-none rounded-md p-1 outline-none focus:ring-1 focus:ring-blue-500 text-gray-700 dark:text-gray-200"
+                                >
+                                    <option value="none">{t('none') || 'None'}</option>
+                                    <option value="files">{t('files') || 'Files'}</option>
+                                    <option value="folders">{t('folders') || 'Folders'}</option>
+                                    <option value="events">{t('events') || 'Events'}</option>
+                                </select>
+                                {(isFilterPending || isEventsFetching) && (
+                                    <span className="ml-1.5"><Spinner size="xs" /></span>
+                                )}
+                            </div>
                         </div>
 
                         <div className="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1 mx-2">
@@ -2238,7 +2312,7 @@ export const Folders: React.FC<FoldersProps> = ({
                         <div className="py-8">
                             <Spinner size="lg" center label={t('loading') || 'Loading...'} />
                         </div>
-                    ) : isSearchFetching ? (
+                    ) : isSearchFetching && rawItems.length === 0 ? (
                         <div className="py-8">
                             <Spinner size="lg" center label={t('searching') || 'Searching...'} />
                         </div>
@@ -2252,8 +2326,22 @@ export const Folders: React.FC<FoldersProps> = ({
 
 
                             <div className="flex-1">
+                                {isAnyFetching && filteredUserItems.length > 0 && (
+                                    <div className="flex items-center justify-between gap-3 px-4 py-2.5 mb-4 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 rounded-xl text-xs font-medium text-blue-700 dark:text-blue-300 shadow-sm backdrop-blur-sm animate-fade-in">
+                                        <div className="flex items-center gap-2">
+                                            <Spinner size="xs" />
+                                            <span className="font-semibold">{fetchingMessage}</span>
+                                            <span className="text-blue-600/70 dark:text-blue-400/70 font-normal">
+                                                — {t('syncingBackground') || 'more documents may still be loading'}
+                                            </span>
+                                        </div>
+                                        <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/60 px-2.5 py-0.5 rounded-full shrink-0">
+                                            {filteredUserItems.length} {filteredUserItems.length === 1 ? (t('itemWord') || 'item') : (t('itemsWord') || 'items')} {t('loaded') || 'loaded'}
+                                        </span>
+                                    </div>
+                                )}
 
-                                <div className="mb-4">
+                                <div className={`mb-4 transition-opacity duration-200 ${isAnyFetching ? 'opacity-80' : 'opacity-100'}`}>
                                     {viewMode === 'grid' ? (
                                         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2">
                                             {groups.map((group, gIdx) => (
@@ -2269,7 +2357,7 @@ export const Folders: React.FC<FoldersProps> = ({
                                                         const isDragOverTarget = dragOverFolderId === item.id;
 
                                                         if (!isFile && item.type === 'folder') {
-                                                            const isFocused = focusedItemIndex !== null && userItems[focusedItemIndex]?.id === item.id;
+                                                            const isFocused = focusedItemIndex !== null && filteredUserItems[focusedItemIndex]?.id === item.id;
                                                             return (
                                                                 <div
                                                                     ref={(el) => {
@@ -2414,7 +2502,7 @@ export const Folders: React.FC<FoldersProps> = ({
                                                             );
                                                         }
 
-                                                        const isFocused = focusedItemIndex !== null && userItems[focusedItemIndex]?.id === item.id;
+                                                        const isFocused = focusedItemIndex !== null && filteredUserItems[focusedItemIndex]?.id === item.id;
                                                         return (
                                                             <div
                                                                 ref={(el) => {
@@ -2538,7 +2626,7 @@ export const Folders: React.FC<FoldersProps> = ({
                                                                 const isFile = item.type === 'file';
                                                                 const isSelected = selectedFileIds.has(item.id);
                                                                 const isDragOverTarget = dragOverFolderId === item.id;
-                                                                const isFocused = focusedItemIndex !== null && userItems[focusedItemIndex]?.id === item.id;
+                                                                const isFocused = focusedItemIndex !== null && filteredUserItems[focusedItemIndex]?.id === item.id;
 
                                                                 return (
                                                                     <tr
@@ -2703,12 +2791,18 @@ export const Folders: React.FC<FoldersProps> = ({
                                     />
                                 )}
 
-                                {items.length === 0 && (
-                                    <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-                                        <p>{isViewerFilteredEmpty
-                                            ? (t('noCompletedDocuments') || "No completed documents are available yet.")
-                                            : (searchTerm ? t('noDocumentsFound') : (t('emptyFolder') || "This folder is empty."))}</p>
-                                    </div>
+                                {filteredUserItems.length === 0 && (
+                                    isAnyFetching ? (
+                                        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                                            <Spinner size="lg" center label={fetchingMessage} />
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                                            <p>{isViewerFilteredEmpty
+                                                ? (t('noCompletedDocuments') || "No completed documents are available yet.")
+                                                : (searchTerm || filterBy !== 'none' ? (t('noDocumentsFound') || "No documents found.") : (t('emptyFolder') || "This folder is empty."))}</p>
+                                        </div>
+                                    )
                                 )}
                             </div>
 

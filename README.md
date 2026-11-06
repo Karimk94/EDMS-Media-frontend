@@ -148,7 +148,7 @@ Every media type has a dedicated full-screen modal viewer with a navigation bar 
 ### Security & Sharing
 - **Security Modal** — per-document trustee management (set DMS ACL trustees, enable/disable security).
 - **Share Modal** — generate shareable links:
-  - **Open** (any `@rta.ae` email) or **Restricted** (specific email(s)).
+  - **Open** (any authorized company email) or **Restricted** (specific email(s)).
   - Expiry date, single or multiple target emails.
   - Backend sends OTP-verified links via SMTP; downloads are watermarked with the viewer's email.
 
@@ -215,7 +215,7 @@ EDMS Media frontend/
 NEXT_PUBLIC_FLASK_API_URL=http://localhost:5000
 
 # Face Recognition service URL (used by the proxy for face-analysis routes)
-FACE_RECOG_URL=http://10.100.61.225:5002
+FACE_RECOG_URL=http://localhost:5002
 
 # Proxy timeouts (ms)
 API_PROXY_TIMEOUT_MS=30000       # default for most routes

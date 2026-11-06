@@ -102,11 +102,19 @@ export function useProcessingStatus({ user, activeSection, activeFolder, apiURL 
         });
     }, []);
 
+    const clearProcessingDocs = useCallback(() => {
+        setProcessingDocs([]);
+        localStorage.removeItem('processingDocs');
+        queryClient.invalidateQueries({ queryKey: ['documents'] });
+        queryClient.invalidateQueries({ queryKey: ['folders'] });
+    }, [queryClient]);
+
     return {
         processingDocs,
         setProcessingDocs,
         addProcessingDocs,
         removeProcessingDocs,
+        clearProcessingDocs,
         isProcessing: processingDocs.length > 0,
     };
 }

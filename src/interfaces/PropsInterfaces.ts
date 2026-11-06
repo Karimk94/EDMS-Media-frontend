@@ -352,6 +352,7 @@ export interface HeaderProps {
     apiURL: string;
     onOpenUploadModal: () => void;
     isProcessing: boolean;
+    onClearProcessing?: () => void;
     isEditor: boolean;
     isSidebarOpen: boolean;
     toggleSidebar: () => void;

@@ -15,6 +15,7 @@ export const Header: React.FC<HeaderProps> = ({
   apiURL,
   onOpenUploadModal,
   isProcessing,
+  onClearProcessing,
   isEditor,
   t,
   isSidebarOpen,
@@ -93,9 +94,26 @@ export const Header: React.FC<HeaderProps> = ({
           className={`flex items-center gap-4 ${searchBarMargin} ${rtlClass}`}
         >
           {isProcessing && (
-            <div className="flex items-center gap-2 text-gray-900 dark:text-white text-sm">
+            <div
+              className="flex items-center gap-1.5 bg-amber-500/10 dark:bg-amber-400/10 border border-amber-500/20 px-2.5 py-1 rounded-full text-amber-700 dark:text-amber-300 text-xs font-medium"
+              title={t('processing')}
+            >
               <Spinner size="xs" />
               <span>{t('processing')}</span>
+              {onClearProcessing && (
+                <button
+                  type="button"
+                  onClick={onClearProcessing}
+                  title={t('clearProcessing') || "Dismiss stuck processing"}
+                  className="ml-0.5 p-0.5 rounded-full hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 transition"
+                  aria-label="Dismiss processing"
+                >
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              )}
             </div>
           )}
 
