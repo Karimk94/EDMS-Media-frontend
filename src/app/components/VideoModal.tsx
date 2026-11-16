@@ -312,7 +312,7 @@ export const VideoModal: React.FC<VideoModalProps> = ({
           t={t}
         />
 
-        <div className="p-6">
+        <div className="p-6 pb-12">
           <div className={`relative ${isFullScreen ? 'fixed inset-0 z-[60] bg-black flex items-center justify-center' : ''} `}>
             <video ref={videoRef} controls autoPlay className={isFullScreen ? 'w-full h-full' : 'w-full max-h-[70vh] rounded-lg bg-black'}>
               <source src={`${apiURL}/video/${doc.doc_id}`} type={getVideoMimeType(doc.docname)} />
@@ -349,12 +349,12 @@ export const VideoModal: React.FC<VideoModalProps> = ({
                       </div>
                     ) : (
                       <div className="flex items-start justify-between">
-                        <p className={`text-sm ${textMuted} mt-1 pr-4 whitespace-pre-wrap`}>{abstract || t('noAbstract')}</p>
+                        <p className={`text-sm ${textMuted} mt-1 pr-4 whitespace-pre-wrap break-words`}>{abstract || t('noAbstract')}</p>
                         <button onClick={handleEditAbstract} className={`px-4 py-1 ${buttonBg} ${buttonText} text-xs rounded-md ${buttonHoverBg} flex-shrink-0`}>{t('edit')}</button>
                       </div>
                     )
                   ) : (
-                    <p className={`text-sm ${textMuted} mt-1 pr-4 whitespace-pre-wrap`}>{abstract}</p>
+                    <p className={`text-sm ${textMuted} mt-1 pr-4 whitespace-pre-wrap break-words`}>{abstract}</p>
                   )}
                 </div>
               )}

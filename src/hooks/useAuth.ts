@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { apiClient } from '../lib/apiClient';
@@ -12,6 +11,7 @@ interface User {
     quota: number;
     remaining_quota: number;
     is_ems_admin_group_member?: boolean;
+    is_upper_admin?: boolean;
     view_mode?: 'grid' | 'list';
     tab_permissions?: { tab_key: string; can_read: boolean; can_write: boolean }[];
 }
@@ -29,7 +29,7 @@ export function useAuth() {
         queryKey: ['user'],
         queryFn: async () => {
             const data = await apiClient.get('/api/auth/user');
-            return data.user as User;
+            return (data?.user || undefined) as User | undefined;
         },
         retry: false, // Don't retry if 401
         staleTime: 1000 * 60 * 5, // 5 minutes
@@ -41,6 +41,16 @@ export function useAuth() {
         },
         onSuccess: (data) => {
             queryClient.setQueryData(['user'], data.user); // Optimistically update user
+            queryClient.invalidateQueries({ queryKey: ['user'] });
+        },
+    });
+
+    const ssoLoginMutation = useMutation({
+        mutationFn: async () => {
+            return apiClient.post('/api/auth/sso');
+        },
+        onSuccess: (data) => {
+            queryClient.setQueryData(['user'], data.user);
             queryClient.invalidateQueries({ queryKey: ['user'] });
         },
     });
@@ -66,8 +76,9 @@ export function useAuth() {
         isAuthenticated: userQuery.isSuccess && !!userQuery.data,
         login: loginMutation.mutateAsync,
         isLoggingIn: loginMutation.isPending,
+        ssoLogin: ssoLoginMutation.mutateAsync,
+        isSsoLoggingIn: ssoLoginMutation.isPending,
         logout: logoutMutation.mutateAsync,
         isLoggingOut: logoutMutation.isPending,
     };
 }
-

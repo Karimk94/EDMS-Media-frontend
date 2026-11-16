@@ -45,6 +45,7 @@ interface UseFolderContentSearchParams {
     dateTo?: Date | null;
     selectedPerson?: PersonOption[] | null;
     personCondition?: 'any' | 'all';
+    reviewStatus?: 'verified' | null;
 }
 
 interface FolderContentSearchResponse {
@@ -82,6 +83,7 @@ export function useFolderContentSearch({
     dateTo = null,
     selectedPerson = null,
     personCondition = 'any',
+    reviewStatus = null,
 }: UseFolderContentSearchParams) {
     const hasFilters = Boolean(
         (selectedTags && selectedTags.length > 0) ||
@@ -106,6 +108,7 @@ export function useFolderContentSearch({
             dateTo ? dateTo.toISOString() : null,
             JSON.stringify(selectedPerson || []),
             personCondition,
+            reviewStatus,
         ],
         queryFn: async ({ signal }): Promise<FolderContentSearchResponse> => {
             if (!searchTerm && !hasFilters) {
@@ -119,19 +122,22 @@ export function useFolderContentSearch({
             params.append('lang', lang);
 
             if (searchTerm) params.append('search', searchTerm);
+            if (reviewStatus) params.append('review_status', reviewStatus);
             if (mediaType) params.append('media_type', mediaType);
 
             if (selectedPerson && selectedPerson.length > 0) {
                 const personNames = selectedPerson
                     .map((p) => {
+                        if (p.name_english && p.name_english.trim()) return p.name_english.trim();
+                        if (p.name_arabic && p.name_arabic.trim()) return p.name_arabic.trim();
                         const parts = p.label.split(' - ');
-                        if (lang === 'ar' && parts.length > 1) {
-                            return parts[parts.length - 1].trim();
-                        }
                         return parts[0].trim();
                     })
+                    .filter(Boolean)
                     .join(',');
-                params.append('persons', personNames);
+                if (personNames) {
+                    params.append('persons', personNames);
+                }
                 if (selectedPerson.length > 1 && personCondition) {
                     params.append('person_condition', personCondition);
                 }

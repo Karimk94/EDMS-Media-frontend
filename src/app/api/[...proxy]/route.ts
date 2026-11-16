@@ -117,6 +117,26 @@ async function proxyHandler(req: NextRequest): Promise<NextResponse> {
   const headers = new Headers(req.headers);
   headers.set('X-App-Source', 'edms-media');
 
+  // Forward authenticated Windows/IIS user for SSO endpoints
+  if (path.includes('/auth/sso')) {
+    const iisUser = req.headers.get('x-iisnode-auth_user')
+      || req.headers.get('x-iisnode-logon_user')
+      || req.headers.get('x-iisnode-remote_user')
+      || req.headers.get('x-iisnode-unencrypted_user')
+      || req.headers.get('x-remote-user')
+      || req.headers.get('remote-user')
+      || req.headers.get('x-forwarded-user')
+      || req.headers.get('x-authenticated-user');
+
+    if (iisUser) {
+      headers.set('X-Remote-User', iisUser);
+    } else if (process.env.NODE_ENV !== 'production' && process.env.USERNAME) {
+      // Local development only - never use server identity in production
+      const domain = process.env.USERDOMAIN ? `${process.env.USERDOMAIN}\\` : '';
+      headers.set('X-Remote-User', `${domain}${process.env.USERNAME}`);
+    }
+  }
+
   const timeoutMs = getTimeoutForPath(path);
 
   // --- Retry loop ---
@@ -153,28 +173,43 @@ async function proxyHandler(req: NextRequest): Promise<NextResponse> {
 
       let responseBody = response.body;
 
-      if (isJson && !response.ok) {
-        const json = await response.json();
-
-        if (json.detail && !json.error) {
-          const errorMsg = typeof json.detail === 'string'
-            ? json.detail
-            : Array.isArray(json.detail)
-              ? json.detail.map((e: any) => e.msg).join(", ")
-              : JSON.stringify(json.detail);
-          json.error = errorMsg;
+      if (!response.ok) {
+        if (isJson) {
+          const json = await response.json().catch(() => null);
+          if (json) {
+            if (json.detail && !json.error) {
+              const errorMsg = typeof json.detail === 'string'
+                ? json.detail
+                : Array.isArray(json.detail)
+                  ? json.detail.map((e: any) => e.msg).join(", ")
+                  : JSON.stringify(json.detail);
+              json.error = errorMsg;
+            }
+            if (!json.detail && json.error) {
+              json.detail = json.error;
+            }
+            responseBody = JSON.stringify(json) as any;
+          }
+        } else {
+          // Upstream returned plain text or HTML error (e.g. IIS Bad Request / 502)
+          const text = await response.text().catch(() => '');
+          let cleanMessage = text;
+          if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+            cleanMessage = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300);
+          }
+          responseBody = JSON.stringify({
+            detail: cleanMessage || response.statusText || `Request failed with status ${response.status}`,
+            error: cleanMessage || response.statusText || `Request failed with status ${response.status}`
+          }) as any;
         }
-        responseBody = JSON.stringify(json) as any;
-      } else if (!response.ok) {
-        // Log the HTML or text error body from the backend (useful for IIS 500 errors)
-        const textBody = await response.text();
-        console.error(`[Proxy] 500 Error Text:`, textBody.substring(0, 1000));
-        responseBody = textBody as any;
       }
 
       const newHeaders = new Headers(response.headers);
       newHeaders.delete('content-length');
       newHeaders.delete('content-encoding');
+      if (!response.ok) {
+        newHeaders.set('content-type', 'application/json');
+      }
 
       // Preserve separate Set-Cookie headers from the backend
       // @ts-ignore

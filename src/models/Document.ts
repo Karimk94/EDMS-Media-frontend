@@ -9,6 +9,13 @@ export class Document {
     media_type: 'image' | 'video' | 'pdf' | 'text' | 'file' | 'excel' | 'powerpoint' | 'word' | 'zip' | 'audio' | 'cad' | 'code' | 'email' | 'font' | 'database' | 'vector' | 'archive' | 'executable' | 'disc' | 'visio' | 'onenote';
     tags?: string[];
     is_favorite?: boolean;
+    // Document relationship (original vs edited)
+    has_original?: boolean;
+    original_docnumber?: number;
+    original_docname?: string;
+    is_original?: boolean;
+    edited_docnumber?: number;
+    edited_docname?: string;
     // Search context metadata
     searchMatchField?: string; // Field where the search term was found
     searchMatchValue?: string; // The value that was searched for
@@ -27,6 +34,12 @@ export class Document {
         this.media_type = data.media_type || 'image';
         this.tags = data.tags;
         this.is_favorite = data.is_favorite;
+        this.has_original = data.has_original;
+        this.original_docnumber = data.original_docnumber;
+        this.original_docname = data.original_docname;
+        this.is_original = data.is_original;
+        this.edited_docnumber = data.edited_docnumber;
+        this.edited_docname = data.edited_docname;
         const rawData = data as Partial<Document> & {
             search_match_field?: string;
             search_match_value?: string;

@@ -297,7 +297,7 @@ export const TxtModal: React.FC<TxtModalProps> = ({
           </div>
 
           {/* Details Panel */}
-          <div className={`transition-all duration-300 ${isDetailsVisible ? 'md:col-span-1 opacity-100' : 'hidden opacity-0'} p-4 bg-gray-50 dark:bg-[#1f1f1f] rounded-lg overflow-y-auto`}>
+          <div className={`transition-all duration-300 ${isDetailsVisible ? 'md:col-span-1 opacity-100' : 'hidden opacity-0'} p-4 pb-8 bg-gray-50 dark:bg-[#1f1f1f] rounded-lg overflow-y-auto`}>
             {/* Abstract Section */}
             {(isEditor || abstract) && (
               <div className="mb-4">
@@ -317,12 +317,12 @@ export const TxtModal: React.FC<TxtModalProps> = ({
                     </div>
                   ) : (
                     <div className="flex items-start justify-between">
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 pr-4">{abstract || t('noAbstract')}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 pr-4 whitespace-pre-wrap break-words">{abstract || t('noAbstract')}</p>
                       <button onClick={handleEditAbstract} className="px-4 py-1 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white text-xs rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 flex-shrink-0">{t('edit')}</button>
                     </div>
                   )
                 ) : (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 pr-4">{abstract}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 pr-4 whitespace-pre-wrap break-words">{abstract}</p>
                 )}
               </div>
             )}

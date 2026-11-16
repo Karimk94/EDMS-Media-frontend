@@ -8,6 +8,12 @@ export interface DocumentMetadata {
     author: string;
     date: string;
     docname: string;
+    has_original?: boolean;
+    original_docnumber?: number;
+    original_docname?: string;
+    is_original?: boolean;
+    edited_docnumber?: number;
+    edited_docname?: string;
 }
 
 interface UseDocumentMetadataOptions {

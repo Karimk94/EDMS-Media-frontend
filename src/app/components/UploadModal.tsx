@@ -8,6 +8,13 @@ import Image from 'next/image';
 import { LoadingButton } from './LoadingButton';
 import { UploadModalProps } from '../../interfaces/PropsInterfaces';
 
+const MAX_RETRIES_PER_FILE = 3; // Max attempts per file before moving to end of queue
+
+const generateIdempotencyKey = (): string =>
+  typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+
 const formatDateTimeForAPI = (date: Date | null): string | null => {
   if (!date) return null;
   const pad = (num: number) => num.toString().padStart(2, '0');
@@ -70,6 +77,13 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, theme
   const { showToast } = useToast();
   const queryClient = useQueryClient();
 
+  // Ref so the upload loop can always read the latest files state
+  const filesRef = useRef<UploadableFile[]>([]);
+  filesRef.current = files;
+
+  // A ref to signal the running queue to skip the current file
+  const skipCurrentRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -124,6 +138,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, theme
         file,
         status: 'pending',
         progress: 0,
+        retryCount: 0,
+        idempotencyKey: generateIdempotencyKey(),
         editedFileName: removeExtension(file.name),
         editedDateTaken: finalDate,
         dateSource: dateSource
@@ -185,91 +201,186 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, theme
     setFiles(prev => prev.map(f => f.id === id ? { ...f, editedDateTaken: newDate, dateSource: undefined } : f));
   };
 
-  const handleUpload = async () => {
-    const pendingFiles = files.filter(f => f.status === 'pending');
-    if (pendingFiles.length === 0) return;
+  /**
+   * Move a file to the end of the queue and reset it to pending so it will
+   * be retried in the next natural turn of the sequential loop.
+   */
+  const handleSkipToEnd = (id: string) => {
+    setFiles(prev => {
+      const idx = prev.findIndex(f => f.id === id);
+      if (idx === -1) return prev;
+      const item = { ...prev[idx], status: 'pending' as UploadStatus, progress: 0, error: undefined };
+      const rest = prev.filter((_, i) => i !== idx);
+      return [...rest, item];
+    });
+    // If this file is currently uploading, abort it
+    if (skipCurrentRef.current) {
+      skipCurrentRef.current();
+    }
+  };
 
+  /**
+   * Upload a single file via XHR. Returns a promise that resolves with
+   * success/failure info and supports external abort via the passed signal resolver.
+   */
+  const uploadOneFile = (
+    uploadableFile: UploadableFile,
+    onSkipSignal: (abortFn: () => void) => void,
+  ): Promise<{ success: boolean; docnumber?: number; error?: string; skipped?: boolean }> => {
+    return new Promise((resolve) => {
+      const { file, editedFileName, editedDateTaken, idempotencyKey } = uploadableFile;
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('docname', (editedFileName && editedFileName.trim()) ? editedFileName.trim() : removeExtension(file.name));
+      formData.append('abstract', ``);
+
+      const formattedDate = formatDateTimeForAPI(editedDateTaken);
+      if (formattedDate) {
+        formData.append('date_taken', formattedDate);
+      }
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${apiURL}/upload_document`, true);
+      xhr.withCredentials = true;
+
+      // Send a stable idempotency key so the backend can deduplicate retries.
+      // The same key is reused across all retry attempts for this file.
+      if (idempotencyKey) {
+        xhr.setRequestHeader('Idempotency-Key', idempotencyKey);
+      }
+
+      // Expose an abort function so external "skip" can cancel this XHR and
+      // also notify the backend to release the idempotency lock.
+      onSkipSignal(() => {
+        xhr.abort();
+        // Tell backend to release the idempotency lock so the next retry works
+        if (idempotencyKey) {
+          fetch(`${apiURL}/upload_document/cancel`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idempotency_key: idempotencyKey }),
+          }).catch(() => {}); // best-effort
+        }
+        resolve({ success: false, skipped: true });
+      });
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percentComplete = Math.round((event.loaded / event.total) * 100);
+          updateFileStatus(uploadableFile.id, 'uploading', { progress: percentComplete });
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const response = JSON.parse(xhr.responseText);
+            if (response.success) {
+              resolve({ success: true, docnumber: response.docnumber });
+            } else {
+              resolve({ success: false, error: response.error || t('uploadFailed') });
+            }
+          } catch (e) {
+            resolve({ success: false, error: t('failedToParseServerResponse') });
+          }
+        } else {
+          let errorMsg = `${t('serverError')} ${xhr.status}`;
+          try {
+            const response = JSON.parse(xhr.responseText);
+            errorMsg = response.error || errorMsg;
+          } catch (e) {}
+          resolve({ success: false, error: errorMsg });
+        }
+      };
+
+      xhr.onerror = () => resolve({ success: false, error: t('networkErrorDuringUpload') });
+      xhr.ontimeout = () => resolve({ success: false, error: t('uploadTimedOut') });
+      xhr.onabort = () => resolve({ success: false, skipped: true });
+
+      xhr.send(formData);
+    });
+  };
+
+  const handleUpload = async () => {
     setIsUploading(true);
     let successCount = 0;
     let errorCount = 0;
+    const successfulDocnumbers: number[] = [];
 
-    const uploadPromises = pendingFiles.map(uploadableFile => {
-      return new Promise<void>((resolve) => {
-        const { id, file, editedFileName, editedDateTaken } = uploadableFile;
-        updateFileStatus(id, 'uploading', { progress: 0 });
+    // We process the queue sequentially. Whenever a file fails we increment its
+    // retryCount. If retryCount < MAX_RETRIES_PER_FILE we move it to the end and
+    // keep going. Once retryCount reaches the limit the file stays as 'error'.
+    const processedIds = new Set<string>();
 
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('docname', (editedFileName && editedFileName.trim()) ? editedFileName.trim() : removeExtension(file.name));
-        formData.append('abstract', ``);
+    // Keep looping while there are still pending files that haven't been permanently failed
+    while (true) {
+      // Always read from the ref for the latest state
+      const currentFiles = filesRef.current;
 
-        const formattedDate = formatDateTimeForAPI(editedDateTaken);
-        if (formattedDate) {
-          formData.append('date_taken', formattedDate);
-        }
+      // Find the next pending file that hasn't been permanently failed
+      const next = currentFiles.find(f => f.status === 'pending');
+      if (!next) break;
 
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', `${apiURL}/upload_document`, true);
+      // Mark as uploading
+      updateFileStatus(next.id, 'uploading', { progress: 0 });
 
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
-            const percentComplete = Math.round((event.loaded / event.total) * 100);
-            updateFileStatus(id, 'uploading', { progress: percentComplete });
-          }
+      // Register skip signal
+      let skipped = false;
+      const result = await uploadOneFile(next, (abortFn) => {
+        skipCurrentRef.current = () => {
+          skipped = true;
+          abortFn();
         };
-
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              const response = JSON.parse(xhr.responseText);
-              if (response.success) {
-                updateFileStatus(id, 'success', { progress: 100, docnumber: response.docnumber });
-                successCount++;
-              } else {
-                const errorMsg = response.error || t('uploadFailed');
-                updateFileStatus(id, 'error', { error: errorMsg });
-                errorCount++;
-              }
-            } catch (e) {
-              updateFileStatus(id, 'error', { error: t('failedToParseServerResponse') });
-              errorCount++;
-            }
-          } else {
-            let errorMsg = `${t('serverError')} ${xhr.status}`;
-            try {
-              const response = JSON.parse(xhr.responseText);
-              errorMsg = response.error || errorMsg;
-            } catch (e) {
-            }
-            updateFileStatus(id, 'error', { error: errorMsg });
-            errorCount++;
-          }
-          resolve();
-        };
-
-        xhr.onerror = () => {
-          updateFileStatus(id, 'error', { error: t('networkErrorDuringUpload') });
-          errorCount++;
-          resolve();
-        };
-
-        xhr.send(formData);
       });
-    });
+      skipCurrentRef.current = null;
 
-    await Promise.all(uploadPromises);
+      if (result.skipped) {
+        // The user pressed Skip — file was already moved to end by handleSkipToEnd
+        // Just reset status to pending if it somehow isn't already
+        setFiles(prev => prev.map(f => f.id === next.id ? { ...f, status: 'pending', progress: 0 } : f));
+        continue;
+      }
+
+      if (result.success) {
+        updateFileStatus(next.id, 'success', { progress: 100, docnumber: result.docnumber });
+        if (result.docnumber != null) successfulDocnumbers.push(result.docnumber);
+        successCount++;
+      } else {
+        const newRetryCount = (next.retryCount ?? 0) + 1;
+
+        if (newRetryCount >= MAX_RETRIES_PER_FILE) {
+          // Exhausted all retries — permanently mark as error
+          updateFileStatus(next.id, 'error', { error: result.error, retryCount: newRetryCount });
+          errorCount++;
+        } else {
+          // Still has retries left — move to end of queue as pending
+          setFiles(prev => {
+            const idx = prev.findIndex(f => f.id === next.id);
+            if (idx === -1) return prev;
+            const updatedItem: UploadableFile = {
+              ...prev[idx],
+              status: 'pending',
+              progress: 0,
+              error: result.error,
+              retryCount: newRetryCount,
+            };
+            const rest = prev.filter((_, i) => i !== idx);
+            return [...rest, updatedItem];
+          });
+          // Small delay before re-queuing
+          await new Promise(res => setTimeout(res, 1000));
+        }
+      }
+    }
+
     setIsUploading(false);
-
-    // Collect successfully uploaded docnumbers
-    const successfulDocnumbers = files
-      .filter(f => f.status === 'success' && f.docnumber != null)
-      .map(f => f.docnumber as number);
 
     if (errorCount === 0 && successCount > 0) {
       showToast(`${t('SuccessfullyUploaded')} ${successCount} ${t('file(s)')}`, 'success');
       queryClient.invalidateQueries({ queryKey: ['folders'] });
       queryClient.invalidateQueries({ queryKey: ['documents'] });
-      // Notify parent about successful uploads for processing status tracking
       if (onUploadSuccess && successfulDocnumbers.length > 0) {
         onUploadSuccess(successfulDocnumbers);
       }
@@ -277,7 +388,6 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, theme
       showToast(`${t('uploadCompletedWith')} ${errorCount} ${t('error(s)')} `, 'warning');
       queryClient.invalidateQueries({ queryKey: ['folders'] });
       queryClient.invalidateQueries({ queryKey: ['documents'] });
-      // Notify parent about successful uploads for processing status tracking
       if (onUploadSuccess && successfulDocnumbers.length > 0) {
         onUploadSuccess(successfulDocnumbers);
       }
@@ -354,6 +464,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose, apiURL, theme
                   onRemove={() => removeFile(f.id)}
                   onUpdateFileName={handleUpdateFileName}
                   onUpdateDateTaken={handleUpdateDateTaken}
+                  onSkipToEnd={isUploading ? () => handleSkipToEnd(f.id) : undefined}
+                  t={t as (key: string) => string}
                 />
               ))
             ) : (

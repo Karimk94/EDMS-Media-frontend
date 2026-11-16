@@ -131,6 +131,12 @@ async function fetchWithRetry<T>(
 
 async function handleResponse(response: Response): Promise<any> {
     if (response.status === 401) {
+        let data: any = {};
+        try {
+            data = await response.json();
+        } catch {
+            // Response body is not JSON
+        }
         // Auto-redirect to login on 401
         if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
             const path = window.location.pathname;
@@ -138,7 +144,8 @@ async function handleResponse(response: Response): Promise<any> {
             const redirectParam = (path === '/' && !search) ? '' : `?redirect=${encodeURIComponent(path + search)}`;
             window.location.href = `/login${redirectParam}`;
         }
-        throw new ApiError('Unauthorized', 401);
+        const message = data?.detail || data?.error || data?.message || 'Unauthorized';
+        throw new ApiError(message, 401, data);
     }
 
     if (!response.ok) {

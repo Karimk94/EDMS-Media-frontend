@@ -17,6 +17,8 @@ export interface Group {
 export interface PersonOption {
     value: string;
     label: string;
+    name_english?: string;
+    name_arabic?: string;
     type?: 'person' | 'group';
     fullData?: any;
     isFixed?: boolean;

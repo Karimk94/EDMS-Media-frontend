@@ -32,6 +32,7 @@ interface UseFolderContentsParams {
     isEnabled?: boolean;
     page?: number;
     pageSize?: number;
+    reviewStatus?: 'verified' | null;
 }
 
 export function useFolderContents({
@@ -40,10 +41,11 @@ export function useFolderContents({
     apiURL = '/api',
     isEnabled = true,
     page = 1,
-    pageSize = 60
+    pageSize = 60,
+    reviewStatus = null
 }: UseFolderContentsParams) {
     return useQuery({
-        queryKey: ['folders', parentId, searchTerm, page, pageSize],
+        queryKey: ['folders', parentId, searchTerm, page, pageSize, reviewStatus],
         queryFn: async (): Promise<FoldersResponse> => {
             const params = new URLSearchParams();
             if (parentId) params.append('parent_id', String(parentId));
@@ -57,6 +59,7 @@ export function useFolderContents({
             else if (parentId === 'files') params.append('media_type', 'pdf');
 
             if (searchTerm) params.append('search', searchTerm);
+            if (reviewStatus) params.append('review_status', reviewStatus);
 
             return apiClient.get(`${apiURL}/folders?${params.toString()}`);
         },

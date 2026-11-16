@@ -263,9 +263,9 @@ export const FileModal: React.FC<FileModalProps> = ({
           {/* Right: Actions */}
           <div className="flex items-center gap-2 flex-shrink-0 ml-4">
             {isEditor && (
-            <LoadingButton onClick={handleDownload} isLoading={isDownloading} loadingText={null} spinnerSize="sm" className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors" title="Download">
-              <Image src="/download.svg" alt="Download" width={24} height={24} className="dark:invert" />
-            </LoadingButton>
+              <LoadingButton onClick={handleDownload} isLoading={isDownloading} loadingText={null} spinnerSize="sm" className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors" title="Download">
+                <Image src="/download.svg" alt="Download" width={24} height={24} className="dark:invert" />
+              </LoadingButton>
             )}
 
             {isTextFile && (
@@ -332,20 +332,20 @@ export const FileModal: React.FC<FileModalProps> = ({
                 <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Preview not available</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">This file type cannot be previewed directly.</p>
                 {isEditor && (
-                <button
-                  onClick={handleDownload}
-                  className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition shadow-lg shadow-blue-500/30 flex items-center gap-2 mx-auto"
-                >
-                  <Image src="/download.svg" width={20} height={20} className="brightness-0 invert" alt="" />
-                  Download File
-                </button>
+                  <button
+                    onClick={handleDownload}
+                    className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition shadow-lg shadow-blue-500/30 flex items-center gap-2 mx-auto"
+                  >
+                    <Image src="/download.svg" width={20} height={20} className="brightness-0 invert" alt="" />
+                    Download File
+                  </button>
                 )}
               </div>
             )}
           </div>
 
           {/* Details Panel */}
-          <div className={`transition - all duration - 300 ${isDetailsVisible ? 'md:col-span-1 opacity-100' : 'hidden opacity-0'} p - 4 bg - gray - 50 dark: bg - [#1f1f1f] rounded - lg overflow - y - auto`}>
+          <div className={`transition-all duration-300 ${isDetailsVisible ? 'md:col-span-1 opacity-100' : 'hidden opacity-0'} p-4 pb-8 bg-gray-50 dark:bg-[#1f1f1f] rounded-lg overflow-y-auto`}>
             {/* Abstract Section */}
             {(isEditor || abstract) && (
               <div className="mb-4">
@@ -365,12 +365,12 @@ export const FileModal: React.FC<FileModalProps> = ({
                     </div>
                   ) : (
                     <div className="flex items-start justify-between">
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 pr-4">{abstract || t('noAbstract')}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 pr-4 whitespace-pre-wrap break-words">{abstract || t('noAbstract')}</p>
                       <button onClick={handleEditAbstract} className="px-4 py-1 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white text-xs rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 flex-shrink-0">{t('edit')}</button>
                     </div>
                   )
                 ) : (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 pr-4">{abstract}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 pr-4 whitespace-pre-wrap break-words">{abstract}</p>
                 )}
               </div>
             )}

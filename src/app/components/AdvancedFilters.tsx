@@ -157,7 +157,12 @@ export const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
           ? `${person.name_arabic} - ${person.name_english}`
           : `${person.name_english}${person.name_arabic ? ` - ${person.name_arabic}` : ''}`;
 
-        return { value: person.id, label };
+        return {
+          value: person.id,
+          label,
+          name_english: person.name_english,
+          name_arabic: person.name_arabic
+        };
       });
 
       return {

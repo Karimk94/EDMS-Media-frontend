@@ -13,15 +13,22 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ title, c
   return (
     <div className={`${wrapperBg} rounded-lg`}>
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full flex justify-between items-center p-4 text-left font-semibold ${buttonTextColor} ${buttonHoverBg} rounded-t-lg focus:outline-none transition-colors`}
       >
         <span>{title}</span>
         <Image src="/icons/chevron-down.svg" alt="" width={20} height={20} className={`dark:invert transform transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
-      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-screen' : 'max-h-0'}`}>
-        <div className={`p-4 border-t ${borderColor}`}>
-          {children}
+      <div
+        className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
+          isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+        }`}
+      >
+        <div className={`min-h-0 ${isOpen ? 'overflow-visible' : 'overflow-hidden'}`}>
+          <div className={`p-4 border-t ${borderColor}`}>
+            {children}
+          </div>
         </div>
       </div>
     </div>

@@ -16,6 +16,7 @@ interface User {
     theme: 'light' | 'dark';
     quota: number;
     remaining_quota: number;
+    is_upper_admin?: boolean;
     view_mode?: 'grid' | 'list';
     tab_permissions?: TabPermission[];
 }
@@ -27,6 +28,8 @@ interface UserContextType {
     isLoading: boolean;
     isAuthenticated: boolean;
     login: (credentials: any) => Promise<any>;
+    ssoLogin?: () => Promise<any>;
+    isSsoLoggingIn?: boolean;
     logout: () => Promise<void>;
     currentLang: 'en' | 'ar';
     currentTheme: 'light' | 'dark';
@@ -37,7 +40,7 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-    const { user, isLoadingUser, login, logout, isAuthenticated } = useAuth();
+    const { user, isLoadingUser, login, ssoLogin, isSsoLoggingIn, logout, isAuthenticated } = useAuth();
     const [isClient, setIsClient] = useState(false);
 
     const [currentLang, setCurrentLang] = useState<'en' | 'ar'>('en');
@@ -122,6 +125,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         isLoading: isLoadingUser,
         isAuthenticated,
         login,
+        ssoLogin,
+        isSsoLoggingIn,
         logout,
         currentLang,
         currentTheme,

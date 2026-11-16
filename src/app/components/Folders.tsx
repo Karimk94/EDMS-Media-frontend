@@ -30,6 +30,7 @@ const CreateFolderModal = React.lazy(() => import('./CreateFolderModal').then(m 
 const HistoryModal = React.lazy(() => import('./HistoryModal').then(m => ({ default: m.HistoryModal })));
 const SecurityModal = React.lazy(() => import('./SecurityModal'));
 const ShareModal = React.lazy(() => import('./ShareModal'));
+const AddFolderTagModal = React.lazy(() => import('./AddFolderTagModal').then(m => ({ default: m.AddFolderTagModal })));
 
 
 
@@ -37,6 +38,7 @@ interface FoldersProps {
     onFolderClick: (folderId: 'images' | 'videos' | 'files') => void;
     onDocumentClick?: (doc: Document) => void;
     onUploadClick: (parentId: string | null, parentName: string, files?: File[]) => void;
+    onDualUploadClick?: (parentId: string | null, parentName: string) => void;
     t: Function;
     apiURL: string;
     isEditor: boolean;
@@ -91,6 +93,7 @@ export const Folders: React.FC<FoldersProps> = ({
     onFolderClick,
     onDocumentClick,
     onUploadClick,
+    onDualUploadClick,
     t,
     apiURL,
     isEditor: isEditorProp,
@@ -228,6 +231,7 @@ export const Folders: React.FC<FoldersProps> = ({
         apiURL,
         page: debouncedSearchTerm ? 1 : folderPage,
         pageSize: FOLDER_PAGE_SIZE,
+        reviewStatus: isEditor ? null : 'verified',
     });
 
     // Parallel content + embedding search (reuses the global /api/documents
@@ -250,6 +254,7 @@ export const Folders: React.FC<FoldersProps> = ({
         dateTo,
         selectedPerson,
         personCondition,
+        reviewStatus: isEditor ? null : 'verified',
     });
 
     // True while any search-related query is still in flight.
@@ -292,11 +297,14 @@ export const Folders: React.FC<FoldersProps> = ({
         const seenIds = new Set<string | number>();
         const merged: FolderItem[] = [];
 
-        // On page 1, folder-name matches (folders + files matched by filename)
-        // are shown first when searching by name so users can navigate into matching folders.
+        // On page 1, matching folders from folder-name search are shown first
+        // so users can navigate into matching folders.
+        // File matches are driven by contentMatches (/api/documents?scope=folders),
+        // which applies identical active-folder checks, non-deleted parent verification,
+        // completed-status filtering for viewers, and proper server-side pagination.
         if (folderPage === 1 && debouncedSearchTerm) {
             for (const item of folderContents) {
-                if (!seenIds.has(item.id)) {
+                if (item.type === 'folder' && !seenIds.has(item.id)) {
                     seenIds.add(item.id);
                     merged.push(item);
                 }
@@ -409,6 +417,16 @@ export const Folders: React.FC<FoldersProps> = ({
         }
         return userItems;
     }, [filterBy, userItems, eventNamesSet, debouncedSearchTerm]);
+    const totalItemsCount = React.useMemo(() => {
+        if (filterBy !== 'none') {
+            return filteredUserItems.length;
+        }
+        if (debouncedSearchTerm || hasActiveFilters) {
+            return contentSearchData?.total_documents ?? filteredUserItems.length;
+        }
+        return data?.total_items ?? filteredUserItems.length;
+    }, [filterBy, filteredUserItems.length, debouncedSearchTerm, hasActiveFilters, contentSearchData?.total_documents, data?.total_items]);
+
     const [isOperationLoading, setIsOperationLoading] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isNavigating, setIsNavigating] = useState(false);
@@ -478,7 +496,7 @@ export const Folders: React.FC<FoldersProps> = ({
         }
 
         let actions = 4; // share, rename, permissions, delete
-        if (item.type === 'folder') actions += 2; // create subfolder + download as zip
+        if (item.type === 'folder') actions += 3; // create subfolder + add folder tag + download as zip
         if (item.type !== 'folder') actions += 1; // download
         if (hasAdminAccess) actions += 1; // history
 
@@ -498,6 +516,9 @@ export const Folders: React.FC<FoldersProps> = ({
             y: Math.max(viewportPadding, Math.min(rawY, maxY)),
         };
     };
+
+    const [isAddTagModalOpen, setIsAddTagModalOpen] = useState(false);
+    const [selectedFolderForTag, setSelectedFolderForTag] = useState<FolderItem | null>(null);
 
     const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
     const [selectedSecurityItem, setSelectedSecurityItem] = useState<FolderItem | null>(null);
@@ -1656,6 +1677,12 @@ export const Folders: React.FC<FoldersProps> = ({
             return;
         }
 
+        if (action === 'dualUpload' && !contextMenu.item && onDualUploadClick) {
+            setContextMenu({ ...contextMenu, visible: false });
+            onDualUploadClick(currentFolderId !== null ? String(currentFolderId) : null, getCurrentFolderName());
+            return;
+        }
+
         if (action === 'createFolder' && !contextMenu.item) {
             setContextMenu({ ...contextMenu, visible: false });
             setShowCreateModal(true);
@@ -1689,6 +1716,10 @@ export const Folders: React.FC<FoldersProps> = ({
         if (action === 'createChild' && targetItem.type === 'folder') {
             handleNavigate(targetItem);
             setShowCreateModal(true);
+        }
+        else if (action === 'addFolderTag' && targetItem.type === 'folder') {
+            setSelectedFolderForTag(targetItem);
+            setIsAddTagModalOpen(true);
         }
         else if (action === 'rename') {
             setItemToRename(targetItem);
@@ -2095,7 +2126,7 @@ export const Folders: React.FC<FoldersProps> = ({
                         </nav>
                         <div className="flex items-center gap-2 shrink-0 ml-3">
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-200/80 dark:bg-gray-700/80 text-gray-700 dark:text-gray-300">
-                                {filteredUserItems.length} {filteredUserItems.length === 1 ? (t('itemWord') || 'item') : (t('itemsWord') || 'items')}
+                                {totalItemsCount} {totalItemsCount === 1 ? (t('itemWord') || 'item') : (t('itemsWord') || 'items')}
                             </span>
                             {isAnyFetching && (
                                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-100/70 dark:bg-blue-900/40 border border-blue-200 dark:border-blue-800 animate-pulse shadow-sm">
@@ -2209,6 +2240,20 @@ export const Folders: React.FC<FoldersProps> = ({
                             <Image src="/upload.svg" alt="" width={20} height={20} className="invert dark:invert-0" />
                             {t('upload')}
                         </button>
+                        )}
+
+                        {isEditor && onDualUploadClick && (
+                            <button
+                                onClick={() => onDualUploadClick(currentFolderId !== null ? String(currentFolderId) : null, getCurrentFolderName())}
+                                className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition shadow-sm text-sm font-medium"
+                                title={t('dualUploadHint') || 'Upload edited photos paired with their original RAW/master files'}
+                            >
+                                <svg className="w-5 h-5 text-indigo-600 dark:text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <rect x="3" y="3" width="14" height="14" rx="2" />
+                                    <path d="M7 21h12a2 2 0 0 0 2-2V7" />
+                                </svg>
+                                {t('dualUpload') || 'Upload with Originals'}
+                            </button>
                         )}
 
                         {isEditor && (
@@ -2336,7 +2381,7 @@ export const Folders: React.FC<FoldersProps> = ({
                                             </span>
                                         </div>
                                         <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/60 px-2.5 py-0.5 rounded-full shrink-0">
-                                            {filteredUserItems.length} {filteredUserItems.length === 1 ? (t('itemWord') || 'item') : (t('itemsWord') || 'items')} {t('loaded') || 'loaded'}
+                                            {totalItemsCount} {totalItemsCount === 1 ? (t('itemWord') || 'item') : (t('itemsWord') || 'items')} {t('loaded') || 'loaded'}
                                         </span>
                                     </div>
                                 )}
@@ -2874,7 +2919,7 @@ export const Folders: React.FC<FoldersProps> = ({
                                             </div>
                                             <div className="text-center">
                                                 <p className="font-semibold text-gray-700 dark:text-gray-300">{getCurrentFolderName()}</p>
-                                                <p className="text-sm mt-1.5 text-gray-400">{items.length} {(t('itemsWord') || 'items')} total</p>
+                                                <p className="text-sm mt-1.5 text-gray-400">{totalItemsCount} {(t('itemsWord') || 'items')} total</p>
                                             </div>
                                         </div>
                                     );
@@ -2932,6 +2977,18 @@ export const Folders: React.FC<FoldersProps> = ({
                                 <Image src="/upload.svg" width={16} height={16} className="invert dark:invert-0" alt="" />
                                 {t('upload')}
                             </button>
+                            {onDualUploadClick && (
+                                <button
+                                    onClick={() => handleContextMenuAction('dualUpload')}
+                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center gap-2"
+                                >
+                                    <svg className="w-4 h-4 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <rect x="3" y="3" width="14" height="14" rx="2" />
+                                        <path d="M7 21h12a2 2 0 0 0 2-2V7" />
+                                    </svg>
+                                    {t('dualUpload') || 'Upload with Originals'}
+                                </button>
+                            )}
                             <button
                                 onClick={() => handleContextMenuAction('createFolder')}
                                 className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center gap-2"
@@ -2949,6 +3006,19 @@ export const Folders: React.FC<FoldersProps> = ({
                         >
                             <Image src="/icons/plus.svg" width={16} height={16} className="dark:invert" alt="" />
                             {t('createSubfolder') || 'Create Subfolder'}
+                        </button>
+                    )}
+
+                    {isEditor && contextMenu.item?.type === 'folder' && (
+                        <button
+                            onClick={() => handleContextMenuAction('addFolderTag')}
+                            className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center gap-2"
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70">
+                                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                                <line x1="7" y1="7" x2="7.01" y2="7" />
+                            </svg>
+                            {t('addTagToFolder') || 'Add Tag to Contents'}
                         </button>
                     )}
 
@@ -3138,6 +3208,20 @@ export const Folders: React.FC<FoldersProps> = ({
                         t={t}
                         initialParentId={currentFolderId || ''}
                         onFolderCreated={() => refreshCurrentView(true)}
+                    />
+                )}
+
+                {isAddTagModalOpen && selectedFolderForTag && (
+                    <AddFolderTagModal
+                        folder={selectedFolderForTag}
+                        onClose={() => {
+                            setIsAddTagModalOpen(false);
+                            setSelectedFolderForTag(null);
+                        }}
+                        apiURL={apiURL}
+                        lang={lang}
+                        t={t}
+                        onTagAdded={() => refreshCurrentView(true)}
                     />
                 )}
 

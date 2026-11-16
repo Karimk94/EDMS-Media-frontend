@@ -1,4 +1,3 @@
-
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../lib/apiClient';
 
@@ -47,6 +46,9 @@ export function useAnalysis() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['persons'] });
+            queryClient.invalidateQueries({ queryKey: ['allTags'] });
+            queryClient.invalidateQueries({ queryKey: ['documentTags'] });
+            queryClient.invalidateQueries({ queryKey: ['documentTagsBatch'] });
         },
     });
 
@@ -54,9 +56,29 @@ export function useAnalysis() {
         mutationFn: async (params: UpdateAbstractParams) => {
             return apiClient.post('/api/update_abstract', params);
         },
-        onSuccess: () => {
+        onSuccess: (data: any, variables) => {
             queryClient.invalidateQueries({ queryKey: ['documents'] });
-        }
+            queryClient.invalidateQueries({ queryKey: ['folders'] });
+            if (variables?.doc_id) {
+                if (data?.abstract) {
+                    queryClient.setQueryData(['documentMetadata', variables.doc_id], (old: any) => {
+                        if (!old) return old;
+                        return {
+                            ...old,
+                            abstract: data.abstract,
+                            title: data.abstract,
+                        };
+                    });
+                }
+                queryClient.invalidateQueries({ queryKey: ['documentMetadata', variables.doc_id] });
+                queryClient.invalidateQueries({ queryKey: ['documentTags', variables.doc_id] });
+            }
+            queryClient.invalidateQueries({ queryKey: ['documentMetadata'] });
+            queryClient.invalidateQueries({ queryKey: ['documentTags'] });
+            queryClient.invalidateQueries({ queryKey: ['documentTagsBatch'] });
+            queryClient.invalidateQueries({ queryKey: ['allTags'] });
+            queryClient.invalidateQueries({ queryKey: ['persons'] });
+        },
     });
 
     return {

@@ -126,13 +126,155 @@ interface UpdateUserParams {
     allow_large_downloads?: boolean;
 }
 
+export interface AdminAccessResponse {
+    has_access: boolean;
+    username: string | null;
+    is_upper_admin?: boolean;
+    admin_level?: 'upper' | 'normal' | null;
+}
+
+
+export interface PerformanceSummary {
+    total_uploads: number;
+    total_completed: number;
+    total_pending: number;
+    overall_completion_rate: number;
+    active_users_count: number;
+    top_uploader?: {
+        username: string;
+        full_name: string;
+        total_uploads: number;
+        completed_count: number;
+        completion_rate: number;
+    } | null;
+    date_from?: string | null;
+    date_to?: string | null;
+}
+
+export interface PerformanceRow {
+    username?: string;
+    full_name?: string;
+    people_system_id?: number;
+    period?: string;
+    total_uploads: number;
+    completed_count: number;
+    pending_count: number;
+    completion_rate: number;
+    active_users_count?: number;
+    first_upload?: string;
+    last_upload?: string;
+    last_login?: string | null;
+    is_logged_in?: boolean;
+}
+
+export interface PerformanceChartPoint {
+    date: string;
+    uploads: number;
+    completed: number;
+    pending: number;
+}
+
+export interface PerformanceResponse {
+    summary: PerformanceSummary;
+    rows: PerformanceRow[];
+    pagination: {
+        page: number;
+        limit: number;
+        total_rows: number;
+        total_pages: number;
+        has_more: boolean;
+    };
+    chart_data: PerformanceChartPoint[];
+}
+
+export interface UploadingUser {
+    username: string;
+    full_name: string;
+    upload_count: number;
+}
+
+export interface UserPerformanceDocument {
+    docnumber: number;
+    docname: string;
+    abstract: string;
+    creation_date: string;
+    doc_date: string;
+    is_completed: boolean;
+    queue_status: number;
+}
+
+export interface LoginLogEntry {
+    system_id: number;
+    people_system_id: number;
+    session_id: string | null;
+    username: string;
+    full_name: string;
+    security_level: string | null;
+    login_date: string | null;
+    logout_date: string | null;
+    last_activity: string | null;
+    is_active: boolean;
+    app_source: string | null;
+    ip_address: string | null;
+}
+
+export interface LoginHistoryResponse {
+    logs: LoginLogEntry[];
+    total: number;
+    has_more: boolean;
+}
+
+export interface UserPerformanceDetailsResponse {
+    user_info: {
+        username: string;
+        full_name: string;
+        total_uploads: number;
+        completed_count: number;
+        pending_count: number;
+        completion_rate: number;
+        first_upload?: string;
+        last_upload?: string;
+        last_login?: string | null;
+        is_logged_in?: boolean;
+    } | null;
+    monthly_trend: {
+        month: string;
+        total_uploads: number;
+        completed_count: number;
+        pending_count: number;
+        completion_rate: number;
+    }[];
+    documents: UserPerformanceDocument[];
+    recent_logins?: LoginLogEntry[];
+    pagination: {
+        page: number;
+        limit: number;
+        total_documents: number;
+        total_pages: number;
+        has_more: boolean;
+    };
+}
+
+export interface UserPerformanceParams {
+    date_from?: string;
+    date_to?: string;
+    username?: string;
+    group_by?: 'user' | 'month' | 'week' | 'day' | 'user_monthly';
+    scope?: 'media' | 'smart-edms' | 'all';
+    page?: number;
+    limit?: number;
+    sort_by?: string;
+    sort_order?: 'desc' | 'asc';
+    search?: string;
+}
+
 export function useAdmin() {
     const queryClient = useQueryClient();
 
     // Queries
-    const useCheckAccess = () => useQuery({
+    const useCheckAccess = () => useQuery<AdminAccessResponse>({
         queryKey: ['adminAccess'],
-        queryFn: async () => {
+        queryFn: async (): Promise<AdminAccessResponse> => {
             return apiClient.get('/api/admin/check-access');
         },
         retry: false,
@@ -193,6 +335,33 @@ export function useAdmin() {
     const retrySelectedQueueMutation = useMutation({
         mutationFn: async (docnumbers: number[]) => {
             return apiClient.post('/api/admin/processing-queue/retry-selected', { docnumbers });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['processingQueueStatus'] });
+        },
+    });
+
+    const skipQueueJobMutation = useMutation({
+        mutationFn: async (docnumber: number) => {
+            return apiClient.post('/api/admin/processing-queue/skip', { docnumber });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['processingQueueStatus'] });
+        },
+    });
+
+    const deleteQueueJobMutation = useMutation({
+        mutationFn: async (docnumber: number) => {
+            return apiClient.delete(`/api/admin/processing-queue/job/${docnumber}`);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['processingQueueStatus'] });
+        },
+    });
+
+    const deleteFailedQueueMutation = useMutation({
+        mutationFn: async () => {
+            return apiClient.delete('/api/admin/processing-queue/failed');
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['processingQueueStatus'] });
@@ -360,12 +529,92 @@ export function useAdmin() {
         staleTime: 60 * 1000, // 1 minute
     });
 
+    const useUserPerformance = (params: UserPerformanceParams, enabled: boolean = true) => useQuery({
+        queryKey: ['userPerformance', params],
+        queryFn: async (): Promise<PerformanceResponse> => {
+            const searchParams = new URLSearchParams();
+            if (params.date_from) searchParams.append('date_from', params.date_from);
+            if (params.date_to) searchParams.append('date_to', params.date_to);
+            if (params.username) searchParams.append('username', params.username);
+            if (params.group_by) searchParams.append('group_by', params.group_by);
+            if (params.scope) searchParams.append('scope', params.scope);
+            if (params.page) searchParams.append('page', String(params.page));
+            if (params.limit) searchParams.append('limit', String(params.limit));
+            if (params.sort_by) searchParams.append('sort_by', params.sort_by);
+            if (params.sort_order) searchParams.append('sort_order', params.sort_order);
+            if (params.search) searchParams.append('search', params.search);
+            return apiClient.get(`/api/admin/user-performance?${searchParams.toString()}`);
+        },
+        enabled,
+        placeholderData: (prev) => prev,
+    });
+
+    const useUploadingUsers = (scope: string = 'media', enabled: boolean = true) => useQuery({
+        queryKey: ['uploadingUsers', scope],
+        queryFn: async (): Promise<UploadingUser[]> => {
+            return apiClient.get(`/api/admin/user-performance/users?scope=${scope}`);
+        },
+        enabled,
+        staleTime: 60 * 1000,
+    });
+
+    const useUserPerformanceDetails = (
+        targetUser: string | null,
+        params: { date_from?: string; date_to?: string; scope?: string; page?: number; limit?: number },
+        enabled: boolean = true
+    ) => useQuery({
+        queryKey: ['userPerformanceDetails', targetUser, params],
+        queryFn: async (): Promise<UserPerformanceDetailsResponse> => {
+            if (!targetUser) {
+                return { user_info: null, monthly_trend: [], documents: [], pagination: { page: 1, limit: 20, total_documents: 0, total_pages: 0, has_more: false } };
+            }
+            const searchParams = new URLSearchParams();
+            if (params.date_from) searchParams.append('date_from', params.date_from);
+            if (params.date_to) searchParams.append('date_to', params.date_to);
+            if (params.scope) searchParams.append('scope', params.scope);
+            if (params.page) searchParams.append('page', String(params.page));
+            if (params.limit) searchParams.append('limit', String(params.limit));
+            return apiClient.get(`/api/admin/user-performance/user/${encodeURIComponent(targetUser)}/details?${searchParams.toString()}`);
+        },
+        enabled: enabled && !!targetUser,
+    });
+
+
+    const useLoginHistory = (
+        page: number,
+        search: string = '',
+        filters?: { username?: string; date_from?: string; date_to?: string },
+        enabled: boolean = true
+    ) => useQuery({
+        queryKey: ['loginHistory', page, search, filters],
+        queryFn: async (): Promise<LoginHistoryResponse> => {
+            const params = new URLSearchParams({
+                search,
+                page: String(page),
+                limit: '20',
+            });
+            if (filters?.username) params.append('username', filters.username);
+            if (filters?.date_from) params.append('date_from', filters.date_from);
+            if (filters?.date_to) params.append('date_to', filters.date_to);
+            return apiClient.get(`/api/admin/login-history?${params.toString()}`);
+        },
+        enabled,
+        placeholderData: (previousData) => previousData,
+    });
+
     return {
         useCheckAccess,
+        useLoginHistory,
         useUsers,
         useSecurityLevels,
         useSearchPeople,
         useProcessingQueueStatus,
+
+        useUserPerformance,
+
+        useUploadingUsers,
+
+        useUserPerformanceDetails,
         useTabPermissions,
         useDocumentHistory,
         useAdminProfiles,
@@ -375,6 +624,12 @@ export function useAdmin() {
         isRetryingFailedQueue: retryFailedQueueMutation.isPending,
         retrySelectedQueue: retrySelectedQueueMutation.mutateAsync,
         isRetryingSelectedQueue: retrySelectedQueueMutation.isPending,
+        skipQueueJob: skipQueueJobMutation.mutateAsync,
+        isSkippingQueueJob: skipQueueJobMutation.isPending,
+        deleteQueueJob: deleteQueueJobMutation.mutateAsync,
+        isDeletingQueueJob: deleteQueueJobMutation.isPending,
+        deleteFailedQueue: deleteFailedQueueMutation.mutateAsync,
+        isDeletingFailedQueue: deleteFailedQueueMutation.isPending,
         clearCompletedQueue: clearCompletedQueueMutation.mutateAsync,
         isClearingCompletedQueue: clearCompletedQueueMutation.isPending,
         pauseQueueWorker: pauseQueueWorkerMutation.mutateAsync,

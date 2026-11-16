@@ -47,11 +47,24 @@ export interface FolderUploadModalProps {
     onUploadSuccess?: (docnumbers: number[]) => void;
 }
 
+export interface DualUploadModalProps {
+    onClose: () => void;
+    apiURL: string;
+    theme: 'light' | 'dark';
+    parentId: string | null;
+    parentName: string;
+    onUploadComplete: () => void;
+    t: Function;
+    onUploadSuccess?: (docnumbers: number[]) => void;
+}
+
 export interface UploadFileItemProps {
     uploadableFile: any;
     onRemove: () => void;
     onUpdateFileName: (id: string, newName: string) => void;
     onUpdateDateTaken: (id: string, newDate: Date | null) => void;
+    onSkipToEnd?: () => void; // Move a failed item to end of queue
+    t?: (key: string) => string;
 }
 
 export interface EventStackProps {
@@ -284,6 +297,20 @@ export interface CreateFolderModalProps {
     onFolderCreated: () => void;
     t: Function;
     initialParentId?: string | number;
+}
+
+export interface AddFolderTagModalProps {
+    folder: {
+        id: string | number;
+        name: string;
+        system_id?: string;
+        type?: string;
+    };
+    onClose: () => void;
+    apiURL: string;
+    lang?: 'en' | 'ar';
+    t: Function;
+    onTagAdded?: () => void;
 }
 
 export interface AdvancedFiltersProps {

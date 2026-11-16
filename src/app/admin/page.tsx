@@ -9,6 +9,8 @@ import { PageSpinner, Spinner } from "../components/Spinner";
 import { useToast } from "../context/ToastContext";
 import { useAuth } from "../../hooks/useAuth";
 import { useTranslations } from "../hooks/useTranslations";
+import UploadPerformanceTab from "./components/UploadPerformanceTab";
+import LoginLogsTab from "./components/LoginLogsTab";
 
 const ITEMS_PER_PAGE = 20;
 
@@ -52,6 +54,7 @@ const isViewerSecurityLevel = (
 export default function AdminPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [hasAccess, setHasAccess] = useState(false);
+    const [isUpperAdmin, setIsUpperAdmin] = useState(false);
 
     const { user } = useAuth();
     const lang = user?.lang || 'en';
@@ -71,6 +74,12 @@ export default function AdminPage() {
         isRetryingSelectedQueue,
         clearCompletedQueue,
         isClearingCompletedQueue,
+        skipQueueJob,
+        isSkippingQueueJob,
+        deleteQueueJob,
+        isDeletingQueueJob,
+        deleteFailedQueue,
+        isDeletingFailedQueue,
         addUser,
         isAddingUser,
         updateUser,
@@ -88,14 +97,14 @@ export default function AdminPage() {
     const [userFilter, setUserFilter] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
 
-    // Users Query
-    const { data: usersData, isLoading: isLoadingUsers } = useUsers(currentPage, userFilter, !!hasAccess);
+    // Users Query (Upper-level admins only)
+    const { data: usersData, isLoading: isLoadingUsers } = useUsers(currentPage, userFilter, !!hasAccess && isUpperAdmin);
     const users = usersData?.users || [];
     const totalUsers = usersData?.total || 0;
     const hasMore = usersData?.has_more || false;
 
-    // Security Levels Query
-    const { data: securityLevels = [] } = useSecurityLevels(!!hasAccess);
+    // Security Levels Query (Upper-level admins only)
+    const { data: securityLevels = [] } = useSecurityLevels(!!hasAccess && isUpperAdmin);
 
     // Queue status polling
     const {
@@ -190,9 +199,15 @@ export default function AdminPage() {
     // Delete confirmation
     const [deleteTarget, setDeleteTarget] = useState<EdmsUser | null>(null);
     const [retryingDocnumber, setRetryingDocnumber] = useState<number | null>(null);
+    const [skippingDocnumber, setSkippingDocnumber] = useState<number | null>(null);
+    const [deletingDocnumber, setDeletingDocnumber] = useState<number | null>(null);
+    const [deleteQueueTarget, setDeleteQueueTarget] = useState<{
+        type: 'single' | 'all';
+        docnumber?: number;
+    } | null>(null);
     const [expandedErrorRows, setExpandedErrorRows] = useState<Record<number, boolean>>({});
     const [queueViewFilter, setQueueViewFilter] = useState<'failed' | 'in_progress' | 'queued'>('failed');
-    const [activeAdminTab, setActiveAdminTab] = useState<'users' | 'worker'>('users');
+    const [activeAdminTab, setActiveAdminTab] = useState<'users' | 'worker' | 'performance' | 'logins'>('users');
 
     const router = useRouter();
     const { showToast } = useToast();
@@ -204,9 +219,12 @@ export default function AdminPage() {
     useEffect(() => {
         if (accessData) {
             setHasAccess(accessData.has_access);
+            const upper = accessData.is_upper_admin === true || accessData.admin_level === 'upper';
+            setIsUpperAdmin(upper);
             setIsLoading(false);
-            if (!accessData.has_access) {
-                // Optional: redirect logic could go here, but let's keep the error UI
+            if (!upper) {
+                // Normal admins can only access the worker tab
+                setActiveAdminTab('worker');
             }
         } else if (!checkingAccess && !accessData) {
             setIsLoading(false); // Finished checking, no data (error handled by query)
@@ -384,6 +402,55 @@ export default function AdminPage() {
         }
     };
 
+    const handleSkipSingleDoc = async (docnumber: number) => {
+        setSkippingDocnumber(docnumber);
+        try {
+            await skipQueueJob(docnumber);
+            showToast(`Document ${docnumber} moved to end of queue`, "success");
+            await refetchQueueStatus();
+        } catch (err: any) {
+            showToast(err.message || `Failed to skip doc ${docnumber}`, "error");
+        } finally {
+            setSkippingDocnumber(null);
+        }
+    };
+
+    const handleDeleteSingleDoc = (docnumber: number) => {
+        setDeleteQueueTarget({ type: 'single', docnumber });
+    };
+
+    const handleDeleteAllFailed = () => {
+        setDeleteQueueTarget({ type: 'all' });
+    };
+
+    const confirmExecuteQueueDelete = async () => {
+        if (!deleteQueueTarget) return;
+        if (deleteQueueTarget.type === 'single' && deleteQueueTarget.docnumber) {
+            const docnumber = deleteQueueTarget.docnumber;
+            setDeletingDocnumber(docnumber);
+            try {
+                await deleteQueueJob(docnumber);
+                showToast(`Document ${docnumber} removed from processing queue`, "success");
+                await refetchQueueStatus();
+            } catch (err: any) {
+                showToast(err.message || `Failed to delete doc ${docnumber} from queue`, "error");
+            } finally {
+                setDeletingDocnumber(null);
+                setDeleteQueueTarget(null);
+            }
+        } else if (deleteQueueTarget.type === 'all') {
+            try {
+                const result = await deleteFailedQueue();
+                showToast(result?.message || `Deleted failed queue jobs`, "success");
+                await refetchQueueStatus();
+            } catch (err: any) {
+                showToast(err.message || "Failed to delete failed queue jobs", "error");
+            } finally {
+                setDeleteQueueTarget(null);
+            }
+        }
+    };
+
     const toggleErrorExpanded = (docnumber: number) => {
         setExpandedErrorRows((prev) => ({
             ...prev,
@@ -431,12 +498,30 @@ export default function AdminPage() {
         <div className="p-6">
             <div className="max-w-6xl mx-auto">
                 <div className="mb-4 flex items-center gap-2">
-                    <button
-                        onClick={() => setActiveAdminTab('users')}
-                        className={`px-3 py-2 rounded-md text-sm font-medium ${activeAdminTab === 'users' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}
-                    >
-                        {t('adminUsers') || 'Users'}
-                    </button>
+                    {isUpperAdmin && (
+                        <button
+                            onClick={() => setActiveAdminTab('users')}
+                            className={`px-3 py-2 rounded-md text-sm font-medium ${activeAdminTab === 'users' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}
+                        >
+                            {t('adminUsers') || 'Users'}
+                        </button>
+                    )}
+                    {isUpperAdmin && (
+                        <button
+                            onClick={() => setActiveAdminTab('performance')}
+                            className={`px-3 py-2 rounded-md text-sm font-medium ${activeAdminTab === 'performance' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}
+                        >
+                            {t('uploadPerformance') || 'Upload Performance'}
+                        </button>
+                    )}
+                    {isUpperAdmin && (
+                        <button
+                            onClick={() => setActiveAdminTab('logins')}
+                            className={`px-3 py-2 rounded-md text-sm font-medium ${activeAdminTab === 'logins' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}
+                        >
+                            {t('loginHistory') || 'Login History'}
+                        </button>
+                    )}
                     <button
                         onClick={() => setActiveAdminTab('worker')}
                         className={`px-3 py-2 rounded-md text-sm font-medium ${activeAdminTab === 'worker' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}
@@ -473,6 +558,16 @@ export default function AdminPage() {
                             >
                                 {isClearingCompletedQueue ? 'Clearing...' : 'Clear Completed (>24h)'}
                             </button>
+                            {isUpperAdmin && (
+                                <button
+                                    onClick={handleDeleteAllFailed}
+                                    disabled={isDeletingFailedQueue || (queueStatus?.summary?.failed ?? 0) === 0}
+                                    className="px-3 py-1.5 rounded-md text-xs font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title="Delete all failed jobs from the queue (Upper Admin)"
+                                >
+                                    {isDeletingFailedQueue ? 'Deleting...' : 'Delete All Failed'}
+                                </button>
+                            )}
                             <span className="text-xs text-gray-500 dark:text-gray-400">
                                 {isQueueLoading ? 'Loading...' : 'Auto-refresh every 8s'}
                             </span>
@@ -595,15 +690,34 @@ export default function AdminPage() {
                                                     </div>
                                                 </td>
                                                 <td className="py-2 pl-4">
-                                                    <button
-                                                        onClick={() => handleRetrySingleDoc(f.docnumber)}
-                                                        disabled={queueViewFilter !== 'failed' || (isRetryingSelectedQueue && retryingDocnumber === f.docnumber)}
-                                                        className="px-2 py-1 rounded text-xs font-medium bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    >
-                                                        {queueViewFilter !== 'failed'
-                                                            ? 'N/A'
-                                                            : (isRetryingSelectedQueue && retryingDocnumber === f.docnumber ? 'Retrying...' : 'Retry')}
-                                                    </button>
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        <button
+                                                            onClick={() => handleRetrySingleDoc(f.docnumber)}
+                                                            disabled={queueViewFilter !== 'failed' || (isRetryingSelectedQueue && retryingDocnumber === f.docnumber)}
+                                                            className="px-2 py-1 rounded text-xs font-medium bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            title="Retry processing this document"
+                                                        >
+                                                            {isRetryingSelectedQueue && retryingDocnumber === f.docnumber ? 'Retrying...' : 'Retry'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleSkipSingleDoc(f.docnumber)}
+                                                            disabled={isSkippingQueueJob && skippingDocnumber === f.docnumber}
+                                                            className="px-2 py-1 rounded text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            title="Move document to the end of the queue"
+                                                        >
+                                                            {isSkippingQueueJob && skippingDocnumber === f.docnumber ? 'Skipping...' : 'Skip'}
+                                                        </button>
+                                                        {isUpperAdmin && (
+                                                            <button
+                                                                onClick={() => handleDeleteSingleDoc(f.docnumber)}
+                                                                disabled={isDeletingQueueJob && deletingDocnumber === f.docnumber}
+                                                                className="px-2 py-1 rounded text-xs font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                title="Delete this stuck/failed job from the queue (Upper Admin)"
+                                                            >
+                                                                {isDeletingQueueJob && deletingDocnumber === f.docnumber ? 'Deleting...' : 'Delete'}
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
@@ -615,8 +729,18 @@ export default function AdminPage() {
                 </div>
                 )}
 
-                {/* Users Table Card */}
-                {activeAdminTab === 'users' && (
+                {/* Upload Performance Tab (Upper-level admins only) */}
+                {isUpperAdmin && activeAdminTab === 'performance' && (
+                    <UploadPerformanceTab />
+                )}
+
+                {/* Login History Tab (Upper-level admins only) */}
+                {isUpperAdmin && activeAdminTab === 'logins' && (
+                    <LoginLogsTab />
+                )}
+
+                {/* Users Table Card (Upper-level admins only) */}
+                {isUpperAdmin && activeAdminTab === 'users' && (
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
                     {/* Table Header with Search and Add Button */}
                     <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -1257,6 +1381,39 @@ export default function AdminPage() {
                                 ) : (
                                     "Save Changes"
                                 )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Queue Confirmation Modal */}
+            {deleteQueueTarget && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in" role="dialog" aria-modal="true">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 shadow-xl border border-gray-200 dark:border-gray-700">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                            <span className="text-red-500">⚠️</span>
+                            {deleteQueueTarget.type === 'all' ? 'Delete All Failed Jobs' : 'Delete Queue Job'}
+                        </h3>
+                        <p className="text-gray-600 dark:text-gray-300 mb-6 text-sm">
+                            {deleteQueueTarget.type === 'all'
+                                ? 'Are you sure you want to permanently remove all failed jobs from the processing queue? This cannot be undone.'
+                                : `Are you sure you want to permanently remove document ${deleteQueueTarget.docnumber} from the processing queue?`}
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setDeleteQueueTarget(null)}
+                                disabled={isDeletingQueueJob || isDeletingFailedQueue}
+                                className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmExecuteQueueDelete}
+                                disabled={isDeletingQueueJob || isDeletingFailedQueue}
+                                className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors shadow-sm"
+                            >
+                                {isDeletingQueueJob || isDeletingFailedQueue ? "Deleting..." : "Yes, Delete"}
                             </button>
                         </div>
                     </div>
