@@ -2,7 +2,7 @@ import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../lib/apiClient';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
-import React, { Suspense, useCallback, useEffect, useRef, useState, useTransition } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useAdmin } from '../../hooks/useAdmin';
 import { useDownload } from '../../hooks/useDownload';
 import { FolderItem, useFolderContents } from '../../hooks/useFolderContents';
@@ -31,6 +31,12 @@ const HistoryModal = React.lazy(() => import('./HistoryModal').then(m => ({ defa
 const SecurityModal = React.lazy(() => import('./SecurityModal'));
 const ShareModal = React.lazy(() => import('./ShareModal'));
 const AddFolderTagModal = React.lazy(() => import('./AddFolderTagModal').then(m => ({ default: m.AddFolderTagModal })));
+
+const isOriginalsItem = (item?: FolderItem | null) => {
+    if (!item) return false;
+    const name = (item.name || '').toLowerCase();
+    return name === '_originals' || name === '_original' || Boolean(item.is_original);
+};
 
 
 
@@ -185,6 +191,11 @@ export const Folders: React.FC<FoldersProps> = ({
     const [breadcrumbs, setBreadcrumbs] = useState<{ id: string | number | null; name: string }[]>([
         { id: null, name: t('home') || 'Home' }
     ]);
+    const isInsideOriginals = useMemo(() => {
+        const currentName = breadcrumbs.length > 0 ? breadcrumbs[breadcrumbs.length - 1].name : '';
+        return (currentName || '').toLowerCase() === '_originals' || (currentName || '').toLowerCase() === '_original' ||
+               breadcrumbs.some(b => (b.name || '').toLowerCase() === '_originals' || (b.name || '').toLowerCase() === '_original');
+    }, [breadcrumbs]);
     const [dragOverCrumbIndex, setDragOverCrumbIndex] = useState<number | null>(null);
 
     const [internalSearchTerm, setInternalSearchTerm] = useState('');
@@ -328,8 +339,11 @@ export const Folders: React.FC<FoldersProps> = ({
         : (data?.total_pages || 1);
 
     // Derive document IDs from the raw folder contents so review statuses can be
-    // fetched regardless of the viewer/editor role.
-    const docIds = React.useMemo(() => rawItems.filter(item => item.type === 'file').map(item => item.id), [rawItems]);
+    // fetched regardless of the viewer/editor role. Documents inside _Originals are exempt.
+    const docIds = React.useMemo(() => {
+        if (isInsideOriginals) return [];
+        return rawItems.filter(item => item.type === 'file').map(item => item.id);
+    }, [rawItems, isInsideOriginals]);
     const { statuses: reviewStatuses, isLoading: isReviewStatusLoading, setDocumentStatus, setFolderStatus, isError: isReviewStatusError } = useReviewStatus(docIds, apiURL, isEditor);
     const { mutateAsync: rerunAnalysis } = useRerunAnalysis();
 
@@ -346,10 +360,10 @@ export const Folders: React.FC<FoldersProps> = ({
         if (docIds.length > 0 && isReviewStatusLoading) return [];
         if (isReviewStatusError) return visibleItems;
         return visibleItems.filter((item) => {
-            if (item.type !== 'file') return true; // keep folders/sub-folders
+            if (item.type !== 'file' || isInsideOriginals) return true; // keep folders/sub-folders and original masters
             return reviewStatuses[item.id] === 'verified';
         });
-    }, [rawItems, hiddenItemIds, isEditor, reviewStatuses, docIds.length, isReviewStatusLoading, isReviewStatusError]);
+    }, [rawItems, hiddenItemIds, isEditor, reviewStatuses, docIds.length, isReviewStatusLoading, isReviewStatusError, isInsideOriginals]);
 
     // True when a viewer is waiting on review-status data before the filtered
     // file list can be shown. Used to keep the spinner visible (instead of an
@@ -467,7 +481,7 @@ export const Folders: React.FC<FoldersProps> = ({
     // Used to poll the batch processing-summary endpoint so we can detect when an
     // uploaded event folder finishes processing all its photos.
     const visibleFolderIds = React.useMemo(
-        () => filteredUserItems.filter(item => item.type === 'folder').map(item => item.id),
+        () => filteredUserItems.filter(item => item.type === 'folder' && !isOriginalsItem(item)).map(item => item.id),
         [filteredUserItems]
     );
 
@@ -946,7 +960,8 @@ export const Folders: React.FC<FoldersProps> = ({
                     abstract: (folder as any).abstract || undefined,
                     media_type: mediaType,
                     date: (folder as any).date || new Date().toISOString(),
-                    thumbnail_url: folder.thumbnail_url || `cache/${folder.id}.jpg`
+                    thumbnail_url: folder.thumbnail_url || `cache/${folder.id}.jpg`,
+                    is_original: isInsideOriginals || Boolean((folder as any).is_original)
                 });
                 onDocumentClick(doc);
             }
@@ -2508,6 +2523,7 @@ export const Folders: React.FC<FoldersProps> = ({
                                                                     <div className="mb-2 transform group-hover:scale-105 transition-transform duration-200 text-gray-400 group-hover:text-blue-500 relative">
                                                                         <FolderIcon item={item} apiURL={apiURL} isStandard={false} renderDefaultIcon={renderIcon} thumbnailRefreshKey={thumbnailRefreshKey} />
                                                                         {(() => {
+                                                                            if (isOriginalsItem(item)) return null;
                                                                             const ps = folderProcessingSummaries[String(item.id)];
                                                                             if (ps && ps.processing > 0) {
                                                                                 const label = (t('processingXOfY') || '{{done}}/{{total}}')
@@ -2598,8 +2614,8 @@ export const Folders: React.FC<FoldersProps> = ({
                                                                         </svg>
                                                                     </div>
                                                                 )}
-                                                                {/* Review Status Badge — editors only; viewers never see badges */}
-                                                                {reviewStatuses[item.id] && isEditor && (
+                                                                {/* Review Status Badge — editors only; viewers never see badges; original masters never show badges */}
+                                                                {!isInsideOriginals && !item.is_original && reviewStatuses[item.id] && isEditor && (
                                                                     <ReviewStatusBadge status={reviewStatuses[item.id]} t={t} />
                                                                 )}
                                                                 {/* Checkbox on selected */}
@@ -2796,7 +2812,7 @@ export const Folders: React.FC<FoldersProps> = ({
                                                                                     <span className="font-medium text-gray-800 dark:text-gray-200 truncate" title={item.name}>
                                                                                         {item.name}
                                                                                     </span>
-                                                                                    {reviewStatuses[item.id] && isEditor && (
+                                                                                    {!isInsideOriginals && !item.is_original && reviewStatuses[item.id] && isEditor && (
                                                                                         <div className="flex-shrink-0 flex items-center">
                                                                                             <ReviewStatusBadge status={reviewStatuses[item.id]} t={t} absolute={false} />
                                                                                         </div>
@@ -3009,7 +3025,7 @@ export const Folders: React.FC<FoldersProps> = ({
                         </button>
                     )}
 
-                    {isEditor && contextMenu.item?.type === 'folder' && (
+                    {isEditor && contextMenu.item?.type === 'folder' && !isOriginalsItem(contextMenu.item) && (
                         <button
                             onClick={() => handleContextMenuAction('addFolderTag')}
                             className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center gap-2"
@@ -3022,7 +3038,7 @@ export const Folders: React.FC<FoldersProps> = ({
                         </button>
                     )}
 
-                    {isEditor && contextMenu.item?.type === 'folder' && (
+                    {isEditor && contextMenu.item?.type === 'folder' && !isOriginalsItem(contextMenu.item) && (
                         <>
                             <button
                                 onClick={() => handleContextMenuAction('markFolderVerified')}
@@ -3108,7 +3124,7 @@ export const Folders: React.FC<FoldersProps> = ({
                                         <Image src="/download.svg" width={16} height={16} className="dark:invert" alt="" />
                                         {t('download') || 'Download'}
                                     </button>
-                                    {isEditor && (
+                                    {isEditor && !isInsideOriginals && !contextMenu.item.is_original && (
                                         <>
                                             <button
                                                 onClick={() => handleContextMenuAction('markVerified')}

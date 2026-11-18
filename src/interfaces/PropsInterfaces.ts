@@ -142,6 +142,7 @@ export interface PersonSelectorProps {
     headers?: Record<string, string>;
     onSelect?: (person: { USER_ID: string; FULL_NAME: string }) => void;
     mode?: 'persons' | 'groups';
+    onCreatePerson?: (name: string) => void;
 }
 
 export interface YearFilterProps {
@@ -456,6 +457,7 @@ export interface FolderItem {
     name: string;
     type: 'folder' | 'file';
     media_type: string;
+    is_original?: boolean;
 }
 
 export interface BreadcrumbItem {

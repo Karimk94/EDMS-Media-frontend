@@ -137,6 +137,14 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ result, docId, apiUR
                   onChange={(name) => handleNameChange(face.index, name)}
                   lang={lang}
                   theme={theme}
+                  onCreatePerson={async (name) => {
+                    try {
+                      await addPerson({ name, lang });
+                      showToast(`"${name}" added to persons list`, 'success');
+                    } catch (error: any) {
+                      showToast(`${t('error')}: ${error.message}`, 'error');
+                    }
+                  }}
                 />
 
                 <LoadingButton

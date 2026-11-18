@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { AsyncPaginate } from 'react-select-async-paginate';
+import React, { useState } from 'react';
+import { withAsyncPaginate } from 'react-select-async-paginate';
 import Creatable from 'react-select/creatable';
 import { GroupBase, OptionsOrGroups } from 'react-select';
 import { PersonOption } from '../../models/PersonOption';
 import { fetchGroups, fetchGroupMembers, fetchPersons } from '../../hooks/usePersons';
-
-const AnyAsyncPaginate: any = AsyncPaginate;
-
 import { PersonSelectorProps } from '../../interfaces/PropsInterfaces';
+
+const CreatableAsyncPaginate = withAsyncPaginate(Creatable) as any;
 
 const getSelectStyles = (theme: 'light' | 'dark') => ({
   control: (base: any) => ({
@@ -41,7 +40,7 @@ const getSelectStyles = (theme: 'light' | 'dark') => ({
   placeholder: (base: any) => ({ ...base, color: 'var(--color-text-muted)' }),
 });
 
-export const PersonSelector: React.FC<PersonSelectorProps> = ({ apiURL, value, onChange, lang, theme, fetchUrl, headers, onSelect, mode = 'persons' }) => {
+export const PersonSelector: React.FC<PersonSelectorProps> = ({ apiURL, value, onChange, lang, theme, fetchUrl, headers, onSelect, mode = 'persons', onCreatePerson }) => {
 
   const selectStyles = getSelectStyles(theme);
   const [selectedGroup, setSelectedGroup] = useState<{ id: string, name: string } | null>(null);
@@ -161,6 +160,9 @@ export const PersonSelector: React.FC<PersonSelectorProps> = ({ apiURL, value, o
     const trimmedName = inputValue.trim();
     if (trimmedName) {
       onChange(trimmedName);
+      if (onCreatePerson) {
+        onCreatePerson(trimmedName);
+      }
     }
   };
 
@@ -178,17 +180,15 @@ export const PersonSelector: React.FC<PersonSelectorProps> = ({ apiURL, value, o
         </div>
       )}
 
-      <AnyAsyncPaginate
-        SelectComponent={Creatable}
+      <CreatableAsyncPaginate
         isClearable
         key={mode === 'groups' ? (selectedGroup ? `members-${selectedGroup.id}` : 'groups') : `persons-${lang}`}
         value={mode === 'groups' && !selectedGroup ? null : currentOption}
         loadOptions={loadPersonOptions}
         onChange={handleChange}
         onCreateOption={handleCreate}
-        getNewOptionData={(inputValue: string) => ({ value: inputValue, label: inputValue })}
-        formatCreateLabel={(inputValue: string) => `Create "${inputValue}"`}
-        placeholder={mode === 'persons' ? "Search person..." : (selectedGroup ? "Search person..." : "Select a group...")}
+        formatCreateLabel={(inputValue: string) => `➕ Add "${inputValue}"`}
+        placeholder={mode === 'persons' ? "Search or add person..." : (selectedGroup ? "Search person..." : "Select a group...")}
         debounceTimeout={300}
         additional={{
           page: 1,

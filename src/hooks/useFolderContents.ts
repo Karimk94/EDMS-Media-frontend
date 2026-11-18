@@ -14,6 +14,7 @@ export interface FolderItem {
     date?: string;
     thumbnail_url?: string;
     event_name?: string;
+    is_original?: boolean;
 }
 
 interface FoldersResponse {

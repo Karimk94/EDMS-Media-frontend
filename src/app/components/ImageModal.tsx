@@ -90,16 +90,39 @@ export const ImageModal: React.FC<ImageModalProps> = ({
 
   const [viewOriginalMode, setViewOriginalMode] = useState<boolean>(false);
   const [isLinkOriginalModalOpen, setIsLinkOriginalModalOpen] = useState<boolean>(false);
+  const [overrideOriginal, setOverrideOriginal] = useState<{
+    hasOriginal: boolean;
+    originalDocnumber?: number | null;
+    originalDocname?: string | null;
+  } | null>(null);
 
   const handleLinkOriginalSuccess = (newOriginalDocnumber: number, newOriginalDocname: string) => {
+    setOverrideOriginal({
+      hasOriginal: true,
+      originalDocnumber: newOriginalDocnumber,
+      originalDocname: newOriginalDocname,
+    });
+    doc.has_original = true;
+    doc.original_docnumber = newOriginalDocnumber;
+    doc.original_docname = newOriginalDocname;
     refetchMetadata();
-    queryClient.invalidateQueries({ queryKey: ['documentMetadata', doc.doc_id] });
+    queryClient.invalidateQueries({ queryKey: ['documentMetadata'] });
+    queryClient.invalidateQueries({ queryKey: ['folderContents'] });
     setViewOriginalMode(true);
   };
 
   const handleUnlinkOriginalSuccess = () => {
+    setOverrideOriginal({
+      hasOriginal: false,
+      originalDocnumber: null,
+      originalDocname: null,
+    });
+    doc.has_original = false;
+    doc.original_docnumber = undefined;
+    doc.original_docname = undefined;
     refetchMetadata();
-    queryClient.invalidateQueries({ queryKey: ['documentMetadata', doc.doc_id] });
+    queryClient.invalidateQueries({ queryKey: ['documentMetadata'] });
+    queryClient.invalidateQueries({ queryKey: ['folderContents'] });
     setViewOriginalMode(false);
     setOriginalImageSrc(null);
   };
@@ -279,19 +302,28 @@ export const ImageModal: React.FC<ImageModalProps> = ({
 
   useEffect(() => {
     setIsFavorite(doc.is_favorite);
-  }, [doc.is_favorite]);
+    setOverrideOriginal(null);
+  }, [doc.doc_id, doc.is_favorite]);
 
   const { data: metaData, refetch: refetchMetadata } = useDocumentMetadata(doc.doc_id, {
     enabled: !!doc.doc_id,
   });
 
-  const hasOriginal = Boolean(metaData?.has_original ?? doc.has_original);
-  const originalDocnumber = metaData?.original_docnumber ?? doc.original_docnumber;
   const isCurrentDocOriginal = Boolean(metaData?.is_original ?? doc.is_original);
+  const isViewingOriginal = isCurrentDocOriginal || viewOriginalMode;
+  const hasOriginal = !isCurrentDocOriginal && Boolean(
+    overrideOriginal !== null
+      ? overrideOriginal.hasOriginal
+      : (metaData?.has_original ?? doc.has_original)
+  );
+  const originalDocnumber =
+    overrideOriginal !== null
+      ? overrideOriginal.originalDocnumber
+      : (metaData?.original_docnumber ?? doc.original_docnumber);
   const linkedEditedDocnumber = metaData?.edited_docnumber ?? doc.edited_docnumber;
 
   const { data: originalBlob, isLoading: isFetchingOrigBlob } = useDocumentContent(
-    originalDocnumber,
+    originalDocnumber || undefined,
     {
       responseType: 'blob',
       enabled: viewOriginalMode && !!originalDocnumber,
@@ -516,7 +548,15 @@ export const ImageModal: React.FC<ImageModalProps> = ({
           {/* Right: Actions */}
           <div className="flex items-center gap-2 flex-shrink-0 ml-4">
             {/* Original Master Buttons */}
-            {hasOriginal ? (
+            {isCurrentDocOriginal ? (
+              <div
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5"
+                title={t('originalMasterNotice') || 'Original unedited master file'}
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span>{t('rawArchive') || 'Archive Master'}</span>
+              </div>
+            ) : hasOriginal ? (
               <div className="flex items-center gap-1">
                 <button
                   type="button"
@@ -567,23 +607,25 @@ export const ImageModal: React.FC<ImageModalProps> = ({
               )
             )}
 
-            {/* Download Button */}
-            {isEditor && (
-            <>
-              <button onClick={handleMarkVerified} className={`p-2 rounded-full hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors flex items-center`} title={t('markVerified') || 'Mark as Completed'}>
-                <Image src="/icons/status-completed.svg" width={24} height={24} alt="" />
-              </button>
-              <button onClick={handleMarkPending} className={`p-2 rounded-full hover:bg-yellow-100 dark:hover:bg-yellow-900/30 transition-colors flex items-center`} title={t('markPending') || 'Mark as Not Analysed'}>
-                <Image src="/icons/status-pending.svg" width={24} height={24} alt="" />
-              </button>
-              <button onClick={handleRerunAnalysis} className={`p-2 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-blue-600 flex items-center`} title={t('rerunAnalysis') || 'Rerun Analysis'}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
-              </button>
-              <LoadingButton onClick={handleDownload} isLoading={isDownloading} loadingText={null} spinnerSize="sm" className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ml-2 border-l border-gray-300 dark:border-gray-600 pl-4`} title="Download">
-                <Image src="/download.svg" alt="Download" width={24} height={24} className="dark:invert" />
-              </LoadingButton>
-            </>
+            {/* Analysis / Verification Status Controls (only for edited docs; hidden for originals) */}
+            {isEditor && !isViewingOriginal && (
+              <>
+                <button onClick={handleMarkVerified} className={`p-2 rounded-full hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors flex items-center`} title={t('markVerified') || 'Mark as Completed'}>
+                  <Image src="/icons/status-completed.svg" width={24} height={24} alt="" />
+                </button>
+                <button onClick={handleMarkPending} className={`p-2 rounded-full hover:bg-yellow-100 dark:hover:bg-yellow-900/30 transition-colors flex items-center`} title={t('markPending') || 'Mark as Not Analysed'}>
+                  <Image src="/icons/status-pending.svg" width={24} height={24} alt="" />
+                </button>
+                <button onClick={handleRerunAnalysis} className={`p-2 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-blue-600 flex items-center`} title={t('rerunAnalysis') || 'Rerun Analysis'}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
+                </button>
+              </>
             )}
+
+            {/* Download Button */}
+            <LoadingButton onClick={handleDownload} isLoading={isDownloading} loadingText={null} spinnerSize="sm" className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${!isViewingOriginal && isEditor ? 'ml-2 border-l border-gray-300 dark:border-gray-600 pl-4' : ''}`} title="Download">
+              <Image src="/download.svg" alt="Download" width={24} height={24} className="dark:invert" />
+            </LoadingButton>
 
             {/* Full Screen Button */}
             <button onClick={handleFullScreen} className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors`} title="Full Screen">
@@ -702,12 +744,12 @@ export const ImageModal: React.FC<ImageModalProps> = ({
                   <div className="mb-4 p-3.5 rounded-xl border bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/80">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className={`w-2.5 h-2.5 rounded-full ${hasOriginal ? 'bg-green-500' : 'bg-amber-500'}`} />
+                        <span className={`w-2.5 h-2.5 rounded-full ${isCurrentDocOriginal || hasOriginal ? 'bg-green-500' : 'bg-amber-500'}`} />
                         <h3 className={`font-semibold text-xs md:text-sm ${textSecondary}`}>
                           {t('originalMasterDocument') || 'Original Master Document'}
                         </h3>
                       </div>
-                      {isEditor && (
+                      {!isCurrentDocOriginal && isEditor && (
                         <button
                           type="button"
                           onClick={() => setIsLinkOriginalModalOpen(true)}
@@ -718,12 +760,23 @@ export const ImageModal: React.FC<ImageModalProps> = ({
                       )}
                     </div>
 
-                    {hasOriginal ? (
+                    {isCurrentDocOriginal ? (
+                      <div className="mt-2.5 flex items-center justify-between text-xs flex-wrap gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-400">{t('originalMasterNotice') || 'This is an original unedited master file.'}</span>
+                          {linkedEditedDocnumber && (
+                            <span className="font-mono text-[11px] bg-blue-500/10 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/30">
+                              {t('linkedToEdited') || 'Linked to edited'}: Doc #{linkedEditedDocnumber}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ) : hasOriginal ? (
                       <div className="mt-2.5 flex items-center justify-between text-xs flex-wrap gap-2">
                         <div className="flex items-center gap-2">
                           <span className="text-gray-400">{t('document') || 'Document'}:</span>
                           <span className="font-semibold text-gray-800 dark:text-gray-200">
-                            {metaData?.original_docname || doc.original_docname || 'Original Master File'}
+                            {overrideOriginal?.originalDocname || metaData?.original_docname || doc.original_docname || 'Original Master File'}
                           </span>
                           <span className="font-mono text-[11px] bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/30">
                             Doc #{originalDocnumber}
@@ -828,7 +881,7 @@ export const ImageModal: React.FC<ImageModalProps> = ({
                   )}
                 </CollapsibleSection>
               </div>
-              {doc.media_type === 'image' && isEditor && (
+              {doc.media_type === 'image' && isEditor && !isViewingOriginal && (
                 <div className="text-center">
                   <LoadingButton
                     onClick={handleAnalyze}
@@ -843,7 +896,7 @@ export const ImageModal: React.FC<ImageModalProps> = ({
             </div>
           )}
 
-          {view === 'analysis' && analysisResult && !error && isEditor && (
+          {view === 'analysis' && analysisResult && !error && isEditor && !isViewingOriginal && (
             <AnalysisView
               result={analysisResult}
               docId={doc.doc_id}

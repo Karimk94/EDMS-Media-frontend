@@ -22,14 +22,15 @@ interface UseDocumentMetadataOptions {
 
 export function useDocumentMetadata(docId: string | number | undefined, options: UseDocumentMetadataOptions = {}) {
     const { enabled = true } = options;
+    const normalizedDocId = docId !== undefined && docId !== null ? String(docId) : undefined;
 
     return useQuery<DocumentMetadata>({
-        queryKey: ['documentMetadata', docId],
+        queryKey: ['documentMetadata', normalizedDocId],
         queryFn: async () => {
-            if (!docId) throw new Error("No Doc ID provided");
-            return apiClient.get(`/api/document/${docId}/metadata`);
+            if (!normalizedDocId) throw new Error("No Doc ID provided");
+            return apiClient.get(`/api/document/${normalizedDocId}/metadata`);
         },
-        enabled: !!docId && enabled,
+        enabled: !!normalizedDocId && enabled,
         staleTime: 1000 * 10, // 10 seconds cache
     });
 }

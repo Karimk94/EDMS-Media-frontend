@@ -88,6 +88,7 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
   const leftFilesInputRef = useRef<HTMLInputElement>(null);
   const rightFolderInputRef = useRef<HTMLInputElement>(null);
   const rightFilesInputRef = useRef<HTMLInputElement>(null);
+  const eventFolderInputRef = useRef<HTMLInputElement>(null);
 
   // Close on Escape key if not currently uploading
   useEffect(() => {
@@ -123,71 +124,125 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
   };
 
   /**
+   * Intelligently analyzes a selected folder's files.
+   * If it finds an edited/selected subfolder alongside parent files,
+   * it automatically splits them across the Edited and Original windows in 1 click!
+   */
+  const tryAutoSplitFolder = (fileArray: File[]): boolean => {
+    if (fileArray.length === 0 || !(fileArray[0] as any).webkitRelativePath) {
+      return false;
+    }
+
+    const firstRel = (fileArray[0] as any).webkitRelativePath;
+    const rootFolderName = firstRel.split('/')[0];
+
+    const rootFiles: File[] = [];
+    const subfolderMap = new Map<string, File[]>();
+
+    fileArray.forEach((f) => {
+      const parts = ((f as any).webkitRelativePath || '').split('/');
+      if (parts.length === 2) {
+        rootFiles.push(f);
+      } else if (parts.length >= 3) {
+        const subName = parts[1];
+        const existing = subfolderMap.get(subName) || [];
+        existing.push(f);
+        subfolderMap.set(subName, existing);
+      }
+    });
+
+    if (subfolderMap.size === 0) {
+      return false;
+    }
+
+    // Comprehensive pattern matching edited/selected subfolder names
+    const SUBFOLDER_KEYWORDS =
+      /^(selected|selects|select|selection|selections|edited|edits|edit|retouched|retouch|final|finals|exports|export|processed|process|approved|best|done|output|deliverables|v\d+|jpegs|jpgs)$/i;
+
+    let matchedSubfolder: string | null = null;
+
+    // 1. Keyword match on subfolder name
+    for (const subName of Array.from(subfolderMap.keys())) {
+      if (
+        SUBFOLDER_KEYWORDS.test(subName) ||
+        /select|edit|retouch|final|export|process|approved/i.test(subName)
+      ) {
+        matchedSubfolder = subName;
+        break;
+      }
+    }
+
+    // 2. If no keyword match, but only 1 subfolder exists alongside root files
+    if (!matchedSubfolder && subfolderMap.size === 1 && rootFiles.length > 0) {
+      matchedSubfolder = Array.from(subfolderMap.keys())[0];
+    }
+
+    // 3. Match by file stem similarity between subfolder and root files
+    if (!matchedSubfolder && rootFiles.length > 0) {
+      const rootStems = new Set(rootFiles.map((f) => getNormalizedStem(f.name)));
+      let bestMatchCount = 0;
+      let bestSub: string | null = null;
+      for (const [subName, subFiles] of Array.from(subfolderMap.entries())) {
+        const matchCount = subFiles.filter((f) => rootStems.has(getNormalizedStem(f.name))).length;
+        if (matchCount > bestMatchCount) {
+          bestMatchCount = matchCount;
+          bestSub = subName;
+        }
+      }
+      if (bestMatchCount > 0 && bestSub) {
+        matchedSubfolder = bestSub;
+      }
+    }
+
+    if (matchedSubfolder) {
+      const edited = subfolderMap.get(matchedSubfolder)!;
+      let originals: File[] = rootFiles;
+      if (originals.length === 0) {
+        for (const [subName, subFiles] of Array.from(subfolderMap.entries())) {
+          if (subName !== matchedSubfolder) {
+            originals = subFiles;
+            break;
+          }
+        }
+      }
+
+      setRawEditedFiles(edited);
+      setRawOriginalFiles(originals);
+      setEditedDirectoryName(`${rootFolderName}/${matchedSubfolder}`);
+      setParentDirectoryName(`${rootFolderName} (..\\)`);
+      showToast(
+        t('autoDetectedFolderStructure') ||
+          `Auto-detected: ${edited.length} edited in '${matchedSubfolder}', ${originals.length} originals in parent directory (..\\)`,
+        'success'
+      );
+      return true;
+    }
+
+    return false;
+  };
+
+  /**
    * Handles selection of the Edited folder.
-   * Auto-detects if the user picked a parent folder containing an edited subfolder,
-   * OR prompts the user to select the parent directory (..\) for originals.
+   * Auto-detects if user picked a parent folder containing an edited subfolder!
    */
   const handleEditedFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
     if (!selectedFiles || selectedFiles.length === 0) return;
     const fileArray = Array.from(selectedFiles).filter((f) => f.size > 0 && f.name);
 
+    if (tryAutoSplitFolder(fileArray)) {
+      e.target.value = '';
+      return;
+    }
+
     if (fileArray.length > 0 && (fileArray[0] as any).webkitRelativePath) {
-      const firstRel = (fileArray[0] as any).webkitRelativePath;
-      const parts = firstRel.split('/');
-      const rootFolderName = parts[0];
-
-      // Check if user selected a top-level folder that contains an "Edited" subfolder and parent files
-      const hasEditedSubfolder = fileArray.some((f) => {
-        const p = (f as any).webkitRelativePath?.split('/') || [];
-        return p.length > 2 && /^(edited|retouched|selects|final|exports|processed)$/i.test(p[1]);
-      });
-
-      if (hasEditedSubfolder) {
-        // Intelligently separate edited files and parent originals
-        const edited: File[] = [];
-        const originals: File[] = [];
-
-        fileArray.forEach((f) => {
-          const p = (f as any).webkitRelativePath?.split('/') || [];
-          if (p.length > 2 && /^(edited|retouched|selects|final|exports|processed)$/i.test(p[1])) {
-            edited.push(f);
-          } else {
-            originals.push(f);
-          }
-        });
-
-        setRawEditedFiles(edited);
-        setRawOriginalFiles(originals);
-        setEditedDirectoryName(`${rootFolderName}/${parts[1] || 'Edited'}`);
-        setParentDirectoryName(`${rootFolderName} (..\\)`);
-        showToast(
-          t('autoDetectedFolderStructure') ||
-            `Auto-detected: ${edited.length} edited in subfolder, ${originals.length} originals in parent directory`,
-          'info'
-        );
-        e.target.value = '';
-        return;
-      }
-
+      const rootFolderName = (fileArray[0] as any).webkitRelativePath.split('/')[0];
       setEditedDirectoryName(rootFolderName);
-      setParentDirectoryName(`..\\ (${t('parentDirectory') || 'Parent Directory'})`);
+      setParentDirectoryName('');
     }
 
     addEditedFiles(fileArray);
     e.target.value = '';
-
-    // Auto-prompt to open the parent directory if right side is empty
-    if (rawOriginalFiles.length === 0) {
-      setTimeout(() => {
-        showToast(
-          t('selectParentDirectoryPrompt') ||
-            'Select the parent directory (..\\) containing the original files',
-          'info'
-        );
-        rightFolderInputRef.current?.click();
-      }, 350);
-    }
   };
 
   /**
@@ -198,12 +253,49 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
     if (!selectedFiles || selectedFiles.length === 0) return;
     const fileArray = Array.from(selectedFiles).filter((f) => f.size > 0 && f.name);
 
+    // If left side was empty, check if this parent folder contains an edited subfolder
+    if (rawEditedFiles.length === 0 && tryAutoSplitFolder(fileArray)) {
+      e.target.value = '';
+      return;
+    }
+
+    // If left side already has files, filter out files that are inside the edited subfolder
+    let originals = fileArray;
+    if (editedDirectoryName) {
+      const subNameClean = editedDirectoryName.split('/').pop()?.toLowerCase();
+      originals = fileArray.filter((f) => {
+        const parts = ((f as any).webkitRelativePath || '').split('/');
+        if (parts.length >= 3 && subNameClean && parts[1].toLowerCase() === subNameClean) {
+          return false;
+        }
+        return true;
+      });
+    }
+
     if (fileArray.length > 0 && (fileArray[0] as any).webkitRelativePath) {
       const rootFolderName = (fileArray[0] as any).webkitRelativePath.split('/')[0];
       setParentDirectoryName(`${rootFolderName} (..\\)`);
     }
 
-    addOriginalFiles(fileArray);
+    addOriginalFiles(originals);
+    e.target.value = '';
+  };
+
+  /**
+   * 1-Click Event / Parent folder selector handler
+   */
+  const handleEventFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = e.target.files;
+    if (!selectedFiles || selectedFiles.length === 0) return;
+    const fileArray = Array.from(selectedFiles).filter((f) => f.size > 0 && f.name);
+
+    if (!tryAutoSplitFolder(fileArray)) {
+      if (fileArray.length > 0 && (fileArray[0] as any).webkitRelativePath) {
+        const rootFolderName = (fileArray[0] as any).webkitRelativePath.split('/')[0];
+        setEditedDirectoryName(rootFolderName);
+      }
+      addEditedFiles(fileArray);
+    }
     e.target.value = '';
   };
 
@@ -539,6 +631,19 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
 
       if (editedResult.success && editedResult.docnumber) {
         successfulEditedDocnumbers.push(editedResult.docnumber);
+
+        // Fallback explicit linking if original was present to guarantee relation persistence
+        if (originalDocnumber) {
+          try {
+            await apiClient.post(`${apiURL}/document/${editedResult.docnumber}/link_original`, {
+              original_docnumber: originalDocnumber,
+              relation_type: 'ORIGINAL',
+            });
+          } catch (linkErr) {
+            console.warn('Fallback link_original call warning:', linkErr);
+          }
+        }
+
         setUploadItems((prev) =>
           prev.map((it, idx) =>
             idx === i
@@ -571,6 +676,9 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
     queryClient.invalidateQueries({ queryKey: ['quota'] });
     queryClient.invalidateQueries({ queryKey: ['user'] });
     queryClient.invalidateQueries({ queryKey: ['folders'] });
+    queryClient.invalidateQueries({ queryKey: ['folderContents'] });
+    queryClient.invalidateQueries({ queryKey: ['documentMetadata'] });
+    queryClient.invalidateQueries({ queryKey: ['documents'] });
 
     setIsUploading(false);
     setIsUploadFinished(true);
@@ -704,6 +812,40 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
       {/* Main Body: Upload Selection vs. Results Screen */}
       {!hasStartedUpload ? (
         <div className="flex-1 flex flex-col overflow-hidden gap-4">
+          {/* 1-Click Smart Event Folder Selection Banner */}
+          <div className="bg-gradient-to-r from-blue-950/70 via-slate-900/90 to-amber-950/70 border border-slate-700/80 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="text-xl">✨</span>
+              <div className="min-w-0">
+                <h4 className="text-white text-xs md:text-sm font-semibold truncate">
+                  {t('oneClickEventFolderTitle') || '1-Click Auto-Detect: Select Event Folder'}
+                </h4>
+                <p className="text-gray-300 text-[11px] md:text-xs truncate">
+                  {t('oneClickEventFolderDesc') || 'Select the parent folder containing your edited subfolder to auto-detect both in one click.'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <input
+                type="file"
+                // @ts-ignore
+                webkitdirectory="true"
+                directory="true"
+                ref={eventFolderInputRef}
+                className="hidden"
+                onChange={handleEventFolderSelect}
+              />
+              <button
+                type="button"
+                onClick={() => eventFolderInputRef.current?.click()}
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-amber-600 hover:from-blue-500 hover:to-amber-500 text-white font-bold text-xs rounded-lg shadow-md transition flex items-center gap-2"
+              >
+                <Image src="/folder.svg" alt="" width={15} height={15} className="brightness-0 invert" />
+                {t('selectEventFolderBtn') || 'Select Parent / Event Folder'}
+              </button>
+            </div>
+          </div>
+
           {/* Top Half: Left & Right Dropzones */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-shrink-0">
             {/* Left Zone: Edited Photos */}
@@ -830,17 +972,43 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
                 <div className="flex items-center gap-1.5 truncate">
                   <span className="font-semibold text-amber-400">{t('parentDirectory') || 'Parent Directory (..\\)'}:</span>
                   <span className="text-gray-200 truncate">
-                    {parentDirectoryName || t('parentDirHint') || 'Default: Parent directory (..\\) of the edited folder'}
+                    {parentDirectoryName && rawOriginalFiles.length > 0
+                      ? `${parentDirectoryName} (${rawOriginalFiles.length} ${t('file') || 'files'})`
+                      : rawEditedFiles.length > 0
+                        ? (t('parentDirectoryNotSelected') || 'Not selected yet (click below to select ..\\)')
+                        : (t('parentDirHint') || 'Default: Parent directory (..\\) of the edited folder')}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => rightFolderInputRef.current?.click()}
-                  className="text-xs underline text-amber-300 hover:text-amber-100 flex-shrink-0 ml-2"
-                >
-                  {t('changeDirectory') || 'Change Directory'}
-                </button>
+                {rawOriginalFiles.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => rightFolderInputRef.current?.click()}
+                    className="text-xs underline text-amber-300 hover:text-amber-100 flex-shrink-0 ml-2"
+                  >
+                    {t('changeDirectory') || 'Change Directory'}
+                  </button>
+                )}
               </div>
+
+              {/* Prominent Action Callout when Edited files are loaded but Originals are pending */}
+              {rawEditedFiles.length > 0 && rawOriginalFiles.length === 0 ? (
+                <div className="my-auto py-3 px-3 rounded-lg border border-dashed border-amber-500/60 bg-amber-950/30 flex flex-col items-center text-center">
+                  <p className="text-amber-200 text-xs font-semibold mb-1">
+                    {t('parentFolderRequiredNotice') || 'Original files are in the parent directory (..\\). Select the parent folder to load them:'}
+                  </p>
+                  <p className="text-gray-400 text-[11px] mb-2.5 max-w-sm">
+                    {t('loadOriginalsHelp') || `Original master files are in the parent directory of your edited folder "${editedDirectoryName}". Click below to select the parent folder.`}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => rightFolderInputRef.current?.click()}
+                    className="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-lg shadow transition flex items-center gap-1.5"
+                  >
+                    <Image src="/folder.svg" alt="" width={15} height={15} className="brightness-0" />
+                    {t('selectParentFolderBtn') || 'Select Parent Folder (..\\) Now'}
+                  </button>
+                </div>
+              ) : null}
 
               {/* Action buttons */}
               <div className="flex flex-wrap items-center gap-2 mt-auto pt-2">
