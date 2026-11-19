@@ -637,7 +637,7 @@
   "uploadingPairs": "Uploading Paired Documents...",
   "uploadCompleted": "Batch Upload Finished",
   "uploadProgressDesc": "Original files are placed in _Originals and paired with edited photos.",
-  "viewOriginal": "Original",
+  "viewOriginal": " View Original",
   "viewEdited": "View Edited",
   "viewingOriginal": "Viewing Original Unedited Master",
   "backToEdited": "Back to Edited",

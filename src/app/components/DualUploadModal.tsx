@@ -123,24 +123,39 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
     });
   };
 
+  const handleEditedFilesSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.currentTarget.files || []);
+    e.currentTarget.value = '';
+    addEditedFiles(files);
+  };
+
+  const handleOriginalFilesSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.currentTarget.files || []);
+    e.currentTarget.value = '';
+    addOriginalFiles(files);
+  };
+
   /**
    * Intelligently analyzes a selected folder's files.
    * If it finds an edited/selected subfolder alongside parent files,
    * it automatically splits them across the Edited and Original windows in 1 click!
    */
   const tryAutoSplitFolder = (fileArray: File[]): boolean => {
-    if (fileArray.length === 0 || !(fileArray[0] as any).webkitRelativePath) {
+    const firstRelativePath = fileArray
+      .map((file) => (file as File & { webkitRelativePath?: string }).webkitRelativePath)
+      .find((path) => Boolean(path));
+    if (!firstRelativePath) {
       return false;
     }
 
-    const firstRel = (fileArray[0] as any).webkitRelativePath;
-    const rootFolderName = firstRel.split('/')[0];
+    const rootFolderName = firstRelativePath.split('/')[0];
 
     const rootFiles: File[] = [];
     const subfolderMap = new Map<string, File[]>();
 
     fileArray.forEach((f) => {
-      const parts = ((f as any).webkitRelativePath || '').split('/');
+      const relativePath = (f as File & { webkitRelativePath?: string }).webkitRelativePath || '';
+      const parts = relativePath.split('/');
       if (parts.length === 2) {
         rootFiles.push(f);
       } else if (parts.length >= 3) {
@@ -155,29 +170,27 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
       return false;
     }
 
-    // Comprehensive pattern matching edited/selected subfolder names
+    // A single child folder is unambiguous, whatever it is named.
+    let matchedSubfolder: string | null =
+      subfolderMap.size === 1 ? Array.from(subfolderMap.keys())[0] : null;
+
+    // Otherwise, look for common edited/selected folder names.
     const SUBFOLDER_KEYWORDS =
       /^(selected|selects|select|selection|selections|edited|edits|edit|retouched|retouch|final|finals|exports|export|processed|process|approved|best|done|output|deliverables|v\d+|jpegs|jpgs)$/i;
 
-    let matchedSubfolder: string | null = null;
-
-    // 1. Keyword match on subfolder name
-    for (const subName of Array.from(subfolderMap.keys())) {
-      if (
-        SUBFOLDER_KEYWORDS.test(subName) ||
-        /select|edit|retouch|final|export|process|approved/i.test(subName)
-      ) {
-        matchedSubfolder = subName;
-        break;
+    if (!matchedSubfolder) {
+      for (const subName of Array.from(subfolderMap.keys())) {
+        if (
+          SUBFOLDER_KEYWORDS.test(subName) ||
+          /select|edit|retouch|final|export|process|approved/i.test(subName)
+        ) {
+          matchedSubfolder = subName;
+          break;
+        }
       }
     }
 
-    // 2. If no keyword match, but only 1 subfolder exists alongside root files
-    if (!matchedSubfolder && subfolderMap.size === 1 && rootFiles.length > 0) {
-      matchedSubfolder = Array.from(subfolderMap.keys())[0];
-    }
-
-    // 3. Match by file stem similarity between subfolder and root files
+    // Match by file stem similarity when the folder names are inconclusive.
     if (!matchedSubfolder && rootFiles.length > 0) {
       const rootStems = new Set(rootFiles.map((f) => getNormalizedStem(f.name)));
       let bestMatchCount = 0;
@@ -226,36 +239,34 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
    * Auto-detects if user picked a parent folder containing an edited subfolder!
    */
   const handleEditedFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = e.target.files;
-    if (!selectedFiles || selectedFiles.length === 0) return;
-    const fileArray = Array.from(selectedFiles).filter((f) => f.size > 0 && f.name);
+    const fileArray = Array.from(e.currentTarget.files || []).filter((f) => f.size > 0 && f.name);
+    e.currentTarget.value = '';
+    if (fileArray.length === 0) return;
 
     if (tryAutoSplitFolder(fileArray)) {
-      e.target.value = '';
       return;
     }
 
-    if (fileArray.length > 0 && (fileArray[0] as any).webkitRelativePath) {
-      const rootFolderName = (fileArray[0] as any).webkitRelativePath.split('/')[0];
+    const relativePath = (fileArray[0] as File & { webkitRelativePath?: string }).webkitRelativePath;
+    if (relativePath) {
+      const rootFolderName = relativePath.split('/')[0];
       setEditedDirectoryName(rootFolderName);
       setParentDirectoryName('');
     }
 
     addEditedFiles(fileArray);
-    e.target.value = '';
   };
 
   /**
    * Handles selection of the Parent folder for originals.
    */
   const handleParentFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = e.target.files;
-    if (!selectedFiles || selectedFiles.length === 0) return;
-    const fileArray = Array.from(selectedFiles).filter((f) => f.size > 0 && f.name);
+    const fileArray = Array.from(e.currentTarget.files || []).filter((f) => f.size > 0 && f.name);
+    e.currentTarget.value = '';
+    if (fileArray.length === 0) return;
 
     // If left side was empty, check if this parent folder contains an edited subfolder
     if (rawEditedFiles.length === 0 && tryAutoSplitFolder(fileArray)) {
-      e.target.value = '';
       return;
     }
 
@@ -264,7 +275,8 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
     if (editedDirectoryName) {
       const subNameClean = editedDirectoryName.split('/').pop()?.toLowerCase();
       originals = fileArray.filter((f) => {
-        const parts = ((f as any).webkitRelativePath || '').split('/');
+        const relativePath = (f as File & { webkitRelativePath?: string }).webkitRelativePath || '';
+        const parts = relativePath.split('/');
         if (parts.length >= 3 && subNameClean && parts[1].toLowerCase() === subNameClean) {
           return false;
         }
@@ -272,31 +284,31 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
       });
     }
 
-    if (fileArray.length > 0 && (fileArray[0] as any).webkitRelativePath) {
-      const rootFolderName = (fileArray[0] as any).webkitRelativePath.split('/')[0];
+    const relativePath = (fileArray[0] as File & { webkitRelativePath?: string }).webkitRelativePath;
+    if (relativePath) {
+      const rootFolderName = relativePath.split('/')[0];
       setParentDirectoryName(`${rootFolderName} (..\\)`);
     }
 
     addOriginalFiles(originals);
-    e.target.value = '';
   };
 
   /**
    * 1-Click Event / Parent folder selector handler
    */
   const handleEventFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = e.target.files;
-    if (!selectedFiles || selectedFiles.length === 0) return;
-    const fileArray = Array.from(selectedFiles).filter((f) => f.size > 0 && f.name);
+    const fileArray = Array.from(e.currentTarget.files || []).filter((f) => f.size > 0 && f.name);
+    e.currentTarget.value = '';
+    if (fileArray.length === 0) return;
 
     if (!tryAutoSplitFolder(fileArray)) {
-      if (fileArray.length > 0 && (fileArray[0] as any).webkitRelativePath) {
-        const rootFolderName = (fileArray[0] as any).webkitRelativePath.split('/')[0];
+      const relativePath = (fileArray[0] as File & { webkitRelativePath?: string }).webkitRelativePath;
+      if (relativePath) {
+        const rootFolderName = relativePath.split('/')[0];
         setEditedDirectoryName(rootFolderName);
       }
       addEditedFiles(fileArray);
     }
-    e.target.value = '';
   };
 
   // Build the paired mapping whenever file lists or manual overrides change
@@ -897,10 +909,11 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
                   multiple
                   ref={leftFilesInputRef}
                   className="hidden"
-                  onChange={(e) => addEditedFiles(e.target.files)}
+                  onChange={handleEditedFilesSelect}
                 />
                 <input
                   type="file"
+                  multiple
                   // @ts-ignore
                   webkitdirectory="true"
                   directory="true"
@@ -1017,10 +1030,11 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
                   multiple
                   ref={rightFilesInputRef}
                   className="hidden"
-                  onChange={(e) => addOriginalFiles(e.target.files)}
+                  onChange={handleOriginalFilesSelect}
                 />
                 <input
                   type="file"
+                  multiple
                   // @ts-ignore
                   webkitdirectory="true"
                   directory="true"
