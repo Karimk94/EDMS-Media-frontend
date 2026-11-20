@@ -73,6 +73,7 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
   const [rawOriginalFiles, setRawOriginalFiles] = useState<File[]>([]);
   const [editedDirectoryName, setEditedDirectoryName] = useState<string>('');
   const [parentDirectoryName, setParentDirectoryName] = useState<string>('');
+  const [eventFolderName, setEventFolderName] = useState<string>('');
   const [manualPairs, setManualPairs] = useState<Record<string, string>>({}); // editedFileName -> originalFileName or '__NONE__'
 
   const [isUploading, setIsUploading] = useState(false);
@@ -223,6 +224,7 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
       setRawOriginalFiles(originals);
       setEditedDirectoryName(`${rootFolderName}/${matchedSubfolder}`);
       setParentDirectoryName(`${rootFolderName} (..\\)`);
+      setEventFolderName(rootFolderName);
       showToast(
         t('autoDetectedFolderStructure') ||
           `Auto-detected: ${edited.length} edited in '${matchedSubfolder}', ${originals.length} originals in parent directory (..\\)`,
@@ -252,6 +254,7 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
       const rootFolderName = relativePath.split('/')[0];
       setEditedDirectoryName(rootFolderName);
       setParentDirectoryName('');
+      setEventFolderName(rootFolderName);
     }
 
     addEditedFiles(fileArray);
@@ -288,6 +291,9 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
     if (relativePath) {
       const rootFolderName = relativePath.split('/')[0];
       setParentDirectoryName(`${rootFolderName} (..\\)`);
+      if (rawEditedFiles.length > 0) {
+        setEventFolderName(rootFolderName);
+      }
     }
 
     addOriginalFiles(originals);
@@ -306,6 +312,7 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
       if (relativePath) {
         const rootFolderName = relativePath.split('/')[0];
         setEditedDirectoryName(rootFolderName);
+        setEventFolderName(rootFolderName);
       }
       addEditedFiles(fileArray);
     }
@@ -388,6 +395,7 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
   const clearEdited = () => {
     setRawEditedFiles([]);
     setEditedDirectoryName('');
+    setEventFolderName('');
     setManualPairs({});
   };
 
@@ -443,6 +451,62 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
       return String(createRes.folder_id);
     }
     throw new Error(createRes.message || 'Failed to create _Originals folder');
+  };
+
+  const createFolderAndEvent = async (
+    folderName: string
+  ): Promise<{ folderId: string | null; eventId: number | null }> => {
+    const name = folderName.trim();
+    if (!name) return { folderId: parentId, eventId: null };
+
+    const eventsResponse = await apiClient.get(
+      `${apiURL}/events?search=${encodeURIComponent(name)}&fetch_all=true`
+    );
+    const existingEvent = eventsResponse.events?.find(
+      (event: { name?: string; id?: number }) => event.name?.toLowerCase() === name.toLowerCase()
+    );
+
+    if (existingEvent) {
+      showToast(t('eventFound') || `Found existing event "${name}", adding files to it`, 'info');
+      if (parentId) return { folderId: parentId, eventId: existingEvent.id };
+    }
+
+    const folderResponse = await apiClient.post(`${apiURL}/folders`, {
+      name,
+      description: `Folder uploaded from: ${name}`,
+      parent_id: parentId,
+    });
+    if (!folderResponse.folder_id) {
+      throw new Error(folderResponse.message || 'Failed to create folder');
+    }
+    const folderId = String(folderResponse.folder_id);
+
+    if (existingEvent) return { folderId, eventId: existingEvent.id };
+
+    const eventResponse = await apiClient.post(`${apiURL}/events`, { name });
+    if (eventResponse.id) {
+      showToast(t('eventCreated') || `Event "${name}" created successfully`, 'success');
+      return { folderId, eventId: eventResponse.id };
+    }
+    if (eventResponse.message?.includes('already exists')) {
+      const refreshedEvents = await apiClient.get(
+        `${apiURL}/events?search=${encodeURIComponent(name)}&fetch_all=true`
+      );
+      const racedEvent = refreshedEvents.events?.find(
+        (event: { name?: string; id?: number }) => event.name?.toLowerCase() === name.toLowerCase()
+      );
+      if (racedEvent) return { folderId, eventId: racedEvent.id };
+    }
+
+    throw new Error(eventResponse.message || `Failed to create event "${name}"`);
+  };
+
+  const linkDocumentToEvent = async (docnumber: number, eventId: number) => {
+    try {
+      await apiClient.put(`${apiURL}/document/${docnumber}/event`, { event_id: eventId });
+    } catch (error) {
+      console.error(`Error linking document ${docnumber} to event ${eventId}:`, error);
+    }
   };
 
   /**
@@ -532,6 +596,22 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
       return;
     }
 
+    let uploadParentId = parentId;
+    let eventId: number | null = null;
+    if (eventFolderName.trim()) {
+      try {
+        const eventFolder = await createFolderAndEvent(eventFolderName);
+        uploadParentId = eventFolder.folderId;
+        eventId = eventFolder.eventId;
+      } catch (error) {
+        showToast(
+          error instanceof Error ? error.message : 'Failed to create folder and event',
+          'error'
+        );
+        return;
+      }
+    }
+
     setIsUploading(true);
     setHasStartedUpload(true);
     setIsUploadFinished(false);
@@ -552,7 +632,7 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
 
     if (hasAnyOriginals) {
       try {
-        originalsFolderId = await getOrCreateOriginalsFolder(parentId);
+        originalsFolderId = await getOrCreateOriginalsFolder(uploadParentId);
       } catch (err: any) {
         showToast(err.message || 'Failed to prepare _Originals folder', 'error');
         setIsUploading(false);
@@ -611,6 +691,9 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
         }
 
         originalDocnumber = origResult.docnumber;
+        if (eventId) {
+          await linkDocumentToEvent(originalDocnumber, eventId);
+        }
       }
 
       // 2. Upload edited file (with originalDocnumber linked and AI processing active)
@@ -625,7 +708,7 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
       const editedResult = await uploadSingleFile(
         item.editedFile,
         removeExtension(item.editedFile.name),
-        parentId,
+        uploadParentId,
         {
           isOriginal: false,
           skipAi: false, // Edited file IS analyzed by the AI pipeline!
@@ -643,6 +726,9 @@ export const DualUploadModal: React.FC<DualUploadModalProps> = ({
 
       if (editedResult.success && editedResult.docnumber) {
         successfulEditedDocnumbers.push(editedResult.docnumber);
+        if (eventId) {
+          await linkDocumentToEvent(editedResult.docnumber, eventId);
+        }
 
         // Fallback explicit linking if original was present to guarantee relation persistence
         if (originalDocnumber) {
